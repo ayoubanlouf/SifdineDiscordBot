@@ -1,0 +1,12 @@
+discord
+python-dotenv
+aiosqlite
+psutil
+moviepy
+requests
+googletrans
+google-search-results
+akinator
+chess
+pillow
+pytz
