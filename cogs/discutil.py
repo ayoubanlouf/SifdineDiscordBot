@@ -243,6 +243,14 @@ class DiscordUtil(commands.Cog):
         booster_role = guild.premium_subscriber_role
         rolemention = booster_role.mention if booster_role else "None"
 
+        if guild.premium_subscription_count > 0:
+            cached_boosters = [m for m in guild.members if m.premium_since]
+            if not cached_boosters:
+                try:
+                    await guild.chunk(cache=True)
+                except Exception:
+                    pass
+
         booster_lines = []
         for member in guild.members:
             if member.premium_since:

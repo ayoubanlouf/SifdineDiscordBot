@@ -17,8 +17,13 @@ class FuzzyMember(commands.Converter):
         arg_clean = argument.lower()
         matches = []
 
-        # 2. Compare input against all server members
-        for member in ctx.guild.members:
+        # 2. Compare input against server members (dynamically query gateway or fallback to cache)
+        try:
+            members = await ctx.guild.query_members(query=argument, limit=50)
+        except Exception:
+            members = ctx.guild.members
+
+        for member in members:
             names = {
                 member.name.lower(),
                 member.display_name.lower(),

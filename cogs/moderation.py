@@ -871,7 +871,7 @@ class Moderation(commands.Cog):
 
         try:
             await member.ban(reason=reason)
-            await ctx.send(f"{member.mention} tban mn server. Reason: {reason or 'Makaynch'}")
+            await ctx.send(f"{member.mention} tbanna mn server. Reason: {reason or 'Makaynch'}")
         except Exception as e:
             await ctx.send(embed=discord.Embed(description=f"Ma9dertch nban **{member.display_name}**: `{e}`", color=0x000000))
 
@@ -881,7 +881,7 @@ class Moderation(commands.Cog):
         try:
             user = await self.bot.fetch_user(user_id)
             await ctx.guild.unban(user)
-            await ctx.send(f"{user.mention} (ID: {user_id}) t3tlo l ban.")
+            await ctx.send(f"{user.mention} (ID: {user_id}) t unbanna.")
         except discord.NotFound:
             await ctx.send("Mal9itch user b had l ID.")
         except Exception as e:

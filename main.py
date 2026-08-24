@@ -250,7 +250,18 @@ class ModernHelpCommand(commands.HelpCommand):
 
 
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=ModernHelpCommand(), case_insensitive=True)
+intents.presences = False
+intents.typing = False
+
+bot = commands.Bot(
+    command_prefix=get_prefix,
+    intents=intents,
+    help_command=ModernHelpCommand(),
+    case_insensitive=True,
+    chunk_guilds_at_startup=False,
+    member_cache_flags=discord.MemberCacheFlags(voice=True, joined=False),
+    max_messages=50
+)
 bot.Paginator = Paginator
 
 

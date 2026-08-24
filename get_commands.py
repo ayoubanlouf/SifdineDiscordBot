@@ -8,12 +8,13 @@ AllBotCommands = {
     ],
     "Global Util": [
         "makegif", "image", "dictionary", "flag", "weather", "time", "translate", "youtube", "calculate", "rhyme",
-        "locate", "reverse", "8ball", "gif", "coinflip", "dice", "quote", "animeinfo", "github", "reddituser",
-        "tiktok", "instagram", "twitter", "download", "usernamecheck", "minecraft", "roblox", "chessuser"
+        "locate", "reverse", "eightball", "gif", "coinflip", "dice", "kanyequote", "anime", "github", "reddit",
+        "tiktok", "instagram", "twitter", "download", "username", "minecraft", "roblox", "chess",
+        "reminder", "qrcode", "ocr", "game", "steam", "osu"
     ],
     "Fun": [
         "truth", "dare", "wouldyourather", "flags", "blacktea", "greentea",
-        "tictactoe", "connectfour", "akinator", "chess"
+        "tictactoe", "connectfour", "akinator", "playchess"
     ],
     "Moderation": [
         "prefix", "clearsnipes", "cleareditsnipes", "clearreactionsnipes", "clearallsnipes", "role give", "role take",

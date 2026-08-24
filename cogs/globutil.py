@@ -3,23 +3,35 @@ import asyncio
 import aiohttp
 import discord
 from discord.ext import commands
-from moviepy.video.io.VideoFileClip import VideoFileClip
+from discord.ext import tasks
 import difflib
 import requests
 import json
 from datetime import datetime
 import pytz
-from googletrans import Translator
 import urllib
 import re
-import serpapi
 import random
-import yt_dlp
+import time
+import html
+import xml.etree.ElementTree as ET
 
 
 class GlobUtil(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        # Start background check loop for reminders
+        self.check_reminders.start()
+
+    async def cog_load(self):
+        await self.init_db()
+
+    def cog_unload(self):
+        self.check_reminders.cancel()
+
+    async def init_db(self):
+        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS reminders (user_id INTEGER, channel_id INTEGER, reminder_text TEXT, end_time INTEGER)")
+        await self.bot.db.commit()
 
     @commands.command(name="makegif", aliases=["togif"], help="3tini video nreddo GIF.")
     async def makegif(self, ctx):
@@ -48,6 +60,7 @@ class GlobUtil(commands.Cog):
                 f.write(video_data)
 
             def convert():
+                from moviepy.video.io.VideoFileClip import VideoFileClip
                 with VideoFileClip(input_video) as clip:
                     # Native v2.x method to resize dimensions down and save space
                     if clip.w > 480:
@@ -80,6 +93,8 @@ class GlobUtil(commands.Cog):
                         os.remove(filepath)
                     except Exception:
                         pass
+            import gc
+            gc.collect()
 
     @commands.command(name="image", aliases=['img', "tsawr", "tsawer"], help="Njbed lik tsawr mn google.")
     async def image(self, ctx, *, query: str):
@@ -337,7 +352,10 @@ class GlobUtil(commands.Cog):
 
     @commands.command(aliases=["trans", "trjm", "trjem", "terjem"], help="Nterjem lik ay 7aja.")
     async def translate(self, ctx, fromlang, tolang, *, text):
-        translation = await Translator().translate(text, src=fromlang, dest=tolang)
+        if not hasattr(self, "_google_translator") or self._google_translator is None:
+            from googletrans import Translator
+            self._google_translator = Translator()
+        translation = await self._google_translator.translate(text, src=fromlang, dest=tolang)
         e = discord.Embed(title=f"Terjama men ({fromlang}) l ({tolang})",
                            color=0x000000,
                            timestamp=ctx.message.created_at,
@@ -440,6 +458,7 @@ class GlobUtil(commands.Cog):
         wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
 
         try:
+            import serpapi
             params = {
                 "engine": "google_lens",
                 "url": image,
@@ -515,8 +534,8 @@ class GlobUtil(commands.Cog):
         dice = [1, 2, 3, 4, 5 , 6]
         await ctx.send(f"🎲 {random.choice(dice)}")
 
-    @commands.command(aliases=['anime'], help="N3tik informations 3la ay anime.")
-    async def animeinfo(self, ctx, *, anime: str):
+    @commands.command(help="N3tik informations 3la ay anime.")
+    async def anime(self, ctx, *, anime: str):
         anime = anime.lower().replace(" ", "%20")
         r = json.loads(requests.get(f"https://kitsu.io/api/edge/anime?filter[text]={anime}").content)['data'][0]
         type = r['type']
@@ -561,7 +580,7 @@ class GlobUtil(commands.Cog):
             public_repos = data.get("public_repos", 0)
             avatar_url = data.get("avatar_url")
             html_url = data.get("html_url")
-            location = data.get("location") or "Makhfi"
+            location = data.get("location") or "Hidden"
             company = data.get("company") or "No company"
             created_at_str = data.get("created_at")
 
@@ -579,253 +598,36 @@ class GlobUtil(commands.Cog):
             embed.add_field(name="Public Repos", value=str(public_repos), inline=True)
             embed.add_field(name="Location", value=location, inline=True)
             embed.add_field(name="Company", value=company, inline=True)
-            embed.add_field(name="Mchyed f", value=created_date, inline=True)
+            embed.add_field(name="Created", value=created_date, inline=True)
 
             await wait.edit(embed=embed)
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
-    @commands.command(name="reddituser", aliases=["u"], help="Njbed lik details ta3 user f reddit.")
-    async def reddituser(self, ctx, username: str):
-        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+    @commands.command(name="reddit", help="Chouf chy profile f reddit.")
+    async def reddit(self, ctx, username: str):
+        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
 
-        # Try direct Reddit JSON API
-        url = f"https://www.reddit.com/user/{username}/about.json"
-        headers = {"User-Agent": f"SifdineBot/1.0 (by /u/{username})"}
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=8) as resp:
-                    if resp.status == 200:
-                        res_json = await resp.json()
-                        data = res_json.get("data", {})
-
-                        name = data.get("name")
-                        comment_karma = data.get("comment_karma", 0)
-                        link_karma = data.get("link_karma", 0)
-                        total_karma = comment_karma + link_karma
-                        created_utc = data.get("created_utc")
-                        created_date = datetime.fromtimestamp(created_utc, pytz.utc).strftime("%Y-%m-%d")
-                        is_gold = "Ahya" if data.get("is_gold") else "La"
-                        icon_img = data.get("icon_img", "").split("?")[0]
-
-                        embed = discord.Embed(
-                            title=f"Reddit Profile ta3 u/{name}",
-                            url=f"https://www.reddit.com/user/{name}",
-                            color=0x000000
-                        )
-                        if icon_img and icon_img.startswith("http"):
-                            embed.set_thumbnail(url=icon_img)
-                        embed.add_field(name="Total Karma", value=str(total_karma), inline=True)
-                        embed.add_field(name="Post Karma", value=str(link_karma), inline=True)
-                        embed.add_field(name="Comment Karma", value=str(comment_karma), inline=True)
-                        embed.add_field(name="Gold User", value=is_gold, inline=True)
-                        embed.add_field(name="Mchyed f", value=created_date, inline=True)
-
-                        await wait.edit(embed=embed)
-                        return
-                    elif resp.status == 404:
-                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Reddit: `{username}`", color=0x000000))
-                        return
-        except Exception:
-            pass
-
-        # Direct API blocked — provide direct profile link
-        embed = discord.Embed(
-            title=f"Reddit Profile: u/{username}",
-            url=f"https://www.reddit.com/user/{username}",
-            description="Ma9drtch njbed l-details mn Reddit API. Kliki 3la l-link bach tchouf l-profile.",
-            color=0x000000
-        )
-        await wait.edit(embed=embed)
-
-    @commands.command(name="tiktok", aliases=["tt"], help="Nqelleb lik 3la user f TikTok.")
+    @commands.command(name="tiktok", aliases=["tt"], help="Chouf chy profile f TikTok.")
     async def tiktok(self, ctx, username: str):
-        username = username.lstrip("@")
-        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
-        try:
-            params = {
-                "engine": "google",
-                "q": f"site:tiktok.com/@{username}",
-                "api_key": os.getenv('SERPAPI_KEY')
-            }
-            search = serpapi.GoogleSearch(params)
-            results = await asyncio.to_thread(search.get_dict)
+        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
 
-            organic = results.get("organic_results", [])
-            profile_res = None
-            if organic:
-                for res in organic:
-                    link_lower = res.get("link", "").lower()
-                    # STRICT: only match if the actual profile URL is in the link
-                    if f"tiktok.com/@{username.lower()}" in link_lower:
-                        profile_res = res
-                        break
-
-            if not profile_res:
-                embed = discord.Embed(
-                    title=f"TikTok Profile: @{username}",
-                    url=f"https://www.tiktok.com/@{username}",
-                    description="Kliki 3la l-link bach tchouf l-profile.",
-                    color=0x000000
-                )
-                await wait.edit(embed=embed)
-                return
-
-            title = profile_res.get("title", f"@{username} on TikTok")
-            snippet = profile_res.get("snippet", "")
-            link = profile_res.get("link", f"https://www.tiktok.com/@{username}")
-
-            followers = "unknown"
-            likes = "unknown"
-
-            followers_match = re.search(r"([\d\.]+[KMB]?) Followers", snippet, re.IGNORECASE)
-            if followers_match:
-                followers = followers_match.group(1)
-            likes_match = re.search(r"([\d\.]+[KMB]?) Likes", snippet, re.IGNORECASE)
-            if likes_match:
-                likes = likes_match.group(1)
-
-            embed = discord.Embed(
-                title=title,
-                url=link,
-                description=snippet,
-                color=0x000000
-            )
-            embed.add_field(name="Followers", value=followers, inline=True)
-            embed.add_field(name="Likes", value=likes, inline=True)
-
-            await wait.edit(embed=embed)
-        except Exception as e:
-            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
-
-    @commands.command(name="instagram", aliases=["ig"], help="Nqelleb lik 3la user f Instagram.")
+    @commands.command(name="instagram", aliases=["ig"], help="Chouf chy profile f Instagram.")
     async def instagram(self, ctx, username: str):
-        username = username.lstrip("@")
-        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
-        try:
-            params = {
-                "engine": "google",
-                "q": f"site:instagram.com/{username}",
-                "api_key": os.getenv('SERPAPI_KEY')
-            }
-            search = serpapi.GoogleSearch(params)
-            results = await asyncio.to_thread(search.get_dict)
+        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
 
-            organic = results.get("organic_results", [])
-            profile_res = None
-            if organic:
-                for res in organic:
-                    link_lower = res.get("link", "").lower()
-                    # STRICT: only match if the profile URL path is exact
-                    # Match instagram.com/username but NOT instagram.com/p/ or /reel/
-                    if f"instagram.com/{username.lower()}" in link_lower and "/p/" not in link_lower and "/reel/" not in link_lower:
-                        profile_res = res
-                        break
-
-            if not profile_res:
-                embed = discord.Embed(
-                    title=f"Instagram Profile: @{username}",
-                    url=f"https://www.instagram.com/{username}",
-                    description="Kliki 3la l-link bach tchouf l-profile.",
-                    color=0x000000
-                )
-                await wait.edit(embed=embed)
-                return
-
-            title = profile_res.get("title", f"@{username} on Instagram")
-            snippet = profile_res.get("snippet", "")
-            link = profile_res.get("link", f"https://www.instagram.com/{username}")
-
-            followers = "unknown"
-            following = "unknown"
-            posts = "unknown"
-
-            f_match = re.search(r"([\d\.]+[KMB]?) Followers", snippet, re.IGNORECASE)
-            if f_match:
-                followers = f_match.group(1)
-            f_match2 = re.search(r"([\d\.]+[KMB]?) Following", snippet, re.IGNORECASE)
-            if f_match2:
-                following = f_match2.group(1)
-            p_match = re.search(r"([\d\.]+[KMB]?) Posts", snippet, re.IGNORECASE)
-            if p_match:
-                posts = p_match.group(1)
-
-            embed = discord.Embed(
-                title=title,
-                url=link,
-                description=snippet,
-                color=0x000000
-            )
-            embed.add_field(name="Followers", value=followers, inline=True)
-            embed.add_field(name="Following", value=following, inline=True)
-            embed.add_field(name="Posts", value=posts, inline=True)
-
-            await wait.edit(embed=embed)
-        except Exception as e:
-            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
-
-    @commands.command(name="twitter", aliases=["x"], help="Nqelleb lik 3la user f Twitter (X).")
+    @commands.command(name="twitter", aliases=["x"], help="Chouf chy profile f Twitter (X).")
     async def twitter(self, ctx, username: str):
-        username = username.lstrip("@")
-        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
-        try:
-            params = {
-                "engine": "google",
-                "q": f"site:x.com/{username}",
-                "api_key": os.getenv('SERPAPI_KEY')
-            }
-            search = serpapi.GoogleSearch(params)
-            results = await asyncio.to_thread(search.get_dict)
+        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
 
-            organic = results.get("organic_results", [])
-            profile_res = None
-            if organic:
-                for res in organic:
-                    link_lower = res.get("link", "").lower()
-                    # STRICT: only match if the profile URL itself is the link
-                    # Match x.com/username but NOT x.com/username/status/
-                    if (f"x.com/{username.lower()}" in link_lower or f"twitter.com/{username.lower()}" in link_lower) and "/status/" not in link_lower:
-                        profile_res = res
-                        break
-
-            if not profile_res:
-                embed = discord.Embed(
-                    title=f"X Profile: @{username}",
-                    url=f"https://x.com/{username}",
-                    description="Kliki 3la l-link bach tchouf l-profile.",
-                    color=0x000000
-                )
-                await wait.edit(embed=embed)
-                return
-
-            title = profile_res.get("title", f"@{username} on X")
-            snippet = profile_res.get("snippet", "")
-            link = profile_res.get("link", f"https://x.com/{username}")
-
-            followers = "unknown"
-            f_match = re.search(r"([\d\.]+[KMB]?) Followers", snippet, re.IGNORECASE)
-            if f_match:
-                followers = f_match.group(1)
-
-            embed = discord.Embed(
-                title=title,
-                url=link,
-                description=snippet,
-                color=0x000000
-            )
-            embed.add_field(name="Followers", value=followers, inline=True)
-
-            await wait.edit(embed=embed)
-        except Exception as e:
-            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
-
-    @commands.command(name="download", aliases=["dl", "save"], help="Ndownloadi lik video/audio mn TikTok, Instagram, wla YouTube Shorts.")
+    @commands.command(name="download", aliases=["dl", "save"], help="Ntelechargi lik video mn TikTok, Instagram, wla YouTube Shorts.")
     async def download(self, ctx, url: str):
-        wait = await ctx.send(embed=discord.Embed(description="Kandownloadi l-media, sber chwia...", color=0x000000))
+        wait = await ctx.send(embed=discord.Embed(description="Sber chwia...", color=0x000000))
         
         filename = f"download_{ctx.message.id}"
         
         def run_ytdl():
+            import yt_dlp
             ydl_opts = {
                 'outtmpl': f'{filename}.%(ext)s',
                 'format': 'best',
@@ -846,13 +648,13 @@ class GlobUtil(commands.Cog):
                     await ctx.send(file=discord.File(downloaded_file))
                     await wait.delete()
                 else:
-                    await wait.edit(embed=discord.Embed(description="L-file kber mn 25MB. M9drtch nsifto f Discord.", color=0x000000))
+                    await wait.edit(embed=discord.Embed(description="L file kber mn 25MB. Man9edch nsifto f Discord.", color=0x000000))
                 try:
                     os.remove(downloaded_file)
                 except:
                     pass
             else:
-                await wait.edit(embed=discord.Embed(description="Mochkil: Mal9itch l-file dyal download.", color=0x000000))
+                await wait.edit(embed=discord.Embed(description="Mochkil: Mal9itch l file ta3 download.", color=0x000000))
         except Exception as e:
             for f in os.listdir("."):
                 if f.startswith(filename):
@@ -861,9 +663,12 @@ class GlobUtil(commands.Cog):
                     except:
                         pass
             await wait.edit(embed=discord.Embed(description=f"Mochkil: `{e}`", color=0x000000))
+        finally:
+            import gc
+            gc.collect()
 
-    @commands.command(name="usernamecheck", aliases=["usersearch"], help="Nchouf lik username wach khdam f social media kamlin.")
-    async def usernamecheck(self, ctx, username: str):
+    @commands.command(name="username", aliases=["sherlock"], help="Nchouf lik username wach available f 20 platform.")
+    async def username(self, ctx, username: str):
         wait = await ctx.send(embed=discord.Embed(description=f"Kanchekki username `{username}` f 20 platforms...", color=0x000000))
 
         platforms = {
@@ -942,7 +747,7 @@ class GlobUtil(commands.Cog):
 
         await wait.edit(embed=embed)
 
-    @commands.command(name="minecraft", aliases=["mc", "namemc"], help="Njbed lik details w skin dyal Minecraft user.")
+    @commands.command(name="minecraft", aliases=["mc", "namemc"], help="Chouf chy profile f Minecraft (NameMC).")
     async def minecraft(self, ctx, username: str):
         wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
         url = f"https://playerdb.co/api/player/minecraft/{username}"
@@ -951,14 +756,14 @@ class GlobUtil(commands.Cog):
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers) as resp:
                     if resp.status == 404:
-                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Minecraft: `{username}`", color=0x000000))
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f Minecraft: `{username}`", color=0x000000))
                         return
                     if resp.status != 200:
                         raise Exception(f"HTTP Code {resp.status}")
                     data = await resp.json()
 
             if not data.get("success"):
-                await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Minecraft: `{username}`", color=0x000000))
+                await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f Minecraft: `{username}`", color=0x000000))
                 return
 
             player_data = data["data"]["player"]
@@ -984,14 +789,14 @@ class GlobUtil(commands.Cog):
             embed.set_thumbnail(url=f"https://mc-heads.net/avatar/{uuid}/128")
             embed.set_image(url=f"https://mc-heads.net/body/{uuid}/256")
             embed.add_field(name="UUID", value=f"`{uuid}`", inline=False)
-            embed.add_field(name="Skins & Customizations", value=f"[Khtar l-Skin dyalo (Skin URL)](https://mc-heads.net/skin/{uuid})", inline=False)
+            embed.add_field(name="Skins & Customizations", value=f"[Skin URL](https://mc-heads.net/skin/{uuid})", inline=False)
             embed.set_footer(text="Mojang name history restrictions may apply.")
 
             await wait.edit(embed=embed)
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
-    @commands.command(name="roblox", aliases=["rbx"], help="Njbed lik details ta3 user f Roblox.")
+    @commands.command(name="roblox", aliases=["roblok"], help="Chouf chy user f Roblox.")
     async def roblox(self, ctx, username: str):
         wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
         headers = {"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"}
@@ -1007,7 +812,7 @@ class GlobUtil(commands.Cog):
 
             user_list = search_data.get("data", [])
             if not user_list:
-                await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Roblox: `{username}`", color=0x000000))
+                await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f Roblox: `{username}`", color=0x000000))
                 return
 
             user_id = user_list[0]["id"]
@@ -1030,7 +835,7 @@ class GlobUtil(commands.Cog):
             bio = details.get("description") or "Walo bio."
             created_at_str = details.get("created")
 
-            created_date = created_at_str.split("T")[0] if created_at_str else "Makhfi"
+            created_date = created_at_str.split("T")[0] if created_at_str else "Hidden"
 
             thumb_url = None
             avatar_list = avatar_data.get("data", [])
@@ -1044,17 +849,17 @@ class GlobUtil(commands.Cog):
                 color=0x000000
             )
             if thumb_url:
-                embed.set_thumbnail(url=thumb_url)
+                embed.set_image(url=thumb_url)
 
             embed.add_field(name="User ID", value=f"`{user_id}`", inline=True)
-            embed.add_field(name="Mchyed f", value=created_date, inline=True)
+            embed.add_field(name="Created", value=created_date, inline=True)
 
             await wait.edit(embed=embed)
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
-    @commands.command(name="chessuser", aliases=["chessprofile"], help="Njbed lik details o stats ta3 user f Chess.com.")
-    async def chessuser(self, ctx, username: str):
+    @commands.command(name="chess", aliases=["chessprofile", "chessuser"], help="Chouf chy profile f Chess.com.")
+    async def chess(self, ctx, username: str):
         wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
         headers = {"User-Agent": "SifdineBot"}
         profile_url = f"https://api.chess.com/pub/player/{username}"
@@ -1066,7 +871,7 @@ class GlobUtil(commands.Cog):
                            session.get(stats_url, headers=headers) as resp_stats:
 
                     if resp_profile.status == 404:
-                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Chess.com: `{username}`", color=0x000000))
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f Chess.com: `{username}`", color=0x000000))
                         return
                     if resp_profile.status != 200 or resp_stats.status != 200:
                         raise Exception("Chess.com APIs were not responsive.")
@@ -1080,7 +885,7 @@ class GlobUtil(commands.Cog):
             followers = profile.get("followers", 0)
             joined_timestamp = profile.get("joined")
 
-            joined_date = datetime.fromtimestamp(joined_timestamp, pytz.utc).strftime("%Y-%m-%d") if joined_timestamp else "Makhfi"
+            joined_date = datetime.fromtimestamp(joined_timestamp, pytz.utc).strftime("%Y-%m-%d") if joined_timestamp else "Hidden"
 
             blitz_rating = stats.get("chess_blitz", {}).get("last", {}).get("rating", "N/A")
             rapid_rating = stats.get("chess_rapid", {}).get("last", {}).get("rating", "N/A")
@@ -1097,12 +902,396 @@ class GlobUtil(commands.Cog):
             embed.add_field(name="Blitz Rating ⚡", value=f"**{blitz_rating}**", inline=True)
             embed.add_field(name="Rapid Rating ⏱️", value=f"**{rapid_rating}**", inline=True)
             embed.add_field(name="Bullet Rating ☄️", value=f"**{bullet_rating}**", inline=True)
-            embed.add_field(name="Followers", value=str(followers), inline=True)
-            embed.add_field(name="Mchyed f", value=joined_date, inline=True)
+            embed.add_field(name="Friends", value=str(followers), inline=True)
+            embed.add_field(name="Created", value=joined_date, inline=True)
 
             await wait.edit(embed=embed)
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    # Helper & tasks for reminders
+    def parse_time(self, time_str: str) -> int:
+        pattern = re.compile(r'(\d+)\s*([smhd]?)', re.IGNORECASE)
+        matches = pattern.findall(time_str)
+        if not matches:
+            return 0
+        
+        total_seconds = 0
+        for val, unit in matches:
+            val = int(val)
+            unit = unit.lower()
+            if unit == 's' or unit == '':
+                total_seconds += val
+            elif unit == 'm':
+                total_seconds += val * 60
+            elif unit == 'h':
+                total_seconds += val * 3600
+            elif unit == 'd':
+                total_seconds += val * 86400
+                
+        return total_seconds
+
+    @tasks.loop(seconds=5)
+    async def check_reminders(self):
+        try:
+            if not hasattr(self.bot, "db") or self.bot.db is None:
+                return
+            now = int(time.time())
+            async with self.bot.db.execute(
+                "SELECT rowid, user_id, channel_id, reminder_text FROM reminders WHERE end_time <= ?", 
+                (now,)
+            ) as cursor:
+                rows = await cursor.fetchall()
+            
+            for rowid, user_id, channel_id, reminder_text in rows:
+                channel = self.bot.get_channel(channel_id)
+                if not channel:
+                    try:
+                        channel = await self.bot.fetch_channel(channel_id)
+                    except Exception:
+                        pass
+                if channel:
+                    try:
+                        await channel.send(f"<@{user_id}>, here is your reminder: {reminder_text}")
+                    except Exception:
+                        pass
+                await self.bot.db.execute("DELETE FROM reminders WHERE rowid = ?", (rowid,))
+            if rows:
+                await self.bot.db.commit()
+        except Exception:
+            pass
+
+    @commands.command(name="reminder", aliases=["remind", "timer"], help="Sets a timer/reminder. Usage: sat reminder <time> [message]")
+    async def reminder(self, ctx, time_input: str, *, message: str = "Reminder!"):
+        duration = self.parse_time(time_input)
+        if duration <= 0:
+            await ctx.send("Mochkil: format dyal lwe9t machi howa hadak. (ex: 10m, 1h, 2d, 30s)")
+            return
+        
+        if duration > 365 * 86400: # 1 year max
+            await ctx.send("Mochkil: lwe9t kbir bzaf. (max: 1 year)")
+            return
+
+        end_time = int(time.time() + duration)
+        try:
+            await self.bot.db.execute(
+                "INSERT INTO reminders (user_id, channel_id, reminder_text, end_time) VALUES (?, ?, ?, ?)",
+                (ctx.author.id, ctx.channel.id, message, end_time)
+            )
+            await self.bot.db.commit()
+            await ctx.send(f"i will remind u in <t:{end_time}:R>")
+        except Exception as e:
+            await ctx.send(f"Tra chy mochkil: `{e}`")
+
+    @commands.command(name="qrcode", aliases=["qr"], help="9ad QR code mn ay text, URL wla image.")
+    async def qrcode(self, ctx, *, url_or_text: str = None):
+        data_to_encode = None
+        if ctx.message.attachments:
+            data_to_encode = ctx.message.attachments[0].url
+        elif url_or_text:
+            data_to_encode = url_or_text
+        else:
+            await ctx.send("Ya kteb chy 7aja ya 3tini tswira.")
+            return
+
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        
+        try:
+            api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={urllib.parse.quote(data_to_encode)}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url) as resp:
+                    if resp.status != 200:
+                        raise Exception(f"QR API returned status code {resp.status}")
+                    img_data = await resp.read()
+            
+            from io import BytesIO
+            file = discord.File(BytesIO(img_data), filename="qrcode.png")
+            embed = discord.Embed(color=0x000000)
+            embed.set_image(url="attachment://qrcode.png")
+            await ctx.send(file=file, embed=embed)
+            await wait.delete()
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+        finally:
+            import gc
+            if 'img_data' in locals():
+                del img_data
+            gc.collect()
+
+    @commands.command(name="ocr", help="Jbed text mn ay tswira.")
+    async def ocr(self, ctx, *, url: str = None):
+        image_url = None
+        if ctx.message.attachments:
+            image_url = ctx.message.attachments[0].url
+        elif url:
+            image_url = url
+        elif ctx.message.reference:
+            try:
+                ref_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+                if ref_msg.attachments:
+                    image_url = ref_msg.attachments[0].url
+            except Exception:
+                pass
+
+        if not image_url:
+            await ctx.send("3tini tswira wla replyi l chy message fih tswira.")
+            return
+
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        
+        try:
+            ocr_key = os.getenv("OCR_KEY", "helloworld")
+            api_url = "https://api.ocr.space/parse/imageurl"
+            params = {
+                "apikey": ocr_key,
+                "url": image_url
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, params=params) as resp:
+                    if resp.status != 200:
+                        raise Exception(f"API code {resp.status}")
+                    result = await resp.json()
+
+            if result.get("OCRExitCode") != 1:
+                err_msg = result.get("ErrorMessage") or "Unknown error"
+                if isinstance(err_msg, list):
+                    err_msg = ", ".join(err_msg)
+                await wait.edit(embed=discord.Embed(description=f"Mochkil: `{err_msg}`", color=0x000000))
+                return
+
+            parsed_results = result.get("ParsedResults", [])
+            if not parsed_results:
+                await wait.edit(embed=discord.Embed(description="Mal9it ta ktaba f tswira.", color=0x000000))
+                return
+
+            text = parsed_results[0].get("ParsedText", "").strip()
+            if not text:
+                await wait.edit(embed=discord.Embed(description="Mal9it ta ktaba f tswira.", color=0x000000))
+                return
+
+            if len(text) > 2000:
+                text = text[:1990] + "\n..."
+
+            await wait.edit(content=f"Text li l9it:\n```{text}```", embed=None)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+        finally:
+            import gc
+            if 'result' in locals():
+                del result
+            gc.collect()
+
+    @commands.command(name="game", aliases=["steamgame"], help="Chouf chy game f steam.")
+    async def game(self, ctx, *, query: str):
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        
+        search_url = f"https://store.steampowered.com/api/storesearch/?term={urllib.parse.quote(query)}&l=english&cc=US"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        }
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(search_url, headers=headers) as resp:
+                    if resp.status != 200:
+                        raise Exception(f"Steam Search returned status {resp.status}")
+                    search_data = await resp.json()
+
+            items = search_data.get("items", [])
+            if not items:
+                await wait.edit(embed=discord.Embed(description="Mal9it ta game b dik smiya.", color=0x000000))
+                return
+
+            appid = items[0]["id"]
+            details_url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(details_url, headers=headers) as resp:
+                    if resp.status != 200:
+                        raise Exception(f"Steam Details returned status {resp.status}")
+                    details_data = await resp.json()
+
+            app_data = details_data.get(str(appid), {})
+            if not app_data.get("success"):
+                await wait.edit(embed=discord.Embed(description="Chy mochkil f details ta3 had l game.", color=0x000000))
+                return
+
+            data = app_data["data"]
+            name = data.get("name", "Unknown Game")
+            short_desc = data.get("short_description", "No description.")
+            short_desc = html.unescape(re.sub(r'<[^<]+?>', '', short_desc))
+            if len(short_desc) > 1024:
+                short_desc = short_desc[:1021] + "..."
+
+            is_free = data.get("is_free", False)
+            price_overview = data.get("price_overview")
+            price = "Free to Play" if is_free else (price_overview.get("final_formatted") if price_overview else "N/A")
+
+            devs = ", ".join(data.get("developers", ["Unknown"]))
+            release = data.get("release_date", {}).get("date", "Unknown")
+            genres = ", ".join([g.get("description", "") for g in data.get("genres", [])])
+
+            platforms_dict = data.get("platforms", {})
+            platforms = []
+            if platforms_dict.get("windows"):
+                platforms.append("🖥️ Windows")
+            if platforms_dict.get("mac"):
+                platforms.append("🍎 Mac")
+            if platforms_dict.get("linux"):
+                platforms.append("🐧 Linux")
+            platforms_str = ", ".join(platforms) if platforms else "None"
+
+            embed = discord.Embed(
+                title=name,
+                url=f"https://store.steampowered.com/app/{appid}",
+                description=short_desc,
+                color=0x000000
+            )
+            header_img = data.get("header_image")
+            if header_img:
+                embed.set_image(url=header_img)
+
+            embed.add_field(name="Price", value=price, inline=True)
+            embed.add_field(name="Developer", value=devs, inline=True)
+            embed.add_field(name="Release Date", value=release, inline=True)
+            embed.add_field(name="Genres", value=genres, inline=True)
+            embed.add_field(name="Platforms", value=platforms_str, inline=True)
+            embed.set_footer(text=f"App ID: {appid}")
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+        finally:
+            import gc
+            if 'search_data' in locals():
+                del search_data
+            if 'details_data' in locals():
+                del details_data
+            gc.collect()
+
+    @commands.command(name="steam", aliases=["steamprofile", "steamuser"], help="Chouf chy profile f steam.")
+    async def steam(self, ctx, username_or_id: str):
+        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
+
+    @commands.command(name="osu", help="Chouf chy profile f osu!.")
+    async def osu(self, ctx, username: str):
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        
+        url = f"https://osu.ppy.sh/users/{urllib.parse.quote(username)}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        }
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 404:
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f osu!: `{username}`", color=0x000000))
+                        return
+                    if resp.status != 200:
+                        raise Exception(f"osu! website returned status {resp.status}")
+                    html_data = await resp.text()
+
+            match = re.search(r'data-initial-data="([^"]+)"', html_data)
+            if not match:
+                await wait.edit(embed=discord.Embed(description="Mal9it ta data f page dyal had l-user.", color=0x000000))
+                return
+
+            import json
+            decoded_json = html.unescape(match.group(1))
+            data = json.loads(decoded_json)
+
+            user = data.get("user")
+            if not user:
+                await wait.edit(embed=discord.Embed(description="Mal9itch user info.", color=0x000000))
+                return
+
+            user_id = user.get("id")
+            display_name = user.get("username", username)
+            avatar_url = user.get("avatar_url")
+            cover_url = user.get("cover_url")
+            country_name = user.get("country", {}).get("name", "Unknown")
+            country_code = user.get("country_code", "")
+            flag_emoji = ""
+            if country_code and len(country_code) == 2:
+                flag_emoji = "".join(chr(ord(c) + 127397) for c in country_code.upper())
+                
+            join_date_str = user.get("join_date", "")
+            
+            join_date = "Unknown"
+            if join_date_str:
+                try:
+                    join_date = join_date_str.split("T")[0]
+                except Exception:
+                    pass
+
+            stats = user.get("statistics")
+            global_rank = "N/A"
+            country_rank = "N/A"
+            pp = "N/A"
+            accuracy = "N/A"
+            play_count = "N/A"
+            play_time = "N/A"
+            level = "N/A"
+            grades = "N/A"
+
+            if stats:
+                global_rank = f"#{stats.get('global_rank')}" if stats.get("global_rank") else "Unranked"
+                country_rank = f"#{stats.get('country_rank')}" if stats.get("country_rank") else "Unranked"
+                pp = f"{stats.get('pp'):,.2f}pp" if stats.get("pp") is not None else "0pp"
+                accuracy = f"{stats.get('hit_accuracy'):.2f}%" if stats.get("hit_accuracy") is not None else "0.00%"
+                play_count = f"{stats.get('play_count'):,}" if stats.get("play_count") is not None else "0"
+                
+                pt_seconds = stats.get("play_time")
+                if pt_seconds:
+                    play_time = f"{pt_seconds // 3600:,}h"
+                else:
+                    play_time = "0h"
+
+                lvl = stats.get("level", {})
+                if lvl:
+                    level = f"{lvl.get('current')} ({lvl.get('progress')}% progress)"
+
+                g_counts = stats.get("grade_counts", {})
+                if g_counts:
+                    grades = (
+                        f"**SS** {g_counts.get('ss', 0):,} | **SSH** {g_counts.get('ssh', 0):,}\n"
+                        f"**S** {g_counts.get('s', 0):,} | **SH** {g_counts.get('sh', 0):,}\n"
+                        f"**A** {g_counts.get('a', 0):,}"
+                    )
+
+            profile_url = f"https://osu.ppy.sh/users/{user_id}"
+            title_text = f"osu! Profile: {display_name} {flag_emoji}".strip()
+            embed = discord.Embed(
+                title=title_text,
+                url=profile_url,
+                color=0x000000
+            )
+            if avatar_url:
+                embed.set_thumbnail(url=avatar_url)
+            if cover_url:
+                embed.set_image(url=cover_url)
+
+            embed.add_field(name="Global Rank", value=global_rank, inline=True)
+            embed.add_field(name="Country Rank", value=f"{country_rank} ({country_name})", inline=True)
+            embed.add_field(name="Performance", value=pp, inline=True)
+            embed.add_field(name="Accuracy", value=accuracy, inline=True)
+            embed.add_field(name="Play Count", value=play_count, inline=True)
+            embed.add_field(name="Play Time", value=play_time, inline=True)
+            embed.add_field(name="Level", value=level, inline=True)
+            embed.add_field(name="Joined Date", value=join_date, inline=True)
+            if grades:
+                embed.add_field(name="Grades", value=grades, inline=False)
+
+            await wait.edit(embed=embed)
+
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+        finally:
+            import gc
+            if 'html_data' in locals():
+                del html_data
+            if 'data' in locals():
+                del data
+            gc.collect()
 
 async def setup(bot):
     await bot.add_cog(GlobUtil(bot))

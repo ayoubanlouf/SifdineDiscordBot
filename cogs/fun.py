@@ -1786,8 +1786,8 @@ class Fun(commands.Cog):
                 print(f"[Akinator Command Error]: {e}")
                 await ctx.send("❌ Makhdamach Akinator daba, 7awel mn be3d.")
 
-    @commands.command(name="chess", help="l3eb shitranj hh")
-    async def chess_cmd(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+    @commands.command(name="playchess", help="l3eb shitranj hh")
+    async def playchess(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         # Single Player vs Bot
         if member is None:
             game_view = ChessView(ctx.author, ctx.bot.user, is_bot_game=True)
