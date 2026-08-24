@@ -14,6 +14,7 @@ import urllib
 import re
 import serpapi
 import random
+import yt_dlp
 
 
 class GlobUtil(commands.Cog):
@@ -481,17 +482,23 @@ class GlobUtil(commands.Cog):
 
     @commands.command(help="N9elleb lik 3la gif.")
     async def gif(self, ctx, *, q="None"):
-        api_key = os.getenv("TENOR_KEY")
-        ckey = os.getenv("TENOR_C")
-        lmt = 20
-        r = requests.get(
-            "https://tenor.googleapis.com/v2/search?q=%s&key=%s&client_key=%s&limit=%s" % (q, api_key, ckey, lmt))
-        gifs = []
-        for i in range(0, 20):
-            g = json.loads(r.content)["results"][0]["media_formats"]["gif"]["url"]
-            gifs.append(g)
-        gif = random.choice(gifs)
-        await ctx.send(gif)
+        query_encoded = urllib.parse.quote(q)
+        url = f"https://tenor.com/search/{query_encoded}-gifs"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        }
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                media_urls = re.findall(r'https://media\.tenor\.com/[^\s\"\'\>]+', r.text)
+                gifs = list(set([u for u in media_urls if u.endswith('.gif')]))
+                if gifs:
+                    gif = random.choice(gifs)
+                    await ctx.send(gif)
+                    return
+            await ctx.send(f"Malkitch chy gif l `{q}`.")
+        except Exception as e:
+            await ctx.send(f"Mochkil: {e}")
 
     @commands.command(aliases=['cf', 'drhm', 'drhem'], help="Nlou7 derhem o nchouf wach jat ras wla njema.")
     async def coinflip(self, ctx):
@@ -503,7 +510,7 @@ class GlobUtil(commands.Cog):
         quote = json.loads(requests.get("https://api.kanye.rest/").content)["quote"]
         await ctx.send(f'"{quote}" -Kanye West')
 
-    @commands.command(aliases=["nrd", "lo7"], help="Lo7 dice o chouf ch7al jak.")
+    @commands.command(aliases=["nrd"], help="Lo7 dice o chouf ch7al jak.")
     async def dice(self, ctx):
         dice = [1, 2, 3, 4, 5 , 6]
         await ctx.send(f"🎲 {random.choice(dice)}")
@@ -531,6 +538,571 @@ class GlobUtil(commands.Cog):
         e.add_field(name="Description", value=description)
         e.set_image(url=poster)
         await ctx.send(embed=e)
+
+    @commands.command(name="github", aliases=["gh"], help="Njbed lik details ta3 user f github.")
+    async def github(self, ctx, username: str):
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        url = f"https://api.github.com/users/{username}"
+        headers = {"User-Agent": "SifdineBot"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 404:
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f GitHub: `{username}`", color=0x000000))
+                        return
+                    if resp.status != 200:
+                        raise Exception(f"HTTP Code {resp.status}")
+                    data = await resp.json()
+
+            name = data.get("name") or data.get("login")
+            bio = data.get("bio") or "Nsit ndir bio hh."
+            followers = data.get("followers", 0)
+            following = data.get("following", 0)
+            public_repos = data.get("public_repos", 0)
+            avatar_url = data.get("avatar_url")
+            html_url = data.get("html_url")
+            location = data.get("location") or "Makhfi"
+            company = data.get("company") or "No company"
+            created_at_str = data.get("created_at")
+
+            created_date = datetime.strptime(created_at_str, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d")
+
+            embed = discord.Embed(
+                title=f"GitHub Profile ta3 {name}",
+                url=html_url,
+                description=bio,
+                color=0x000000
+            )
+            embed.set_thumbnail(url=avatar_url)
+            embed.add_field(name="Followers", value=str(followers), inline=True)
+            embed.add_field(name="Following", value=str(following), inline=True)
+            embed.add_field(name="Public Repos", value=str(public_repos), inline=True)
+            embed.add_field(name="Location", value=location, inline=True)
+            embed.add_field(name="Company", value=company, inline=True)
+            embed.add_field(name="Mchyed f", value=created_date, inline=True)
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="reddituser", aliases=["u"], help="Njbed lik details ta3 user f reddit.")
+    async def reddituser(self, ctx, username: str):
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+
+        # Try direct Reddit JSON API
+        url = f"https://www.reddit.com/user/{username}/about.json"
+        headers = {"User-Agent": f"SifdineBot/1.0 (by /u/{username})"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=8) as resp:
+                    if resp.status == 200:
+                        res_json = await resp.json()
+                        data = res_json.get("data", {})
+
+                        name = data.get("name")
+                        comment_karma = data.get("comment_karma", 0)
+                        link_karma = data.get("link_karma", 0)
+                        total_karma = comment_karma + link_karma
+                        created_utc = data.get("created_utc")
+                        created_date = datetime.fromtimestamp(created_utc, pytz.utc).strftime("%Y-%m-%d")
+                        is_gold = "Ahya" if data.get("is_gold") else "La"
+                        icon_img = data.get("icon_img", "").split("?")[0]
+
+                        embed = discord.Embed(
+                            title=f"Reddit Profile ta3 u/{name}",
+                            url=f"https://www.reddit.com/user/{name}",
+                            color=0x000000
+                        )
+                        if icon_img and icon_img.startswith("http"):
+                            embed.set_thumbnail(url=icon_img)
+                        embed.add_field(name="Total Karma", value=str(total_karma), inline=True)
+                        embed.add_field(name="Post Karma", value=str(link_karma), inline=True)
+                        embed.add_field(name="Comment Karma", value=str(comment_karma), inline=True)
+                        embed.add_field(name="Gold User", value=is_gold, inline=True)
+                        embed.add_field(name="Mchyed f", value=created_date, inline=True)
+
+                        await wait.edit(embed=embed)
+                        return
+                    elif resp.status == 404:
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Reddit: `{username}`", color=0x000000))
+                        return
+        except Exception:
+            pass
+
+        # Direct API blocked — provide direct profile link
+        embed = discord.Embed(
+            title=f"Reddit Profile: u/{username}",
+            url=f"https://www.reddit.com/user/{username}",
+            description="Ma9drtch njbed l-details mn Reddit API. Kliki 3la l-link bach tchouf l-profile.",
+            color=0x000000
+        )
+        await wait.edit(embed=embed)
+
+    @commands.command(name="tiktok", aliases=["tt"], help="Nqelleb lik 3la user f TikTok.")
+    async def tiktok(self, ctx, username: str):
+        username = username.lstrip("@")
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        try:
+            params = {
+                "engine": "google",
+                "q": f"site:tiktok.com/@{username}",
+                "api_key": os.getenv('SERPAPI_KEY')
+            }
+            search = serpapi.GoogleSearch(params)
+            results = await asyncio.to_thread(search.get_dict)
+
+            organic = results.get("organic_results", [])
+            profile_res = None
+            if organic:
+                for res in organic:
+                    link_lower = res.get("link", "").lower()
+                    # STRICT: only match if the actual profile URL is in the link
+                    if f"tiktok.com/@{username.lower()}" in link_lower:
+                        profile_res = res
+                        break
+
+            if not profile_res:
+                embed = discord.Embed(
+                    title=f"TikTok Profile: @{username}",
+                    url=f"https://www.tiktok.com/@{username}",
+                    description="Kliki 3la l-link bach tchouf l-profile.",
+                    color=0x000000
+                )
+                await wait.edit(embed=embed)
+                return
+
+            title = profile_res.get("title", f"@{username} on TikTok")
+            snippet = profile_res.get("snippet", "")
+            link = profile_res.get("link", f"https://www.tiktok.com/@{username}")
+
+            followers = "unknown"
+            likes = "unknown"
+
+            followers_match = re.search(r"([\d\.]+[KMB]?) Followers", snippet, re.IGNORECASE)
+            if followers_match:
+                followers = followers_match.group(1)
+            likes_match = re.search(r"([\d\.]+[KMB]?) Likes", snippet, re.IGNORECASE)
+            if likes_match:
+                likes = likes_match.group(1)
+
+            embed = discord.Embed(
+                title=title,
+                url=link,
+                description=snippet,
+                color=0x000000
+            )
+            embed.add_field(name="Followers", value=followers, inline=True)
+            embed.add_field(name="Likes", value=likes, inline=True)
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="instagram", aliases=["ig"], help="Nqelleb lik 3la user f Instagram.")
+    async def instagram(self, ctx, username: str):
+        username = username.lstrip("@")
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        try:
+            params = {
+                "engine": "google",
+                "q": f"site:instagram.com/{username}",
+                "api_key": os.getenv('SERPAPI_KEY')
+            }
+            search = serpapi.GoogleSearch(params)
+            results = await asyncio.to_thread(search.get_dict)
+
+            organic = results.get("organic_results", [])
+            profile_res = None
+            if organic:
+                for res in organic:
+                    link_lower = res.get("link", "").lower()
+                    # STRICT: only match if the profile URL path is exact
+                    # Match instagram.com/username but NOT instagram.com/p/ or /reel/
+                    if f"instagram.com/{username.lower()}" in link_lower and "/p/" not in link_lower and "/reel/" not in link_lower:
+                        profile_res = res
+                        break
+
+            if not profile_res:
+                embed = discord.Embed(
+                    title=f"Instagram Profile: @{username}",
+                    url=f"https://www.instagram.com/{username}",
+                    description="Kliki 3la l-link bach tchouf l-profile.",
+                    color=0x000000
+                )
+                await wait.edit(embed=embed)
+                return
+
+            title = profile_res.get("title", f"@{username} on Instagram")
+            snippet = profile_res.get("snippet", "")
+            link = profile_res.get("link", f"https://www.instagram.com/{username}")
+
+            followers = "unknown"
+            following = "unknown"
+            posts = "unknown"
+
+            f_match = re.search(r"([\d\.]+[KMB]?) Followers", snippet, re.IGNORECASE)
+            if f_match:
+                followers = f_match.group(1)
+            f_match2 = re.search(r"([\d\.]+[KMB]?) Following", snippet, re.IGNORECASE)
+            if f_match2:
+                following = f_match2.group(1)
+            p_match = re.search(r"([\d\.]+[KMB]?) Posts", snippet, re.IGNORECASE)
+            if p_match:
+                posts = p_match.group(1)
+
+            embed = discord.Embed(
+                title=title,
+                url=link,
+                description=snippet,
+                color=0x000000
+            )
+            embed.add_field(name="Followers", value=followers, inline=True)
+            embed.add_field(name="Following", value=following, inline=True)
+            embed.add_field(name="Posts", value=posts, inline=True)
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="twitter", aliases=["x"], help="Nqelleb lik 3la user f Twitter (X).")
+    async def twitter(self, ctx, username: str):
+        username = username.lstrip("@")
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        try:
+            params = {
+                "engine": "google",
+                "q": f"site:x.com/{username}",
+                "api_key": os.getenv('SERPAPI_KEY')
+            }
+            search = serpapi.GoogleSearch(params)
+            results = await asyncio.to_thread(search.get_dict)
+
+            organic = results.get("organic_results", [])
+            profile_res = None
+            if organic:
+                for res in organic:
+                    link_lower = res.get("link", "").lower()
+                    # STRICT: only match if the profile URL itself is the link
+                    # Match x.com/username but NOT x.com/username/status/
+                    if (f"x.com/{username.lower()}" in link_lower or f"twitter.com/{username.lower()}" in link_lower) and "/status/" not in link_lower:
+                        profile_res = res
+                        break
+
+            if not profile_res:
+                embed = discord.Embed(
+                    title=f"X Profile: @{username}",
+                    url=f"https://x.com/{username}",
+                    description="Kliki 3la l-link bach tchouf l-profile.",
+                    color=0x000000
+                )
+                await wait.edit(embed=embed)
+                return
+
+            title = profile_res.get("title", f"@{username} on X")
+            snippet = profile_res.get("snippet", "")
+            link = profile_res.get("link", f"https://x.com/{username}")
+
+            followers = "unknown"
+            f_match = re.search(r"([\d\.]+[KMB]?) Followers", snippet, re.IGNORECASE)
+            if f_match:
+                followers = f_match.group(1)
+
+            embed = discord.Embed(
+                title=title,
+                url=link,
+                description=snippet,
+                color=0x000000
+            )
+            embed.add_field(name="Followers", value=followers, inline=True)
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="download", aliases=["dl", "save"], help="Ndownloadi lik video/audio mn TikTok, Instagram, wla YouTube Shorts.")
+    async def download(self, ctx, url: str):
+        wait = await ctx.send(embed=discord.Embed(description="Kandownloadi l-media, sber chwia...", color=0x000000))
+        
+        filename = f"download_{ctx.message.id}"
+        
+        def run_ytdl():
+            ydl_opts = {
+                'outtmpl': f'{filename}.%(ext)s',
+                'format': 'best',
+                'max_filesize': 25 * 1024 * 1024,
+                'quiet': True,
+                'no_warnings': True,
+                'nocheckcertificate': True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                return ydl.prepare_filename(info)
+
+        try:
+            downloaded_file = await asyncio.to_thread(run_ytdl)
+            if downloaded_file and os.path.exists(downloaded_file):
+                file_size = os.path.getsize(downloaded_file)
+                if file_size <= 25 * 1024 * 1024:
+                    await ctx.send(file=discord.File(downloaded_file))
+                    await wait.delete()
+                else:
+                    await wait.edit(embed=discord.Embed(description="L-file kber mn 25MB. M9drtch nsifto f Discord.", color=0x000000))
+                try:
+                    os.remove(downloaded_file)
+                except:
+                    pass
+            else:
+                await wait.edit(embed=discord.Embed(description="Mochkil: Mal9itch l-file dyal download.", color=0x000000))
+        except Exception as e:
+            for f in os.listdir("."):
+                if f.startswith(filename):
+                    try:
+                        os.remove(f)
+                    except:
+                        pass
+            await wait.edit(embed=discord.Embed(description=f"Mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="usernamecheck", aliases=["usersearch"], help="Nchouf lik username wach khdam f social media kamlin.")
+    async def usernamecheck(self, ctx, username: str):
+        wait = await ctx.send(embed=discord.Embed(description=f"Kanchekki username `{username}` f 20 platforms...", color=0x000000))
+
+        platforms = {
+            "GitHub": {"url": "https://api.github.com/users/{username}", "type": "status"},
+            "Reddit": {"url": "https://www.reddit.com/user/{username}/about.json", "type": "status"},
+            "Chess.com": {"url": "https://api.chess.com/pub/player/{username}", "type": "status"},
+            "Scratch": {"url": "https://api.scratch.mit.edu/users/{username}", "type": "status"},
+            "Docker Hub": {"url": "https://hub.docker.com/v2/users/{username}/", "type": "status"},
+            "Spotify": {"url": "https://open.spotify.com/user/{username}", "type": "status"},
+            "Pinterest": {"url": "https://www.pinterest.com/{username}/", "type": "status"},
+            "DeviantArt": {"url": "https://www.deviantart.com/{username}", "type": "status"},
+            "SoundCloud": {"url": "https://soundcloud.com/{username}", "type": "status"},
+            "Twitch": {"url": "https://www.twitch.tv/{username}", "type": "status"},
+            "Steam": {"url": "https://steamcommunity.com/id/{username}", "type": "steam"},
+            "Linktree": {"url": "https://linktree.com/{username}", "type": "status"},
+            "Letterboxd": {"url": "https://letterboxd.com/{username}/", "type": "status"},
+            "DailyMotion": {"url": "https://www.dailymotion.com/{username}", "type": "status"},
+            "Behance": {"url": "https://www.behance.net/{username}", "type": "status"},
+            "Medium": {"url": "https://medium.com/@{username}", "type": "status"},
+            "Duolingo": {"url": "https://www.duolingo.com/2017-06-30/users?username={username}", "type": "duolingo"},
+            "Vimeo": {"url": "https://vimeo.com/{username}", "type": "status"},
+            "NPM": {"url": "https://www.npmjs.com/~{username}", "type": "status"},
+            "Patreon": {"url": "https://www.patreon.com/{username}", "type": "status"}
+        }
+
+        async def check_platform(session, name, config, u):
+            url = config["url"].format(username=u)
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"}
+            try:
+                if config["type"] == "status":
+                    async with session.get(url, headers=headers, timeout=8) as resp:
+                        if resp.status == 404:
+                            return name, "Available"
+                        elif resp.status in [200, 301, 302]:
+                            return name, "Taken"
+                        else:
+                            return name, f"Error ({resp.status})"
+                elif config["type"] == "steam":
+                    async with session.get(url, headers=headers, timeout=8) as resp:
+                        if resp.status == 404:
+                            return name, "Available"
+                        html = await resp.text()
+                        if "The specified profile could not be found" in html or "Error" in html:
+                            return name, "Available"
+                        return name, "Taken"
+                elif config["type"] == "duolingo":
+                    async with session.get(url, headers=headers, timeout=8) as resp:
+                        if resp.status == 404:
+                            return name, "Available"
+                        data = await resp.json()
+                        if data.get("users"):
+                            return name, "Taken"
+                        return name, "Available"
+            except Exception:
+                return name, "Error"
+
+        async with aiohttp.ClientSession() as session:
+            tasks = [check_platform(session, name, config, username) for name, config in platforms.items()]
+            results = await asyncio.gather(*tasks)
+
+        lines = []
+        for name, status in results:
+            icon = "✅" if status == "Available" else "❌" if status == "Taken" else "⚠️"
+            lines.append(f"{icon} **{name}**: {status}")
+
+        half = len(lines) // 2
+        col1 = "\n".join(lines[:half])
+        col2 = "\n".join(lines[half:])
+
+        embed = discord.Embed(
+            title=f"Username Check: `{username}`",
+            color=0x000000
+        )
+        embed.add_field(name="Platforms (1-10)", value=col1, inline=True)
+        embed.add_field(name="Platforms (11-20)", value=col2, inline=True)
+
+        await wait.edit(embed=embed)
+
+    @commands.command(name="minecraft", aliases=["mc", "namemc"], help="Njbed lik details w skin dyal Minecraft user.")
+    async def minecraft(self, ctx, username: str):
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        url = f"https://playerdb.co/api/player/minecraft/{username}"
+        headers = {"User-Agent": "SifdineBot"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 404:
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Minecraft: `{username}`", color=0x000000))
+                        return
+                    if resp.status != 200:
+                        raise Exception(f"HTTP Code {resp.status}")
+                    data = await resp.json()
+
+            if not data.get("success"):
+                await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Minecraft: `{username}`", color=0x000000))
+                return
+
+            player_data = data["data"]["player"]
+            uuid = player_data["id"]
+            current_name = player_data["username"]
+            meta = player_data.get("meta", {})
+            name_history_raw = meta.get("name_history", [])
+
+            history_list = []
+            for idx, hist in enumerate(name_history_raw):
+                history_list.append(f"{idx+1}. {hist.get('name')}")
+
+            history_str = "\n".join(history_list) if history_list else "Walo history."
+            if len(history_str) > 1024:
+                history_str = history_str[:1020] + "..."
+
+            embed = discord.Embed(
+                title=f"Minecraft Profile: {current_name}",
+                url=f"https://namemc.com/profile/{uuid}",
+                description=f"**Name History:**\n{history_str}",
+                color=0x000000
+            )
+            embed.set_thumbnail(url=f"https://mc-heads.net/avatar/{uuid}/128")
+            embed.set_image(url=f"https://mc-heads.net/body/{uuid}/256")
+            embed.add_field(name="UUID", value=f"`{uuid}`", inline=False)
+            embed.add_field(name="Skins & Customizations", value=f"[Khtar l-Skin dyalo (Skin URL)](https://mc-heads.net/skin/{uuid})", inline=False)
+            embed.set_footer(text="Mojang name history restrictions may apply.")
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="roblox", aliases=["rbx"], help="Njbed lik details ta3 user f Roblox.")
+    async def roblox(self, ctx, username: str):
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        headers = {"User-Agent": "Mozilla/5.0", "Content-Type": "application/json"}
+        try:
+            resolve_url = "https://users.roblox.com/v1/usernames/users"
+            payload = {"usernames": [username], "excludeBannedUsers": False}
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(resolve_url, json=payload, headers=headers) as resp:
+                    if resp.status != 200:
+                        raise Exception(f"Roblox username resolution failed with code {resp.status}")
+                    search_data = await resp.json()
+
+            user_list = search_data.get("data", [])
+            if not user_list:
+                await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Roblox: `{username}`", color=0x000000))
+                return
+
+            user_id = user_list[0]["id"]
+
+            detail_url = f"https://users.roblox.com/v1/users/{user_id}"
+            avatar_url = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=352x352&format=Png&isCircular=false"
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(detail_url, headers=headers) as resp_detail, \
+                           session.get(avatar_url, headers=headers) as resp_avatar:
+
+                    if resp_detail.status != 200 or resp_avatar.status != 200:
+                        raise Exception("Roblox APIs were not responsive.")
+
+                    details = await resp_detail.json()
+                    avatar_data = await resp_avatar.json()
+
+            display_name = details.get("displayName")
+            real_name = details.get("name")
+            bio = details.get("description") or "Walo bio."
+            created_at_str = details.get("created")
+
+            created_date = created_at_str.split("T")[0] if created_at_str else "Makhfi"
+
+            thumb_url = None
+            avatar_list = avatar_data.get("data", [])
+            if avatar_list:
+                thumb_url = avatar_list[0].get("imageUrl")
+
+            embed = discord.Embed(
+                title=f"Roblox Profile: {display_name} (@{real_name})",
+                url=f"https://www.roblox.com/users/{user_id}/profile",
+                description=bio,
+                color=0x000000
+            )
+            if thumb_url:
+                embed.set_thumbnail(url=thumb_url)
+
+            embed.add_field(name="User ID", value=f"`{user_id}`", inline=True)
+            embed.add_field(name="Mchyed f", value=created_date, inline=True)
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="chessuser", aliases=["chessprofile"], help="Njbed lik details o stats ta3 user f Chess.com.")
+    async def chessuser(self, ctx, username: str):
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        headers = {"User-Agent": "SifdineBot"}
+        profile_url = f"https://api.chess.com/pub/player/{username}"
+        stats_url = f"https://api.chess.com/pub/player/{username}/stats"
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(profile_url, headers=headers) as resp_profile, \
+                           session.get(stats_url, headers=headers) as resp_stats:
+
+                    if resp_profile.status == 404:
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f Chess.com: `{username}`", color=0x000000))
+                        return
+                    if resp_profile.status != 200 or resp_stats.status != 200:
+                        raise Exception("Chess.com APIs were not responsive.")
+
+                    profile = await resp_profile.json()
+                    stats = await resp_stats.json()
+
+            name = profile.get("name") or profile.get("username")
+            title = profile.get("title")
+            avatar = profile.get("avatar")
+            followers = profile.get("followers", 0)
+            joined_timestamp = profile.get("joined")
+
+            joined_date = datetime.fromtimestamp(joined_timestamp, pytz.utc).strftime("%Y-%m-%d") if joined_timestamp else "Makhfi"
+
+            blitz_rating = stats.get("chess_blitz", {}).get("last", {}).get("rating", "N/A")
+            rapid_rating = stats.get("chess_rapid", {}).get("last", {}).get("rating", "N/A")
+            bullet_rating = stats.get("chess_bullet", {}).get("last", {}).get("rating", "N/A")
+
+            embed = discord.Embed(
+                title=f"Chess.com Profile: {name}" + (f" [{title}]" if title else ""),
+                url=profile.get("url"),
+                color=0x000000
+            )
+            if avatar:
+                embed.set_thumbnail(url=avatar)
+
+            embed.add_field(name="Blitz Rating ⚡", value=f"**{blitz_rating}**", inline=True)
+            embed.add_field(name="Rapid Rating ⏱️", value=f"**{rapid_rating}**", inline=True)
+            embed.add_field(name="Bullet Rating ☄️", value=f"**{bullet_rating}**", inline=True)
+            embed.add_field(name="Followers", value=str(followers), inline=True)
+            embed.add_field(name="Mchyed f", value=joined_date, inline=True)
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
 async def setup(bot):
     await bot.add_cog(GlobUtil(bot))

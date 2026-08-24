@@ -1,5 +1,4 @@
-from aiohttp import client_exceptions
-from aiohttp import client_exceptions
+from PIL import Image
 import discord
 from discord.ext import commands
 import os
@@ -8,7 +7,9 @@ import io
 import random
 import re
 import datetime
+import traceback
 from converters import FuzzyMember
+import requests
 
 class Moderation(commands.Cog):
     def __init__(self, bot):
@@ -277,7 +278,7 @@ class Moderation(commands.Cog):
 
     @sticker.command(name="add", aliases=["a"], help="Zid sticker l server")
     @commands.has_permissions(manage_expressions=True)
-    async def add(self, ctx, *, name: str=None):
+    async def sticker_add(self, ctx, *, name: str=None):
         if not ctx.message.attachments:
             await ctx.send("Khsek tsift tswira m3a lcommand.")
             return
@@ -285,10 +286,17 @@ class Moderation(commands.Cog):
         attachment = ctx.message.attachments[0]
         emoji = random.choice(self.fallback_emojis)
 
-        file_bytes = await attachment.read()
-        file_obj = discord.File(io.BytesIO(file_bytes), filename="sticker.png")
-
         try:
+            file_bytes = await attachment.read()
+            img = Image.open(io.BytesIO(file_bytes))
+            img = img.resize((320, 320), Image.Resampling.LANCZOS)
+            
+            out_io = io.BytesIO()
+            img.save(out_io, format="PNG")
+            out_io.seek(0)
+            
+            file_obj = discord.File(out_io, filename="sticker.png")
+
             sticker = await ctx.guild.create_sticker(
                 name=name if name is not None else f"Sticker{random.randint(0, 9999)}",
                 description="Custom Sticker",
@@ -303,16 +311,17 @@ class Moderation(commands.Cog):
             await ctx.send(embed=em)
 
         except Exception as e:
+            traceback.print_exc()
             await ctx.send(embed=discord.Embed(description=f"Tra chy mochkil :/ `{e}`", color=0x000000))
 
     @sticker.command(name="remove", aliases=["delete", "r", "d"], help="7yed chy sticker mn server")
     @commands.has_permissions(manage_expressions=True)
-    async def remove(self, ctx, sticker_id: int = None):
+    async def sticker_remove(self, ctx, sticker_id: int = None):
         try:
             if sticker_id:
-                sticker = await ctx.guild.fetch_sticker(sticker_id)
+                sticker = await self.bot.fetch_sticker(sticker_id)
             elif ctx.message.stickers:
-                sticker = await ctx.guild.fetch_sticker(ctx.message.stickers[0].id)
+                sticker = await self.bot.fetch_sticker(ctx.message.stickers[0].id)
             else:
                 await ctx.send("3tini chy sticker li bghitini n7yed wla l ID ta3o.")
                 return
@@ -325,12 +334,13 @@ class Moderation(commands.Cog):
             await sticker.delete()
             await ctx.send(embed=em)
         except Exception as e:
+            traceback.print_exc()
             await ctx.send(embed=discord.Embed(description=f"Mal9itch had sticker oula ma3ndich permission :/ `{e}`",
                                                color=0x000000))
 
     @sticker.command(name="steal", aliases=["s"], help="Chfer chy sticker mn chy server akhor.")
     @commands.has_permissions(manage_expressions=True)
-    async def steal(self, ctx):
+    async def sticker_steal(self, ctx):
         target_stickers = []
 
         if ctx.message.stickers:
@@ -344,6 +354,14 @@ class Moderation(commands.Cog):
                 pass
 
         if not target_stickers:
+            async for msg in ctx.channel.history(limit=20):
+                if msg.id == ctx.message.id:
+                    continue
+                if msg.stickers:
+                    target_stickers = msg.stickers
+                    break
+
+        if not target_stickers:
             await ctx.send("Sift wla replyi l sticker li bghitini nchfer.")
             return
 
@@ -351,8 +369,23 @@ class Moderation(commands.Cog):
             emoji = random.choice(self.fallback_emojis)
 
             try:
-                file_bytes = await target_sticker.read()
-                file_obj = discord.File(io.BytesIO(file_bytes), filename="sticker.png")
+                try:
+                    r = requests.get(target_sticker.url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+                    if r.status_code == 200:
+                        file_bytes = r.content
+                    else:
+                        file_bytes = await target_sticker.read()
+                except Exception:
+                    file_bytes = await target_sticker.read()
+                
+                img = Image.open(io.BytesIO(file_bytes))
+                img = img.resize((320, 320), Image.Resampling.LANCZOS)
+                
+                out_io = io.BytesIO()
+                img.save(out_io, format="PNG")
+                out_io.seek(0)
+                
+                file_obj = discord.File(out_io, filename="sticker.png")
 
                 created_sticker = await ctx.guild.create_sticker(
                     name=target_sticker.name,
@@ -367,22 +400,50 @@ class Moderation(commands.Cog):
                 em.set_thumbnail(url=created_sticker.url)
                 await ctx.send(embed=em, stickers=[created_sticker])
             except Exception as e:
+                traceback.print_exc()
                 await ctx.send(
                     embed=discord.Embed(description=f"Ma9dertch nchfer sticker **{target_sticker.name}** :/ `{e}`",
                                         color=0x000000))
 
     @sticker.command(name="zoom", aliases=["z"], help="Chouf tswira ta3 chy sticker")
-    async def zoom(self, ctx, sticker_id: int = None):
+    async def sticker_zoom(self, ctx, sticker_id: int = None):
         try:
+            sticker = None
             if sticker_id:
-                sticker = await ctx.guild.fetch_sticker(sticker_id)
+                try:
+                    sticker = await self.bot.fetch_sticker(sticker_id)
+                except discord.NotFound:
+                    class MockSticker:
+                        def __init__(self, id_):
+                            self.id = id_
+                            self.name = f"Sticker {id_}"
+                            self.url = f"https://cdn.discordapp.com/stickers/{id_}.png"
+                    sticker = MockSticker(sticker_id)
             elif ctx.message.stickers:
-                sticker = await ctx.guild.fetch_sticker(ctx.message.stickers[0].id)
+                try:
+                    sticker = await self.bot.fetch_sticker(ctx.message.stickers[0].id)
+                except discord.NotFound:
+                    sticker = ctx.message.stickers[0]
             elif ctx.message.reference:
                 ref_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
                 if ref_msg.stickers:
-                    sticker = await ctx.guild.fetch_sticker(ref_msg.stickers[0].id)
-            else:
+                    try:
+                        sticker = await self.bot.fetch_sticker(ref_msg.stickers[0].id)
+                    except discord.NotFound:
+                        sticker = ref_msg.stickers[0]
+
+            if not sticker:
+                async for msg in ctx.channel.history(limit=20):
+                    if msg.id == ctx.message.id:
+                        continue
+                    if msg.stickers:
+                        try:
+                            sticker = await self.bot.fetch_sticker(msg.stickers[0].id)
+                        except discord.NotFound:
+                            sticker = msg.stickers[0]
+                        break
+
+            if not sticker:
                 await ctx.send("3tini sticker li bghitini nzoomi wla replyi l chy message fih sticker.")
                 return
 
@@ -397,6 +458,7 @@ class Moderation(commands.Cog):
             await ctx.send(embed=em)
 
         except Exception as e:
+            traceback.print_exc()
             await ctx.send(embed=discord.Embed(description=f"Mal9itch had sticker :/ `{e}`", color=0x000000))
 
     @commands.group(name="emoji", invoke_without_command=True, help="Ga3 l commands ta3 emojis.")
@@ -405,7 +467,7 @@ class Moderation(commands.Cog):
 
     @emoji.command(name="add", aliases=["a"], help="Zid emoji l server")
     @commands.has_permissions(manage_expressions=True)
-    async def add(self, ctx, name: str = None):
+    async def emoji_add(self, ctx, name: str = None):
         if not ctx.message.attachments:
             await ctx.send("Khsek tsift tswira m3a lcommand.")
             return
@@ -431,11 +493,12 @@ class Moderation(commands.Cog):
             await ctx.send(embed=em)
 
         except Exception as e:
+            traceback.print_exc()
             await ctx.send(embed=discord.Embed(description=f"Tra chy mochkil :/ `{e}`", color=0x000000))
 
     @emoji.command(name="remove", aliases=["delete", "r", "d"], help="7yed chy emoji mn server")
     @commands.has_permissions(manage_expressions=True)
-    async def remove(self, ctx, emoji: discord.Emoji = None):
+    async def emoji_remove(self, ctx, emoji: discord.Emoji = None):
         if not emoji:
             await ctx.send("3tini chy emoji li bghitini n7yed wla l ID/Name ta3o.")
             return
@@ -451,12 +514,13 @@ class Moderation(commands.Cog):
             await emoji.delete()
             await ctx.send(embed=em)
         except Exception as e:
+            traceback.print_exc()
             await ctx.send(embed=discord.Embed(description=f"Mal9itch had l'emoji oula ma3ndich permission :/ `{e}`",
                                                color=0x000000))
 
     @emoji.command(name="steal", aliases=["s"], help="Chfer chy emoji mn chy server akhor.")
     @commands.has_permissions(manage_expressions=True)
-    async def steal(self, ctx, emoji: discord.PartialEmoji = None):
+    async def emoji_steal(self, ctx, emoji: discord.PartialEmoji = None):
 
         if not emoji and ctx.message.reference:
             try:
@@ -480,6 +544,18 @@ class Moderation(commands.Cog):
                 emoji = discord.PartialEmoji(animated=animated, name=name, id=emoji_id)
 
         if not emoji:
+            async for msg in ctx.channel.history(limit=20):
+                if msg.id == ctx.message.id:
+                    continue
+                custom_emoji_match = re.search(r'<(a?):([a-zA-Z0-9_]+):([0-9]+)>', msg.content)
+                if custom_emoji_match:
+                    animated = bool(custom_emoji_match.group(1))
+                    name = custom_emoji_match.group(2)
+                    emoji_id = int(custom_emoji_match.group(3))
+                    emoji = discord.PartialEmoji(animated=animated, name=name, id=emoji_id)
+                    break
+
+        if not emoji:
             await ctx.send("Sift wla replyi l emoji li bghitni nchfer.")
             return
 
@@ -499,11 +575,12 @@ class Moderation(commands.Cog):
             em.set_thumbnail(url=created_emoji.url)
             await ctx.send(embed=em)
         except Exception as e:
+            traceback.print_exc()
             await ctx.send(
                 embed=discord.Embed(description=f"Ma9dertch nchfer emoji **{emoji.name}** :/ `{e}`", color=0x000000))
 
     @emoji.command(name="zoom", aliases=["z"], help="Chouf tswira ta3 chy emoji.")
-    async def zoom(self, ctx, emoji: discord.PartialEmoji = None):
+    async def emoji_zoom(self, ctx, emoji: discord.PartialEmoji = None):
         if not emoji and ctx.message.reference:
             try:
                 ref_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
@@ -526,6 +603,18 @@ class Moderation(commands.Cog):
                 emoji = discord.PartialEmoji(animated=animated, name=name, id=emoji_id)
 
         if not emoji:
+            async for msg in ctx.channel.history(limit=20):
+                if msg.id == ctx.message.id:
+                    continue
+                custom_emoji_match = re.search(r'<(a?):([a-zA-Z0-9_]+):([0-9]+)>', msg.content)
+                if custom_emoji_match:
+                    animated = bool(custom_emoji_match.group(1))
+                    name = custom_emoji_match.group(2)
+                    emoji_id = int(custom_emoji_match.group(3))
+                    emoji = discord.PartialEmoji(animated=animated, name=name, id=emoji_id)
+                    break
+
+        if not emoji:
             await ctx.send("3tini emoji li bghitini nzoomi wla replyi l chy message fih emoji.")
             return
 
@@ -538,6 +627,7 @@ class Moderation(commands.Cog):
             em.set_image(url=emoji.url)
             await ctx.send(embed=em)
         except Exception as e:
+            traceback.print_exc()
             await ctx.send(embed=discord.Embed(description=f"Mal9itch had emoji :/ `{e}`", color=0x000000))
 
     @commands.command(pass_context=True, aliases=["nick", "nickname"], help="Bdel nickname ta3 chy wa7d.")

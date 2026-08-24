@@ -10,3 +10,6 @@ akinator
 chess
 pillow
 pytz
+deep-translator
+langdetect
+yt-dlp

@@ -162,6 +162,33 @@ class ModernHelpCommand(commands.HelpCommand):
                                         "aliases": ["mosa3ada", "3awn", "commands", "3t9",
                                                     "3te9"]})
 
+    async def command_callback(self, ctx, *, command=None):
+        if command is not None:
+            matched_category = None
+            for category in AllBotCommands.keys():
+                if category.lower() == command.lower():
+                    matched_category = category
+                    break
+            
+            if matched_category:
+                return await self.send_category_help(matched_category)
+                
+        return await super().command_callback(ctx, command=command)
+
+    async def send_category_help(self, category):
+        ctx = self.context
+        command_names = AllBotCommands.get(category, [])
+        formatted_commands = " ".join([f"`{name}`" for name in command_names])
+
+        embed = discord.Embed(
+            title=f"Category: {category}",
+            description=formatted_commands or "Category khawya.",
+            color=0x000000
+        )
+        
+        view = HelpDropdownView(self)
+        await ctx.send(embed=embed, view=view)
+
     async def send_bot_help(self, mapping):
         ctx = self.context
         total_commands = 0

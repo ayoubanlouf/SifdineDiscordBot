@@ -5,6 +5,9 @@ from datetime import datetime, timezone
 import urllib
 from googletrans import Translator
 import difflib
+from langdetect import detect
+from deep_translator import MyMemoryTranslator
+import traceback
 
 class Events(commands.Cog):
     def __init__(self, bot):
@@ -91,6 +94,8 @@ class Events(commands.Cog):
                 suggested = matches[0]
                 await ctx.send(f"Wa9ila biti tgoul `{ctx.prefix}{suggested}`?")
             return
+        else:
+            traceback.print_exception(type(error), error, error.__traceback__)
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -253,64 +258,87 @@ class Events(commands.Cog):
         channel = message.channel
         emoji = reaction.emoji
 
-        if emoji == "🤓":
-            quoted = urllib.parse.quote(message.content, safe='')
-            msg = f'"{message.content}" :nerd:'
-            await channel.send(msg)
-        elif emoji == "☕":
-            await message.reply("women ☕", mention_author=False)
-        elif emoji == "🧢":
-            await message.reply("Why the fuck u lying...", mention_author=False)
-        elif emoji == "😐":
-            msg = await message.reply("🤣", mention_author=False)
-            await msg.edit("🤣🤣🤣")
-            await msg.edit("🤣🤣🤣🤣🤣")
-            await msg.edit("🤣🤣🤣🤣🤣🤣🤣")
-            await msg.edit("🤣🤣🤣🤣🤣🤣🤣🤣🤣")
-            await msg.edit("😐")
-        elif emoji == "🐔":
-            await message.reply("https://tenor.com/view/kurica-gif-26343653", mention_author=False)
-        elif emoji == "👀":
+        if emoji == "👀":
+            if not message.content:
+                return
             text = urllib.parse.quote(message.content, safe='')
             url = f"https://frenchnoodles.xyz/api/endpoints/awkwardmonkey?text={text}"
             await message.reply(url, mention_author=False)
         elif emoji == "🧠":
+            if not message.content:
+                return
             text = urllib.parse.quote(message.content, safe='')
             url = f"https://frenchnoodles.xyz/api/endpoints/changemymind?text={text}"
             await message.reply(url, mention_author=False)
         elif emoji == "🧽":
+            if not message.content:
+                return
             text = urllib.parse.quote(message.content, safe='')
             url = f"https://frenchnoodles.xyz/api/endpoints/spongebobburnpaper?text={text}"
             await message.reply(url, mention_author=False)
         elif emoji == "👎":
+            if not message.content:
+                return
             text = urllib.parse.quote(message.content, safe='')
             url = f"https://frenchnoodles.xyz/api/endpoints/worthless?text={text}"
             await message.reply(url, mention_author=False)
+        elif emoji == "🚨":
+            if not message.content:
+                return
+            text = urllib.parse.quote(message.content, safe='')
+            url = f"https://frenchnoodles.xyz/api/endpoints/presidentialalert?text={text}"
+            await message.reply(url, mention_author=False)
+        elif emoji == "🎤":
+            if not message.content:
+                return
+            text = urllib.parse.quote(message.content, safe='')
+            url = f"https://frenchnoodles.xyz/api/endpoints/lisastage?text={text}"
+            await message.reply(url, mention_author=False)
         elif emoji == "🇺🇸":
             try:
-                translator = Translator()
-                lang = translator.detect(message.content).lang
-                translation = translator.translate(message.content, src=lang, dest="en")
+                if not message.content:
+                    return
+                loop = self.bot.loop
+                detected_lang = await loop.run_in_executor(None, detect, message.content)
+                
+                temp = MyMemoryTranslator(source='english', target='french')
+                supported = temp.get_supported_languages(as_dict=True)
+                src_code = next((code for code in supported.values() if code.lower() == detected_lang.lower() or code.lower().startswith(detected_lang.lower() + '-')), 'en-GB')
+                
+                detected_name = next((k for k, v in supported.items() if v == src_code), detected_lang)
+                
+                translator = MyMemoryTranslator(source=src_code, target='en-GB')
+                translated_text = await loop.run_in_executor(None, translator.translate, message.content)
+                
                 e = discord.Embed(
-                    title=f"Translated from ({lang}) to (english)",
-                    color=discord.Color.from_rgb(168, 22, 95),
-                    description=f"```{translation.text}```"
+                    title=f"Terjama men ({detected_name}) l (english)",
+                    color=0x000000,
+                    description=f"```{translated_text}```"
                 )
-                e.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/d/db/Google_Translate_Icon.png")
                 await message.reply(embed=e, mention_author=False)
             except Exception:
                 pass
         elif emoji == "🇲🇦":
             try:
-                translator = Translator()
-                lang = translator.detect(message.content).lang
-                translation = translator.translate(message.content, src=lang, dest="ar")
+                if not message.content:
+                    return
+                loop = self.bot.loop
+                detected_lang = await loop.run_in_executor(None, detect, message.content)
+                
+                temp = MyMemoryTranslator(source='english', target='french')
+                supported = temp.get_supported_languages(as_dict=True)
+                src_code = next((code for code in supported.values() if code.lower() == detected_lang.lower() or code.lower().startswith(detected_lang.lower() + '-')), 'en-GB')
+                
+                detected_name = next((k for k, v in supported.items() if v == src_code), detected_lang)
+                
+                translator = MyMemoryTranslator(source=src_code, target='ar-SA')
+                translated_text = await loop.run_in_executor(None, translator.translate, message.content)
+                
                 e = discord.Embed(
-                    title=f"Translated from ({lang}) to (arabic)",
-                    color=discord.Color.from_rgb(168, 22, 95),
-                    description=f"```{translation.text}```"
+                    title=f"Terjama men ({detected_name}) l (arabic)",
+                    color=0x000000,
+                    description=f"```{translated_text}```"
                 )
-                e.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/d/db/Google_Translate_Icon.png")
                 await message.reply(embed=e, mention_author=False)
             except Exception:
                 pass

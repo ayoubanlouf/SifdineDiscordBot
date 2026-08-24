@@ -8,7 +8,8 @@ AllBotCommands = {
     ],
     "Global Util": [
         "makegif", "image", "dictionary", "flag", "weather", "time", "translate", "youtube", "calculate", "rhyme",
-        "locate", "reverse", "8ball", "gif", "coinflip", "dice", "quote", "animeinfo"
+        "locate", "reverse", "8ball", "gif", "coinflip", "dice", "quote", "animeinfo", "github", "reddituser",
+        "tiktok", "instagram", "twitter", "download", "usernamecheck", "minecraft", "roblox", "chessuser"
     ],
     "Fun": [
         "truth", "dare", "wouldyourather", "flags", "blacktea", "greentea",
@@ -22,9 +23,10 @@ AllBotCommands = {
         "deafen", "undeafen", "disconnect", "voicenuke", "slowmode", "permissions"
     ],
     "Manipulation": [
-
+        "worthless", "drake", "presidentialalert", "spongebobburnpaper", "lisastage", "changemymind", "awkwardmonkey",
+        "blur", "circle", "invert", "wide", "uglyupclose", "clown", "rip", "affectbaby", "trash"
     ],
     "Triggers": [
-        "🤓", "☕", "🧢", "😐", "🐔", "👀", "🧠", "🧽", "👎", "🇺🇸", "🇲🇦"
+        "👀", "🧠", "🧽", "👎", "🚨", "🎤", "🇺🇸", "🇲🇦"
     ],
 }

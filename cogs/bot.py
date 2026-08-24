@@ -188,9 +188,8 @@ class Bot(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="New Suggestion",
             description=content or "No content provided.",
-            color=0x00FF00,
+            color=0x000000,
             timestamp=ctx.message.created_at
         )
         embed.set_author(name=f"{ctx.author} ({ctx.author.id})", icon_url=ctx.author.display_avatar.url)
@@ -216,7 +215,6 @@ class Bot(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="New Bug Report",
             description=content or "No content provided.",
             color=0x000000,
             timestamp=ctx.message.created_at
