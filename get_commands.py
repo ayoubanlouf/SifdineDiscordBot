@@ -28,6 +28,6 @@ AllBotCommands = {
         "blur", "circle", "invert", "wide", "uglyupclose", "clown", "rip", "affectbaby", "trash"
     ],
     "Triggers": [
-        "👀", "🧠", "🧽", "👎", "🚨", "🎤", "🇺🇸", "🇲🇦"
+        "👀", "🧠", "🧽", "👎", "🚨", "🎤"
     ],
 }

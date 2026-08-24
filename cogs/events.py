@@ -6,9 +6,6 @@ import urllib
 import difflib
 import traceback
 
-_mymemory_supported_languages = None
-
-
 class Events(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -249,7 +246,6 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
-        global _mymemory_supported_languages
         if not reaction.message.guild:
             return
         if user.bot:
@@ -295,64 +291,6 @@ class Events(commands.Cog):
             text = urllib.parse.quote(message.content, safe='')
             url = f"https://frenchnoodles.xyz/api/endpoints/lisastage?text={text}"
             await message.reply(url, mention_author=False)
-        elif emoji == "🇺🇸":
-            try:
-                if not message.content:
-                    return
-                from langdetect import detect
-                from deep_translator import MyMemoryTranslator
-                loop = self.bot.loop
-                detected_lang = await loop.run_in_executor(None, detect, message.content)
-                
-                if _mymemory_supported_languages is None:
-                    temp = MyMemoryTranslator(source='english', target='french')
-                    _mymemory_supported_languages = temp.get_supported_languages(as_dict=True)
-                supported = _mymemory_supported_languages
-                
-                src_code = next((code for code in supported.values() if code.lower() == detected_lang.lower() or code.lower().startswith(detected_lang.lower() + '-')), 'en-GB')
-                
-                detected_name = next((k for k, v in supported.items() if v == src_code), detected_lang)
-                
-                translator = MyMemoryTranslator(source=src_code, target='en-GB')
-                translated_text = await loop.run_in_executor(None, translator.translate, message.content)
-                
-                e = discord.Embed(
-                    title=f"Terjama men ({detected_name}) l (english)",
-                    color=0x000000,
-                    description=f"```{translated_text}```"
-                )
-                await message.reply(embed=e, mention_author=False)
-            except Exception:
-                pass
-        elif emoji == "🇲🇦":
-            try:
-                if not message.content:
-                    return
-                from langdetect import detect
-                from deep_translator import MyMemoryTranslator
-                loop = self.bot.loop
-                detected_lang = await loop.run_in_executor(None, detect, message.content)
-                
-                if _mymemory_supported_languages is None:
-                    temp = MyMemoryTranslator(source='english', target='french')
-                    _mymemory_supported_languages = temp.get_supported_languages(as_dict=True)
-                supported = _mymemory_supported_languages
-                
-                src_code = next((code for code in supported.values() if code.lower() == detected_lang.lower() or code.lower().startswith(detected_lang.lower() + '-')), 'en-GB')
-                
-                detected_name = next((k for k, v in supported.items() if v == src_code), detected_lang)
-                
-                translator = MyMemoryTranslator(source=src_code, target='ar-SA')
-                translated_text = await loop.run_in_executor(None, translator.translate, message.content)
-                
-                e = discord.Embed(
-                    title=f"Terjama men ({detected_name}) l (arabic)",
-                    color=0x000000,
-                    description=f"```{translated_text}```"
-                )
-                await message.reply(embed=e, mention_author=False)
-            except Exception:
-                pass
         else:
             return
 
