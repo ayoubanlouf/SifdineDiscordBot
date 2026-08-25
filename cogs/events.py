@@ -101,8 +101,8 @@ class Events(commands.Cog):
 
         async with self.bot.db.execute("SELECT 1 FROM afk WHERE user_id = ?", (message.author.id,)) as cursor:
             if await cursor.fetchone():
-                await self.bot.db.execute("DELETE FROM afk WHERE user_id = ?", (message.author.id,))
-                await self.bot.db.commit()
+                async with self.bot.db.execute("DELETE FROM afk WHERE user_id = ?", (message.author.id,)):
+                    await self.bot.db.commit()
                 await message.reply(f"3la slamto.", mention_author=False)
 
         if message.mentions:

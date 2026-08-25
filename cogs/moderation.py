@@ -9,7 +9,7 @@ import re
 import datetime
 import traceback
 from converters import FuzzyMember
-import requests
+
 
 class Moderation(commands.Cog):
     def __init__(self, bot):
@@ -370,11 +370,11 @@ class Moderation(commands.Cog):
 
             try:
                 try:
-                    r = requests.get(target_sticker.url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-                    if r.status_code == 200:
-                        file_bytes = r.content
-                    else:
-                        file_bytes = await target_sticker.read()
+                    async with self.bot.session.get(target_sticker.url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10) as resp:
+                        if resp.status == 200:
+                            file_bytes = await resp.read()
+                        else:
+                            file_bytes = await target_sticker.read()
                 except Exception:
                     file_bytes = await target_sticker.read()
                 

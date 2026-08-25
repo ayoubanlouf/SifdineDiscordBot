@@ -5,7 +5,13 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 import difflib
-import requests
+class ReusableSession:
+    def __init__(self, session):
+        self.session = session
+    async def __aenter__(self):
+        return self.session
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
 import json
 from datetime import datetime
 import pytz
@@ -30,8 +36,10 @@ class GlobUtil(commands.Cog):
         self.check_reminders.cancel()
 
     async def init_db(self):
-        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS reminders (user_id INTEGER, channel_id INTEGER, reminder_text TEXT, end_time INTEGER)")
-        await self.bot.db.commit()
+        async with self.bot.db.execute("CREATE TABLE IF NOT EXISTS reminders (user_id INTEGER, channel_id INTEGER, reminder_text TEXT, end_time INTEGER)"):
+            await self.bot.db.commit()
+        async with self.bot.db.execute("CREATE INDEX IF NOT EXISTS idx_reminders_end_time ON reminders (end_time)"):
+            await self.bot.db.commit()
 
     @commands.command(name="makegif", aliases=["togif"], help="3tini video nreddo GIF.")
     async def makegif(self, ctx):
@@ -112,7 +120,7 @@ class GlobUtil(commands.Cog):
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get('https://api.scaleserp.com/search', params=params) as resp:
                     if resp.status != 200:
                         raise Exception(f"API 3tani code {resp.status}")
@@ -170,7 +178,7 @@ class GlobUtil(commands.Cog):
         status_msg = await ctx.send(embed=wait_embed)
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(url) as resp:
                     if resp.status != 200:
                         raise Exception(f"API 3tani code {resp.status}")
@@ -242,7 +250,7 @@ class GlobUtil(commands.Cog):
 
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get("https://flagcdn.com/en/codes.json") as resp:
                     if resp.status == 200:
                         countries_map = await resp.json()
@@ -282,8 +290,8 @@ class GlobUtil(commands.Cog):
             await ctx.send("Ina mdina?")
         else:
             key = os.getenv("WEATHER_KEY")
-            r = json.loads(
-                requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={key}").content)
+            async with self.bot.session.get(f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={key}") as resp:
+                r = await resp.json()
             weather = r["weather"][0]["main"]
             description = r["weather"][0]["description"]
             icon = r["weather"][0]["icon"]
@@ -365,8 +373,9 @@ class GlobUtil(commands.Cog):
     @commands.command(aliases=['yt'], help="N9elleb lik f youtube.")
     async def youtube(self, ctx, *, search):
         string = urllib.parse.urlencode({'search_query': search})
-        content = urllib.request.urlopen('https://www.youtube.com/results?' + string)
-        results = re.findall(r'/watch\?v=(.{11})', content.read().decode())
+        async with self.bot.session.get('https://www.youtube.com/results?' + string) as resp:
+            html_content = await resp.text()
+        results = re.findall(r'/watch\?v=(.{11})', html_content)
         video = "https://www.youtube.com/watch?v=" + results[0]
         await ctx.send(video)
 
@@ -380,7 +389,7 @@ class GlobUtil(commands.Cog):
         url = f"https://api.datamuse.com/words?rel_rhy={word}"
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(url) as resp:
                     if resp.status != 200:
                         await ctx.send("Tra chy mochkil m3a l API.")
@@ -409,7 +418,8 @@ class GlobUtil(commands.Cog):
 
     @commands.command(aliases=["ip", "doxx", "location"], help="Nl9a lik location ta3 ay IP address.")
     async def locate(self, ctx, ip: str):
-        r = json.loads(requests.get(f"http://ip-api.com/json/{ip}").content)
+        async with self.bot.session.get(f"http://ip-api.com/json/{ip}") as resp:
+            r = await resp.json()
         status = r["status"]
         if status == 'success':
             country = r["country"]
@@ -507,9 +517,10 @@ class GlobUtil(commands.Cog):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
         }
         try:
-            r = requests.get(url, headers=headers, timeout=10)
-            if r.status_code == 200:
-                media_urls = re.findall(r'https://media\.tenor\.com/[^\s\"\'\>]+', r.text)
+            async with self.bot.session.get(url, headers=headers, timeout=10) as resp:
+                if resp.status == 200:
+                    text_content = await resp.text()
+                    media_urls = re.findall(r'https://media\.tenor\.com/[^\s\"\'\>]+', text_content)
                 gifs = list(set([u for u in media_urls if u.endswith('.gif')]))
                 if gifs:
                     gif = random.choice(gifs)
@@ -526,7 +537,9 @@ class GlobUtil(commands.Cog):
 
     @commands.command(aliases=["ye", "kanye", "quote"], help="Quotes ta3 Kanye West.")
     async def kanyequote(self, ctx):
-        quote = json.loads(requests.get("https://api.kanye.rest/").content)["quote"]
+        async with self.bot.session.get("https://api.kanye.rest/") as resp:
+            quote_data = await resp.json()
+        quote = quote_data["quote"]
         await ctx.send(f'"{quote}" -Kanye West')
 
     @commands.command(aliases=["nrd"], help="Lo7 dice o chouf ch7al jak.")
@@ -537,7 +550,9 @@ class GlobUtil(commands.Cog):
     @commands.command(help="N3tik informations 3la ay anime.")
     async def anime(self, ctx, *, anime: str):
         anime = anime.lower().replace(" ", "%20")
-        r = json.loads(requests.get(f"https://kitsu.io/api/edge/anime?filter[text]={anime}").content)['data'][0]
+        async with self.bot.session.get(f"https://kitsu.io/api/edge/anime?filter[text]={anime}") as resp:
+            anime_data = await resp.json()
+        r = anime_data['data'][0]
         type = r['type']
         description = r['attributes']['description']
         titleen = r['attributes']['titles']['en']
@@ -564,7 +579,7 @@ class GlobUtil(commands.Cog):
         url = f"https://api.github.com/users/{username}"
         headers = {"User-Agent": "SifdineBot"}
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(url, headers=headers) as resp:
                     if resp.status == 404:
                         await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f GitHub: `{username}`", color=0x000000))
@@ -606,19 +621,286 @@ class GlobUtil(commands.Cog):
 
     @commands.command(name="reddit", help="Chouf chy profile f reddit.")
     async def reddit(self, ctx, username: str):
-        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        headers = {
+            "User-Agent": "SifdineBot/1.0",
+            "Accept": "application/json",
+        }
+        token = os.getenv("REDDIT_BOT_TOKEN")
+        if token:
+            headers["Authorization"] = f"bearer {token}"
+
+        try:
+            async with ReusableSession(self.bot.session) as session:
+                async with session.get(
+                    f"https://oauth.reddit.com/user/{username}/about",
+                    headers=headers,
+                ) as resp:
+                    if resp.status == 404:
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f Reddit: `{username}`", color=0x000000))
+                        return
+                    if resp.status == 401 or resp.status == 403:
+                        msg = (f"Mochkil f Token. Error code: `{resp.status}`")
+                        await wait.edit(embed=discord.Embed(description=msg, color=0x000000))
+                        return
+                    if resp.status != 200:
+                        raise Exception(f"HTTP {resp.status}")
+
+                    data = await resp.json()
+                    user = data.get("data", {})
+
+            name = user.get("name") or username
+            title = user.get("subreddit", {}).get("title")
+            description = user.get("subreddit", {}).get("public_description") or "No description"
+            avatar = user.get("snoovatar_img")
+            if not avatar:
+                avatar = user.get("icon_img") or user.get("avatar_img")
+            if avatar and avatar.startswith("https"):
+                avatar = avatar
+            link_karma = user.get("link_karma", 0)
+            comment_karma = user.get("comment_karma", 0)
+            total_karma = user.get("total_karma", link_karma + comment_karma)
+            is_gold = user.get("is_gold", False)
+            is_employee = user.get("is_employee", False)
+            verified = user.get("verified", False)
+            created_utc = user.get("created_utc")
+            created_date = datetime.fromtimestamp(created_utc, pytz.utc).strftime("%Y-%m-%d") if created_utc else "Hidden"
+
+            profile_url = f"https://www.reddit.com/user/{username}"
+
+            embed = discord.Embed(
+                title=f"Reddit Profile: {name}" + (" 🏆" if is_gold or is_employee else ""),
+                url=profile_url,
+                description=description,
+                color=0x000000,
+            )
+            if avatar:
+                clean_avatar = avatar.split('?')[0]
+                embed.set_thumbnail(url=clean_avatar)
+
+            embed.add_field(name="Link Karma", value=f"**{link_karma}**", inline=True)
+            embed.add_field(name="Comment Karma", value=f"**{comment_karma}**", inline=True)
+            embed.add_field(name="Total Karma", value=f"**{total_karma}**", inline=True)
+            embed.add_field(name="Verified", value="Yes ✅" if verified else "No", inline=True)
+            embed.add_field(name="Reddit Employee", value="Yes" if is_employee else "No", inline=True)
+            embed.add_field(name="Created", value=created_date, inline=True)
+
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
     @commands.command(name="tiktok", aliases=["tt"], help="Chouf chy profile f TikTok.")
     async def tiktok(self, ctx, username: str):
-        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        
+        # Load available API keys
+        keys = [os.getenv(f'RAPID_API_KEY_{i}') for i in range(1, 3)]
+        keys = [k for k in keys if k]
+        
+        if not keys:
+            await wait.edit(embed=discord.Embed(description="TikTok API keys not configured.", color=0x000000))
+            return
+            
+        # Shuffle to start with a random key
+        random.shuffle(keys)
 
-    @commands.command(name="instagram", aliases=["ig"], help="Chouf chy profile f Instagram.")
+        url = "https://tiktok-scraper7.p.rapidapi.com/user/info"
+        params = {"unique_id": username}
+        
+        data = None
+        for api_key in keys:
+            headers = {
+                "x-rapidapi-key": api_key,
+                "x-rapidapi-host": "tiktok-scraper7.p.rapidapi.com"
+            }
+            
+            try:
+                async with ReusableSession(self.bot.session) as session:
+                    async with session.get(url, headers=headers, params=params) as resp:
+                        # Check rate limits in headers
+                        remaining = int(resp.headers.get("X-RateLimit-Requests-Remaining", 1))
+                        
+                        # If 429 or quota exhausted, try next key
+                        if resp.status == 429 or remaining <= 0:
+                            continue
+                            
+                        if resp.status != 200:
+                            raise Exception(f"API returned status {resp.status}")
+                            
+                        data = await resp.json()
+                        break # Success, stop trying other keys
+            except Exception:
+                continue # Try next key
+
+        if not data:
+            await wait.edit(embed=discord.Embed(description="Tra chy mochkil: Salat l Quota wla chi mochkil fl API.", color=0x000000))
+            return
+
+        # Parsing the successful response structure
+        user_data = data.get("data", {}).get("user", {})
+        stats = data.get("data", {}).get("stats", {})
+        
+        if not user_data:
+            await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f TikTok: `{username}`", color=0x000000))
+            return
+        
+        nickname = user_data.get("nickname", "Unknown")
+        unique_id = user_data.get("uniqueId", username)
+        bio = user_data.get("signature", "No bio.")
+        followers = stats.get("followerCount", 0)
+        following = stats.get("followingCount", 0)
+        heart_count = stats.get("heartCount", 0)
+        
+        embed = discord.Embed(
+            title=f"TikTok Profile: {nickname} (@{unique_id})",
+            description=bio,
+            color=0x000000
+        )
+        if user_data.get("avatarMedium"):
+            embed.set_thumbnail(url=user_data.get("avatarMedium"))
+        embed.add_field(name="Followers", value=f"{followers:,}", inline=True)
+        embed.add_field(name="Following", value=f"{following:,}", inline=True)
+        embed.add_field(name="Likes", value=f"{heart_count:,}", inline=True)
+        
+        await wait.edit(embed=embed)
+
+    @commands.command(name="instagram", aliases=["insta", "ig"], help="Chouf chy profile f Instagram.")
     async def instagram(self, ctx, username: str):
-        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        
+        # Load available API keys
+        keys = [os.getenv(f'RAPID_API_KEY_{i}') for i in range(1, 3)]
+        keys = [k for k in keys if k]
+        
+        if not keys:
+            await wait.edit(embed=discord.Embed(description="Instagram API keys not configured.", color=0x000000))
+            return
+            
+        # Shuffle to start with a random key
+        random.shuffle(keys)
+
+        url = "https://instagram-looter2.p.rapidapi.com/profile2"
+        params = {"username": username}
+        
+        data = None
+        for api_key in keys:
+            headers = {
+                "x-rapidapi-key": api_key,
+                "x-rapidapi-host": "instagram-looter2.p.rapidapi.com",
+                "Content-Type": "application/json"
+            }
+            
+            try:
+                async with ReusableSession(self.bot.session) as session:
+                    async with session.get(url, headers=headers, params=params) as resp:
+                        if resp.status == 429:
+                            continue
+                            
+                        if resp.status != 200:
+                            continue
+                            
+                        data = await resp.json()
+                        if data:
+                            break
+            except Exception:
+                continue
+
+        if not data:
+             await wait.edit(embed=discord.Embed(description=f"Ma 9dertch njbed l info dyal `{username}`.", color=0x000000))
+             return
+        
+        # Adjust fields based on the new API's response structure
+        # (Found: follower_count, following_count, media_count)
+        # Using 0 as default if the value is None
+        def format_count(val):
+            return f"{val:,}" if val is not None else "0"
+
+        embed = discord.Embed(
+            title=f"Instagram Profile: {data.get('username', username)}",
+            url=f"https://instagram.com/{data.get('username', username)}",
+            color=0x000000
+        )
+        embed.set_thumbnail(url=data.get("profile_pic_url"))
+        embed.add_field(name="Full Name", value=data.get("full_name", "N/A"), inline=True)
+        embed.add_field(name="Verified", value="Yes" if data.get("is_verified") else "No", inline=True)
+        embed.add_field(name="Private", value="Yes" if data.get("is_private") else "No", inline=True)
+        embed.add_field(name="Followers", value=format_count(data.get('follower_count')), inline=True)
+        embed.add_field(name="Following", value=format_count(data.get('following_count')), inline=True)
+        embed.add_field(name="Posts", value=format_count(data.get('media_count')), inline=True)
+        embed.add_field(name="Biography", value=data.get("biography", "N/A"), inline=False)
+        
+        await wait.edit(embed=embed)
 
     @commands.command(name="twitter", aliases=["x"], help="Chouf chy profile f Twitter (X).")
     async def twitter(self, ctx, username: str):
-        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        
+        # Load available API keys
+        keys = [os.getenv(f'RAPID_API_KEY_{i}') for i in range(1, 3)]
+        keys = [k for k in keys if k]
+        
+        if not keys:
+            await wait.edit(embed=discord.Embed(description="Twitter API keys not configured.", color=0x000000))
+            return
+            
+        # Shuffle to start with a random key
+        random.shuffle(keys)
+
+        url = "https://twitter-api45.p.rapidapi.com/screenname.php"
+        params = {"screenname": username}
+        
+        data = None
+        for api_key in keys:
+            headers = {
+                "x-rapidapi-key": api_key,
+                "x-rapidapi-host": "twitter-api45.p.rapidapi.com",
+                "Content-Type": "application/json"
+            }
+            
+            try:
+                async with ReusableSession(self.bot.session) as session:
+                    async with session.get(url, headers=headers, params=params) as resp:
+                        if resp.status == 429:
+                            continue
+                            
+                        if resp.status != 200:
+                            continue
+                            
+                        data = await resp.json()
+                        if data:
+                            break
+            except Exception:
+                continue
+
+        if not data:
+             await wait.edit(embed=discord.Embed(description=f"Ma 9dertch njbed l info dyal `{username}`.", color=0x000000))
+             return
+        
+        # Use existing format_count helper
+        def format_count(val):
+            return f"{val:,}" if val is not None else "0"
+
+        embed = discord.Embed(
+            title=f"Twitter Profile: @{data.get('profile', username)}",
+            url=f"https://twitter.com/{data.get('profile', username)}",
+            color=0x000000
+        )
+        # Attempt to get higher resolution avatar
+        avatar_url = data.get("avatar", "")
+        if avatar_url:
+            # Common Twitter avatar suffixes to remove for higher res
+            high_res_avatar = avatar_url.replace("_normal.jpg", ".jpg").replace("_bigger.jpg", ".jpg").replace("_mini.jpg", ".jpg")
+            embed.set_thumbnail(url=high_res_avatar)
+        embed.add_field(name="Full Name", value=data.get("name", "N/A"), inline=True)
+        embed.add_field(name="Verified", value="Yes" if data.get("blue_verified") else "No", inline=True)
+        embed.add_field(name="Location", value=data.get("location") or "N/A", inline=True)
+        embed.add_field(name="Followers", value=format_count(data.get('sub_count')), inline=True)
+        embed.add_field(name="Following", value=format_count(data.get('friends')), inline=True)
+        # Note: The API only provides 'statuses_count' (total activity).
+        embed.add_field(name="Total Activity", value=format_count(data.get('statuses_count')), inline=True)
+        embed.add_field(name="Biography", value=data.get("desc", "N/A"), inline=False)
+        
+        await wait.edit(embed=embed)
 
     @commands.command(name="download", aliases=["dl", "save"], help="Ntelechargi lik video mn TikTok, Instagram, wla YouTube Shorts.")
     async def download(self, ctx, url: str):
@@ -725,7 +1007,7 @@ class GlobUtil(commands.Cog):
             except Exception:
                 return name, "Error"
 
-        async with aiohttp.ClientSession() as session:
+        async with ReusableSession(self.bot.session) as session:
             tasks = [check_platform(session, name, config, username) for name, config in platforms.items()]
             results = await asyncio.gather(*tasks)
 
@@ -753,7 +1035,7 @@ class GlobUtil(commands.Cog):
         url = f"https://playerdb.co/api/player/minecraft/{username}"
         headers = {"User-Agent": "SifdineBot"}
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(url, headers=headers) as resp:
                     if resp.status == 404:
                         await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f Minecraft: `{username}`", color=0x000000))
@@ -804,7 +1086,7 @@ class GlobUtil(commands.Cog):
             resolve_url = "https://users.roblox.com/v1/usernames/users"
             payload = {"usernames": [username], "excludeBannedUsers": False}
 
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.post(resolve_url, json=payload, headers=headers) as resp:
                     if resp.status != 200:
                         raise Exception(f"Roblox username resolution failed with code {resp.status}")
@@ -820,7 +1102,7 @@ class GlobUtil(commands.Cog):
             detail_url = f"https://users.roblox.com/v1/users/{user_id}"
             avatar_url = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=352x352&format=Png&isCircular=false"
 
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(detail_url, headers=headers) as resp_detail, \
                            session.get(avatar_url, headers=headers) as resp_avatar:
 
@@ -866,7 +1148,7 @@ class GlobUtil(commands.Cog):
         stats_url = f"https://api.chess.com/pub/player/{username}/stats"
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(profile_url, headers=headers) as resp_profile, \
                            session.get(stats_url, headers=headers) as resp_stats:
 
@@ -955,9 +1237,11 @@ class GlobUtil(commands.Cog):
                         await channel.send(f"<@{user_id}>, here is your reminder: {reminder_text}")
                     except Exception:
                         pass
-                await self.bot.db.execute("DELETE FROM reminders WHERE rowid = ?", (rowid,))
             if rows:
-                await self.bot.db.commit()
+                rowids = [r[0] for r in rows]
+                placeholders = ",".join("?" for _ in rowids)
+                async with self.bot.db.execute(f"DELETE FROM reminders WHERE rowid IN ({placeholders})", rowids):
+                    await self.bot.db.commit()
         except Exception:
             pass
 
@@ -974,11 +1258,11 @@ class GlobUtil(commands.Cog):
 
         end_time = int(time.time() + duration)
         try:
-            await self.bot.db.execute(
+            async with self.bot.db.execute(
                 "INSERT INTO reminders (user_id, channel_id, reminder_text, end_time) VALUES (?, ?, ?, ?)",
                 (ctx.author.id, ctx.channel.id, message, end_time)
-            )
-            await self.bot.db.commit()
+            ):
+                await self.bot.db.commit()
             await ctx.send(f"i will remind u in <t:{end_time}:R>")
         except Exception as e:
             await ctx.send(f"Tra chy mochkil: `{e}`")
@@ -998,7 +1282,7 @@ class GlobUtil(commands.Cog):
         
         try:
             api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={urllib.parse.quote(data_to_encode)}"
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(api_url) as resp:
                     if resp.status != 200:
                         raise Exception(f"QR API returned status code {resp.status}")
@@ -1046,7 +1330,7 @@ class GlobUtil(commands.Cog):
                 "apikey": ocr_key,
                 "url": image_url
             }
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(api_url, params=params) as resp:
                     if resp.status != 200:
                         raise Exception(f"API code {resp.status}")
@@ -1090,7 +1374,7 @@ class GlobUtil(commands.Cog):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
         }
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(search_url, headers=headers) as resp:
                     if resp.status != 200:
                         raise Exception(f"Steam Search returned status {resp.status}")
@@ -1104,7 +1388,7 @@ class GlobUtil(commands.Cog):
             appid = items[0]["id"]
             details_url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
             
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(details_url, headers=headers) as resp:
                     if resp.status != 200:
                         raise Exception(f"Steam Details returned status {resp.status}")
@@ -1181,7 +1465,7 @@ class GlobUtil(commands.Cog):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
         }
         try:
-            async with aiohttp.ClientSession() as session:
+            async with ReusableSession(self.bot.session) as session:
                 async with session.get(url, headers=headers) as resp:
                     if resp.status == 404:
                         await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f osu!: `{username}`", color=0x000000))

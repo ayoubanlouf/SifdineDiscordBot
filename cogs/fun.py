@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 import aiohttp
 import time
 import json
-import requests
+
 from converters import FuzzyMember
 
 # Compatibility shim for newer akinator API variations
@@ -1355,31 +1355,37 @@ class Fun(commands.Cog):
                             return word[i:i + 3]
         return None
 
-    def is_english_word(self, word):
+    async def is_english_word(self, word):
         url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
         try:
-            r = json.loads(requests.get(url).content)[0]['word']
-            return True
+            async with self.bot.session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return data and len(data) > 0 and 'word' in data[0]
+                return False
         except:
             return False
 
     @commands.command(aliases=["swl", "sewel", "swel"], help="Nswlk so2al khssk tjawb 3lih b sara7a.")
     async def truth(self, ctx):
         url = 'https://api.truthordarebot.xyz/v1/truth'
-        r = json.loads(requests.get(url).content)['question']
-        await ctx.send(r)
+        async with self.bot.session.get(url) as resp:
+            data = await resp.json()
+        await ctx.send(data['question'])
 
     @commands.command(aliases=["7kem", "7km", "hkm", "hkem"], help="N7kem 3lik b 7ekma khssk dirha darori.")
     async def dare(self, ctx):
         url = 'https://api.truthordarebot.xyz/v1/dare'
-        r = json.loads(requests.get(url).content)['question']
-        await ctx.send(r)
+        async with self.bot.session.get(url) as resp:
+            data = await resp.json()
+        await ctx.send(data['question'])
 
     @commands.command(aliases=["wyr", "khyrni"], help="Law khayarouk okda.")
     async def wouldyourather(self, ctx):
         url = 'https://api.truthordarebot.xyz/v1/wyr'
-        r = json.loads(requests.get(url).content)['question']
-        await ctx.send(r)
+        async with self.bot.session.get(url) as resp:
+            data = await resp.json()
+        await ctx.send(data['question'])
 
     @commands.command(name="flags", aliases=["gtf"], help="Guess the flag okda.")
     async def flags(self, ctx, round_duration:int=15):
@@ -1559,9 +1565,9 @@ class Fun(commands.Cog):
 
                     await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}**")
 
-                    def check(message):
-                        return message.author == player and message.channel == ctx.channel and combo in message.content.lower() and self.is_english_word(
-                            message.content.lower()) == True
+                    async def check(message):
+                        return message.author == player and message.channel == ctx.channel and combo in message.content.lower() and await self.is_english_word(
+                            message.content.lower())
 
                     try:
                         word = await self.bot.wait_for('message', check=check, timeout=15)
@@ -1580,9 +1586,9 @@ class Fun(commands.Cog):
 
                         await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}**")
 
-                        def check(message):
-                            return message.author == player and message.channel == ctx.channel and combo in message.content.lower() and self.is_english_word(
-                                message.content.lower()) == True
+                        async def check(message):
+                            return message.author == player and message.channel == ctx.channel and combo in message.content.lower() and await self.is_english_word(
+                                message.content.lower())
 
                         try:
                             word = await self.bot.wait_for('message', check=check, timeout=15)
@@ -1666,9 +1672,9 @@ class Fun(commands.Cog):
                     color=0x000000
                 ))
 
-                def check(message):
-                        return message.author in players and message.channel == ctx.channel and combo in message.content.lower() and self.is_english_word(
-                            message.content.lower()) == True
+                async def check(message):
+                        return message.author in players and message.channel == ctx.channel and combo in message.content.lower() and await self.is_english_word(
+                            message.content.lower())
 
                 try:
                     word = await self.bot.wait_for('message', check=check, timeout=round_duration)

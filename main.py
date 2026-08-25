@@ -2,6 +2,7 @@ import asyncio
 import itertools
 import os
 import sys
+import aiohttp
 import aiosqlite
 import discord
 from discord.ext import commands
@@ -260,7 +261,7 @@ bot = commands.Bot(
     case_insensitive=True,
     chunk_guilds_at_startup=False,
     member_cache_flags=discord.MemberCacheFlags(voice=True, joined=False),
-    max_messages=50
+    max_messages=15
 )
 bot.Paginator = Paginator
 
@@ -283,6 +284,8 @@ async def load_extensions():
 
 async def main():
     bot.db = await aiosqlite.connect("bot_database.db")
+    await bot.db.execute("PRAGMA journal_mode=WAL")
+    await bot.db.execute("PRAGMA synchronous=NORMAL")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_prefixes (guild_id INTEGER PRIMARY KEY, prefix TEXT)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS blacklists (user_id INTEGER PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
@@ -294,8 +297,12 @@ async def main():
     if not token:
         raise ValueError("DISCORD_TOKEN missing from environment variables.")
 
+    bot.session = aiohttp.ClientSession()
     async with bot:
-        await bot.start(token)
+        try:
+            await bot.start(token)
+        finally:
+            await bot.session.close()
 
 
 if __name__ == "__main__":

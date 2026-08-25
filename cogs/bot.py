@@ -128,8 +128,8 @@ class Bot(commands.Cog):
                 await ctx.send(f"`{user}` deja blockito hh")
                 return
 
-        await self.bot.db.execute("INSERT INTO blacklists (user_id) VALUES (?)", (user.id,))
-        await self.bot.db.commit()
+        async with self.bot.db.execute("INSERT INTO blacklists (user_id) VALUES (?)", (user.id,)):
+            await self.bot.db.commit()
         await ctx.send(f"Safi blockit `{user}`.")
 
 
@@ -141,8 +141,8 @@ class Bot(commands.Cog):
                 await ctx.send(f"`{user}` mamblokihch aslan.")
                 return
 
-        await self.bot.db.execute("DELETE FROM blacklists WHERE user_id = ?", (user.id,))
-        await self.bot.db.commit()
+        async with self.bot.db.execute("DELETE FROM blacklists WHERE user_id = ?", (user.id,)):
+            await self.bot.db.commit()
         await ctx.send(f"Safi unblockit `{user}`.")
 
 

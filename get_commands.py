@@ -18,14 +18,14 @@ AllBotCommands = {
     ],
     "Moderation": [
         "prefix", "clearsnipes", "cleareditsnipes", "clearreactionsnipes", "clearallsnipes", "role give", "role take",
-        "role name", "role color", "role icon", "purge", "sticker add", "sticker remove", "sticker steal",
+        "role name", "role color", "role icon", "role list", "role members", "purge", "sticker add", "sticker remove", "sticker steal",
         "sticker zoom", "emoji add", "emoji remove", "emoji steal", "emoji zoom", "setnick", "mute", "unmute", "timeout",
         "untimeout", "jail", "unjail", "antibot", "kick", "ban", "unban", "banlist", "voicemute", "voiceunmute",
         "deafen", "undeafen", "disconnect", "voicenuke", "slowmode", "permissions"
     ],
     "Manipulation": [
         "worthless", "drake", "presidentialalert", "spongebobburnpaper", "lisastage", "changemymind", "awkwardmonkey",
-        "blur", "circle", "invert", "wide", "uglyupclose", "clown", "rip", "affectbaby", "trash"
+        "blur", "circle", "invert", "wide", "uglyupclose", "clown", "restinpeace", "affectbaby", "trash"
     ],
     "Triggers": [
         "👀", "🧠", "🧽", "👎", "🚨", "🎤"

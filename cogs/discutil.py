@@ -341,11 +341,11 @@ class DiscordUtil(commands.Cog):
 
         reason = discord.utils.remove_markdown(reason)
 
-        await self.bot.db.execute(
+        async with self.bot.db.execute(
             "INSERT OR REPLACE INTO afk (user_id, reason, timestamp) VALUES (?, ?, ?)",
             (ctx.author.id, reason, int(ctx.message.created_at.timestamp()))
-        )
-        await self.bot.db.commit()
+        ):
+            await self.bot.db.commit()
 
         await ctx.send(f"Safi li swl fik angoulih rak **{reason}**.")
 
