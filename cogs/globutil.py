@@ -908,22 +908,44 @@ class GlobUtil(commands.Cog):
         
         filename = f"download_{ctx.message.id}"
         
-        def run_ytdl():
-            import yt_dlp
-            ydl_opts = {
-                'outtmpl': f'{filename}.%(ext)s',
-                'format': 'best',
-                'max_filesize': 25 * 1024 * 1024,
-                'quiet': True,
-                'no_warnings': True,
-                'nocheckcertificate': True,
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                return ydl.prepare_filename(info)
-
+        import sys
+        cmd = [
+            sys.executable, "-m", "yt_dlp",
+            "--max-filesize", "25M",
+            "-f", "best",
+            "-o", f"{filename}.%(ext)s",
+            "--no-check-certificate",
+            "--no-warnings",
+            "--quiet"
+        ]
+        
+        if os.path.exists("cookies.txt"):
+            cmd.extend(["--cookies", "cookies.txt"])
+            
         try:
-            downloaded_file = await asyncio.to_thread(run_ytdl)
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=90)
+            except asyncio.TimeoutError:
+                try:
+                    process.kill()
+                except:
+                    pass
+                await wait.edit(embed=discord.Embed(description="Mochkil: Tfawat lwe9t (Timeout after 90s).", color=0x000000))
+                return
+            
+            # Find the downloaded file
+            downloaded_file = None
+            for f in os.listdir("."):
+                if f.startswith(filename) and not f.endswith(".part") and not f.endswith(".ytdl"):
+                    downloaded_file = f
+                    break
+                    
             if downloaded_file and os.path.exists(downloaded_file):
                 file_size = os.path.getsize(downloaded_file)
                 if file_size <= 25 * 1024 * 1024:
@@ -936,16 +958,34 @@ class GlobUtil(commands.Cog):
                 except:
                     pass
             else:
-                await wait.edit(embed=discord.Embed(description="Mochkil: Mal9itch l file ta3 download.", color=0x000000))
+                if process.returncode != 0:
+                    err_str = stderr.decode('utf-8', errors='ignore').strip()
+                    # Clean up ANSI escape sequences if any
+                    err_str = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', err_str)
+                    
+                    if "Sign in to confirm" in err_str:
+                        description = (
+                            f"**Mochkil:** YouTube blocks this download request because it thinks the bot is a scraper.\n\n"
+                            f"**Solution:** Please place a valid `cookies.txt` file in the bot's root directory. "
+                            f"Refer to [yt-dlp Wiki on Cookies](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp) for details."
+                        )
+                    else:
+                        description = f"Mochkil fl download:\n```\n{err_str[:1500]}\n```"
+                else:
+                    description = "Mochkil: Mal9itch l file ta3 download."
+                
+                await wait.edit(embed=discord.Embed(description=description, color=0x000000))
+                
         except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+        finally:
+            # Cleanup any leftover files starting with filename
             for f in os.listdir("."):
                 if f.startswith(filename):
                     try:
                         os.remove(f)
                     except:
                         pass
-            await wait.edit(embed=discord.Embed(description=f"Mochkil: `{e}`", color=0x000000))
-        finally:
             import gc
             gc.collect()
 
