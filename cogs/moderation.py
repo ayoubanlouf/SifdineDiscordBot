@@ -515,7 +515,7 @@ class Moderation(commands.Cog):
             await ctx.send(embed=em)
         except Exception as e:
             traceback.print_exc()
-            await ctx.send(embed=discord.Embed(description=f"Mal9itch had l'emoji oula ma3ndich permission :/ `{e}`",
+            await ctx.send(embed=discord.Embed(description=f"Mal9itch had l emoji oula ma3ndich permission :/ `{e}`",
                                                color=0x000000))
 
     @emoji.command(name="steal", aliases=["s"], help="Chfer chy emoji mn chy server akhor.")
@@ -646,23 +646,49 @@ class Moderation(commands.Cog):
             await ctx.send(f"Mat9edch tmuti chy wa7d b7alk wla fo9 mnk f role ._.")
             return
 
-        role = discord.utils.get(ctx.guild.roles, name='Muted')
+        role = discord.utils.get(ctx.guild.roles, name='0')
 
         if not role:
             try:
                 role = await ctx.guild.create_role(
-                    name="Muted",
+                    name="0",
                     reason="Muted role dynamically created by the bot.",
                     color=discord.Color.dark_grey()
                 )
 
-                for channel in ctx.guild.text_channels:
+                # Move role position as high as possible (below the bot's own highest role)
+                max_pos = ctx.guild.me.top_role.position
+                if max_pos > 1:
                     try:
-                        await channel.set_permissions(role, send_messages=False, add_reactions=False)
-                    except Exception:
-                        pass
+                        await role.edit(position=max_pos - 1)
+                    except Exception as e:
+                        traceback.print_exc()
+
+                # Get all moderator roles in the guild
+                mod_roles = [
+                    r for r in ctx.guild.roles
+                    if not r.is_default() and (
+                        r.permissions.manage_messages
+                        or r.permissions.kick_members
+                        or r.permissions.ban_members
+                        or r.permissions.moderate_members
+                        or r.permissions.administrator
+                    )
+                ]
+
+                # Set permissions in all text/voice/stage channels
+                for channel in ctx.guild.channels:
+                    if isinstance(channel, (discord.TextChannel, discord.VoiceChannel, discord.StageChannel)):
+                        try:
+                            # Deny sending/reacting for muted role
+                            await channel.set_permissions(role, send_messages=False, add_reactions=False)
+                            # Allow sending for moderator roles
+                            for mod_role in mod_roles:
+                                await channel.set_permissions(mod_role, send_messages=True)
+                        except Exception:
+                            pass
             except Exception as e:
-                await ctx.send(embed=discord.Embed(description=f"Ma9ditch ncreati role 'Muted' :/ `{e}`",
+                await ctx.send(embed=discord.Embed(description=f"Ma9ditch ncreati role '0' :/ `{e}`",
                                                    color=0x000000))
                 return
 
@@ -675,7 +701,7 @@ class Moderation(commands.Cog):
     @commands.command(aliases=["hder", "hdr", "hdar"], help="Unmuti chy wa7d.")
     @commands.has_permissions(manage_messages=True)
     async def unmute(self, ctx, member: FuzzyMember):
-        role = discord.utils.get(ctx.guild.roles, name='Muted')
+        role = discord.utils.get(ctx.guild.roles, name='0')
 
         if not role or role not in member.roles:
             await ctx.send(f"**{member.display_name}** mamutich aslan.")

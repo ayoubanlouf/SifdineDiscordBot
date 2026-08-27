@@ -582,7 +582,7 @@ class GlobUtil(commands.Cog):
             async with ReusableSession(self.bot.session) as session:
                 async with session.get(url, headers=headers) as resp:
                     if resp.status == 404:
-                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f GitHub: `{username}`", color=0x000000))
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f GitHub: `{username}`", color=0x000000))
                         return
                     if resp.status != 200:
                         raise Exception(f"HTTP Code {resp.status}")
@@ -1493,8 +1493,194 @@ class GlobUtil(commands.Cog):
             gc.collect()
 
     @commands.command(name="steam", aliases=["steamprofile", "steamuser"], help="Chouf chy profile f steam.")
-    async def steam(self, ctx, username_or_id: str):
-        await ctx.reply(f"Had lcommand makhdamach db smo7at.")
+    async def steam(self, ctx, identifier: str):
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        api_key = os.environ.get("STEAM_API_KEY")
+        if not api_key:
+            await wait.edit(embed=discord.Embed(description="Mochkil: `STEAM_API_KEY` makaynch.", color=0x000000))
+            return
+
+        # 1. Resolve ID
+        steam_id = None
+        if identifier.isdigit() and len(identifier) == 17:
+            steam_id = identifier
+        else:
+            # Check for URL
+            match = re.search(r'steamcommunity\.com/(id|profiles)/([^/]+)', identifier)
+            if match:
+                part = match.group(2)
+                if match.group(1) == 'profiles':
+                    steam_id = part
+                else:
+                    steam_id = await self._resolve_vanity_url(part, api_key)
+            else:
+                # Assume vanity
+                steam_id = await self._resolve_vanity_url(identifier, api_key)
+
+        if not steam_id:
+            await wait.edit(embed=discord.Embed(description="Ma9dertch nel9a  profile.", color=0x000000))
+            return
+
+        # 2. Get Data
+        try:
+            data = await self._get_player_data(steam_id, api_key)
+            if not data:
+                await wait.edit(embed=discord.Embed(description="Ma9dertch njbed l data.", color=0x000000))
+                return
+            
+            player = data["player"]
+            # Status mapping
+            status_map = {
+                0: "⚪ Offline",
+                1: "🟢 Online",
+                2: "🟡 Busy",
+                3: "🟠 Away",
+                4: "🔵 Snooze",
+                5: "🟣 Looking to trade",
+                6: "🟣 Looking to play"
+            }
+            status_text = status_map.get(player.get("personastate", 0), "⚪ Offline")
+            
+            embed = discord.Embed(
+                title=player.get("personaname"),
+                url=player.get("profileurl"),
+                color=0x000000
+            )
+            embed.set_thumbnail(url=player.get("avatarfull"))
+            embed.add_field(name="Status", value=status_text, inline=True)
+            embed.add_field(name="Country", value=f":flag_{player.get('loccountrycode', 'aq').lower()}:" if player.get('loccountrycode') else "N/A", inline=True)
+            embed.add_field(name="Profile Type", value="Public" if data["is_public"] else "Private", inline=True)
+            
+            if data["is_public"]:
+                embed.description = f"_{data['bio']}_" if data["bio"] != "N/A" else None
+                embed.add_field(name="Level", value=f"⭐ {data['level']}", inline=True)
+                embed.add_field(name="Total Games", value=f"🎮 {data['games_count']}", inline=True)
+                embed.add_field(name="Total Time", value=f"⏳ {data['total_playtime']}", inline=True)
+                
+                # Top Played
+                top_played_str = "*No games found.*"
+                if data["top_games"]:
+                    top_played_str = "\n".join([f"• **{g['name']}** — `{g['total']:.1f} hrs`" for g in data["top_games"]])
+                embed.add_field(name="🏆 Top Played Games", value=top_played_str, inline=False)
+                
+                # Recent Activity
+                recent_str = "*No activity in the last 2 weeks.*"
+                if data["recently_played"]:
+                    recent_str = "\n".join([f"• **{g['name']}** — `{g['2w']:.1f} hrs`" for g in data["recently_played"]])
+                embed.add_field(name="⏱️ Recent Activity (Past 2 Weeks)", value=recent_str, inline=False)
+            else:
+                embed.add_field(name="🔒 Privacy Notice", value="*This profile or its game details are set to private.*", inline=False)
+                
+            await wait.edit(embed=embed)
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: {e}", color=0x000000))
+
+    async def _resolve_vanity_url(self, vanity_url: str, api_key: str):
+        url = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/"
+        params = {"key": api_key, "vanityurl": vanity_url}
+        async with self.bot.session.get(url, params=params) as resp:
+            data = await resp.json()
+            if data.get("response", {}).get("success") == 1:
+                return data["response"]["steamid"]
+            return None
+
+    async def _get_player_data(self, steam_id: str, api_key: str):
+        # 1. Player Summaries
+        summaries_url = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/"
+        params = {"key": api_key, "steamids": steam_id}
+        
+        async with self.bot.session.get(summaries_url, params=params) as resp:
+            summaries_data = await resp.json()
+            players = summaries_data.get("response", {}).get("players", [])
+            if not players:
+                return None
+            player = players[0]
+        
+        # 2. Bio (XML)
+        bio = "N/A"
+        try:
+            async with self.bot.session.get(f"https://steamcommunity.com/profiles/{steam_id}/?xml=1") as resp:
+                xml_text = await resp.text()
+                root = ET.fromstring(xml_text)
+                summary_node = root.find("summary")
+                if summary_node is not None and summary_node.text:
+                    bio = html.unescape(summary_node.text)[:500]
+        except:
+            pass
+
+        # Public check
+        is_public = player.get("communityvisibilitystate") == 3
+        
+        # 3. Steam Level (if public)
+        level = "N/A"
+        if is_public:
+            level_url = "https://api.steampowered.com/IPlayerService/GetSteamLevel/v1/"
+            params = {"key": api_key, "steamid": steam_id}
+            async with self.bot.session.get(level_url, params=params) as resp:
+                level_data = await resp.json()
+                level = level_data.get("response", {}).get("player_level", "N/A")
+
+        # 4. Games Data (if public)
+        games_count = "N/A"
+        total_playtime = "N/A"
+        recently_played = []
+        
+        if is_public:
+            # Get Owned Games
+            games_url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
+            params = {"key": api_key, "steamid": steam_id, "include_appinfo": 1, "include_played_free_games": 1}
+            async with self.bot.session.get(games_url, params=params) as resp:
+                games_data = await resp.json()
+                games = games_data.get("response", {}).get("games", [])
+                if games:
+                    games_count = len(games)
+                    total_playtime = sum(g.get("playtime_forever", 0) for g in games) / 60
+                    total_playtime = f"{total_playtime:.1f} hrs"
+            
+            # Recently Played
+            rec_url = "https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/"
+            params = {"key": api_key, "steamid": steam_id, "count": 3}
+            async with self.bot.session.get(rec_url, params=params) as resp:
+                rec_data = await resp.json()
+                rec_games = rec_data.get("response", {}).get("games", [])
+                for g in rec_games:
+                    recently_played.append({
+                        "name": g.get("name"),
+                        "2w": g.get("playtime_2weeks", 0) / 60,
+                        "total": g.get("playtime_forever", 0) / 60
+                    })
+            
+            # Sort Top Played
+            top_games = []
+            if games:
+                sorted_games = sorted(games, key=lambda x: x.get("playtime_forever", 0), reverse=True)
+                for g in sorted_games[:3]:
+                    top_games.append({
+                        "name": g.get("name"),
+                        "total": g.get("playtime_forever", 0) / 60
+                    })
+
+        return {
+            "player": player,
+            "bio": bio,
+            "level": level,
+            "games_count": games_count,
+            "total_playtime": total_playtime,
+            "top_games": top_games,
+            "recently_played": recently_played,
+            "is_public": is_public
+        }
+
+
+        return {
+            "player": player,
+            "bio": bio,
+            "level": level,
+            "games_count": games_count,
+            "total_playtime": total_playtime,
+            "recently_played": recently_played,
+            "is_public": is_public
+        }
 
     @commands.command(name="osu", help="Chouf chy profile f osu!.")
     async def osu(self, ctx, username: str):
@@ -1508,15 +1694,15 @@ class GlobUtil(commands.Cog):
             async with ReusableSession(self.bot.session) as session:
                 async with session.get(url, headers=headers) as resp:
                     if resp.status == 404:
-                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l-user f osu!: `{username}`", color=0x000000))
+                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f osu!: `{username}`", color=0x000000))
                         return
                     if resp.status != 200:
                         raise Exception(f"osu! website returned status {resp.status}")
                     html_data = await resp.text()
 
-            match = re.search(r'data-initial-data="([^"]+)"', html_data)
+            match = re.search(r'data-initial data="([^"]+)"', html_data)
             if not match:
-                await wait.edit(embed=discord.Embed(description="Mal9it ta data f page dyal had l-user.", color=0x000000))
+                await wait.edit(embed=discord.Embed(description="Mal9it ta data f page dyal had l user.", color=0x000000))
                 return
 
             import json
@@ -1616,6 +1802,9 @@ class GlobUtil(commands.Cog):
             if 'data' in locals():
                 del data
             gc.collect()
+
+
+
 
 async def setup(bot):
     await bot.add_cog(GlobUtil(bot))

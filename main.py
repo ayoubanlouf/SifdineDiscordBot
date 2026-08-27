@@ -55,7 +55,7 @@ class Paginator(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("Mat9edch tkhdem had l'buttons.", ephemeral=True)
+            await interaction.response.send_message("Mat9edch tkhdem had l buttons.", ephemeral=True)
             return False
         return True
 

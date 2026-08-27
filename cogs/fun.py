@@ -144,7 +144,7 @@ def render_chess_board(board: chess.Board) -> io.BytesIO:
 
 class MoveModal(Modal, title="La3eb Chess"):
     move_input = TextInput(
-        label="Dkhel l-move dialek (SAN ola UCI)",
+        label="Dkhel l move dialek (SAN ola UCI)",
         placeholder="mtalan e4, Nf3, Qh5, ola e2e4",
         required=True,
         max_length=10
@@ -209,7 +209,7 @@ class ChessView(View):
             self.stop()
             winner = self.player_black if self.current_turn == self.player_white else self.player_white
             embed = self.build_embed()
-            embed.description = f"⏰ **Sala lwe9t! {self.current_turn.mention} khser b l-inactivity. {winner.mention} rbe7!**"
+            embed.description = f"⏰ **Sala lwe9t! {self.current_turn.mention} khser b l inactivity. {winner.mention} rbe7!**"
             try:
                 await self.message.edit(embed=embed, view=None)
             except:
@@ -462,7 +462,7 @@ class ChessView(View):
                 parsed_move = None
 
         if not parsed_move or parsed_move not in self.board.legal_moves:
-            await interaction.response.send_message(f"❌ **L-move ghalat (`{move_str}`)!** khdem b SAN (mtalan `e4`, `Nf3`) ola UCI (mtalan `e2e4`).", ephemeral=True)
+            await interaction.response.send_message(f"❌ **l move ghalat (`{move_str}`)!** khdem b SAN (mtalan `e4`, `Nf3`) ola UCI (mtalan `e2e4`).", ephemeral=True)
             return
 
         # Push Human Move
@@ -501,30 +501,30 @@ class ChessView(View):
     @discord.ui.button(label="Ta3adol", style=discord.ButtonStyle.secondary, emoji="🤝")
     async def draw_button(self, interaction: discord.Interaction, button: Button):
         if interaction.user not in (self.player_white, self.player_black):
-            await interaction.response.send_message("Nta mashi f had l-match.", ephemeral=True)
+            await interaction.response.send_message("Nta mashi f had l match.", ephemeral=True)
             return
 
         if self.is_bot_game:
-            await interaction.response.send_message("Ma9derch n-accepti ta3adol daba.", ephemeral=True)
+            await interaction.response.send_message("Ma9derch n accepti ta3adol daba.", ephemeral=True)
             return
 
         if self.draw_offered_by is None:
             self.draw_offered_by = interaction.user
-            await interaction.response.send_message(f"🤝 **{interaction.user.mention} i9tra7 ta3adol!** Lakher i-clicki 3la 'Ta3adol' bach i-accepti.", ephemeral=False)
+            await interaction.response.send_message(f"🤝 **{interaction.user.mention} 9tar7 ta3adol!** clicki 3la 'Ta3adol' bach t accepti.", ephemeral=False)
         elif self.draw_offered_by != interaction.user:
             self.game_over = True
             self.stop()
             embed = self.build_embed()
-            embed.description = f"🤝 **Match Ta3adol b l-itifaq!**"
+            embed.description = f"🤝 **Match sala b ta3adol btifa9!**"
             board_file = await self.generate_board_file()
             await interaction.response.edit_message(embed=embed, attachments=[board_file], view=None)
         else:
-            await interaction.response.send_message("Derti deja l-i9tira7, sber lakher i-jawab.", ephemeral=True)
+            await interaction.response.send_message("Deja drti l9tira7, tsnna lakhor ijawb.", ephemeral=True)
 
     @discord.ui.button(label="Steslem", style=discord.ButtonStyle.danger, emoji="🏳️")
     async def resign_button(self, interaction: discord.Interaction, button: Button):
         if interaction.user not in (self.player_white, self.player_black):
-            await interaction.response.send_message("Nta mashi f had l-match.", ephemeral=True)
+            await interaction.response.send_message("Nta mashi f had l match.", ephemeral=True)
             return
 
         self.game_over = True
@@ -545,7 +545,7 @@ class ChessChallengeView(View):
     @discord.ui.button(label="Qbel", style=discord.ButtonStyle.success, emoji="✅")
     async def accept(self, interaction: discord.Interaction, button: Button):
         if interaction.user != self.challenged:
-            await interaction.response.send_message("Had l-challenge mashi lik!", ephemeral=True)
+            await interaction.response.send_message("Had l challenge mashi lik!", ephemeral=True)
             return
 
         players = [self.challenger, self.challenged]
@@ -561,10 +561,10 @@ class ChessChallengeView(View):
     @discord.ui.button(label="Refed", style=discord.ButtonStyle.danger, emoji="❌")
     async def decline(self, interaction: discord.Interaction, button: Button):
         if interaction.user != self.challenged:
-            await interaction.response.send_message("Had l-challenge mashi lik!", ephemeral=True)
+            await interaction.response.send_message("Had l challenge mashi lik!", ephemeral=True)
             return
         
-        await interaction.response.edit_message(content=f"❌ {self.challenged.mention} rfed l-match dial chess.", view=None)
+        await interaction.response.edit_message(content=f"❌ {self.challenged.mention} rfed l match dial chess.", view=None)
         self.stop()
 
 # ============ TIC-TAC-TOE UI CLASSES (Module Level) ============
@@ -1059,7 +1059,7 @@ class ConnectFourView(View):
 
         current_symbol = "🔴" if self.current_turn == self.player_red else "🟡"
         if not self.drop_piece(col, current_symbol):
-            await interaction.response.send_message("Had l-colonne 3amr ._.", ephemeral=True)
+            await interaction.response.send_message("Had l colonne 3amr ._.", ephemeral=True)
             return
 
         # Check win for current human player move

@@ -54,7 +54,7 @@ class DiscordUtil(commands.Cog):
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.ctx.author.id:
-                await interaction.response.send_message("Mat9edch tkhdem had l'buttons.", ephemeral=True)
+                await interaction.response.send_message("Mat9edch tkhdem had  buttons.", ephemeral=True)
                 return False
             return True
 
@@ -347,7 +347,7 @@ class DiscordUtil(commands.Cog):
         ):
             await self.bot.db.commit()
 
-        await ctx.send(f"Safi li swl fik angoulih rak **{reason}**.")
+        await ctx.send(f"Safi li swl fik angoulih rah **{reason}**.")
 
     @commands.command(name="snipe", aliases=["s"], help="Tchouf lmessagat li tmse7o.")
     async def snipe(self, ctx):

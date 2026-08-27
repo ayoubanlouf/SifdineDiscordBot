@@ -116,10 +116,8 @@ class Events(commands.Cog):
                     if row:
                         reason, ts = row[0], row[1]
                         time_tag = f"<t:{ts}:R>"
-                        await message.channel.send(
-                            f"**{mentioned.name}** mamsalich, galik \"{reason}\" ({time_tag})",
-                            allowed_mentions=discord.AllowedMentions.none()
-                        )
+                        await message.reply(
+                            f"**{mentioned.name}** mamsalich, galik \"{reason}\" ({time_tag})")
 
         ctx = await self.bot.get_context(message)
 
