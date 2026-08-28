@@ -1,4 +1,5 @@
 import os
+import io
 import asyncio
 from typing import Optional
 import discord
@@ -31,7 +32,7 @@ class Events(commands.Cog):
         except Exception as e:
             print(f"[Events.cog_load log_channels error]: {e}")
 
-    async def send_log(self, guild: Optional[discord.Guild], embed: discord.Embed):
+    async def send_log(self, guild: Optional[discord.Guild], embed: discord.Embed, files: Optional[list[discord.File]] = None):
         if not guild:
             return
         env = os.environ.get("ENVIRONMENT", "development").lower()
@@ -51,7 +52,10 @@ class Events(commands.Cog):
                 pass
             return
         try:
-            await channel.send(embed=embed)
+            if files:
+                await channel.send(embed=embed, files=files)
+            else:
+                await channel.send(embed=embed)
         except discord.NotFound:
             # Channel was deleted on Discord
             self.log_channels.pop(guild.id, None)
@@ -209,6 +213,17 @@ class Events(commands.Cog):
         if audit_entry and audit_entry.user and audit_entry.user.id != message.author.id:
             deleted_by_str = f"\n**Deleted By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)"
 
+        # Download attachments into memory so they can be re-uploaded permanently
+        discord_files = []
+        if message.attachments:
+            for att in message.attachments[:4]:
+                try:
+                    if att.size <= 8 * 1024 * 1024:
+                        data = await att.read()
+                        discord_files.append(discord.File(io.BytesIO(data), filename=att.filename))
+                except Exception:
+                    pass
+
         embed = discord.Embed(
             title="🗑️ Message Deleted",
             description=f"**Author:** {message.author.mention} (`{message.author.id}`)\n**Channel:** {message.channel.mention}{deleted_by_str}",
@@ -218,14 +233,19 @@ class Events(commands.Cog):
         if message.content:
             embed.add_field(name="Content", value=message.content[:1024], inline=False)
         if message.attachments:
-            att_links = "\n".join(f"• [{att.filename}]({att.url})" for att in message.attachments[:5])
-            embed.add_field(name="Attachments", value=att_links, inline=False)
+            att_names = "\n".join(f"• `{att.filename}` ({att.size / 1024:.1f} KB)" for att in message.attachments[:5])
+            embed.add_field(name="Attachments Preserved", value=att_names, inline=False)
         embed.set_author(name=message.author.name, icon_url=message.author.display_avatar.url)
-        await self.send_log(message.guild, embed)
+        await self.send_log(message.guild, embed, files=discord_files if discord_files else None)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
-        if before.author.bot or not before.guild or before.content == after.content:
+        if before.author.bot or not before.guild:
+            return
+
+        # Check if text changed OR attachments were removed
+        removed_attachments = [att for att in before.attachments if att.id not in {a.id for a in after.attachments}]
+        if before.content == after.content and not removed_attachments:
             return
 
         if before.content != after.content:
@@ -243,6 +263,16 @@ class Events(commands.Cog):
             "time": after.edited_at or datetime.utcnow()
         })
 
+        discord_files = []
+        if removed_attachments:
+            for att in removed_attachments[:4]:
+                try:
+                    if att.size <= 8 * 1024 * 1024:
+                        data = await att.read()
+                        discord_files.append(discord.File(io.BytesIO(data), filename=f"removed_{att.filename}"))
+                except Exception:
+                    pass
+
         embed = discord.Embed(
             title="✏️ Message Edited",
             description=f"**Author:** {before.author.mention} (`{before.author.id}`)\n**Channel:** {before.channel.mention}\n[Jump to Message]({after.jump_url})",
@@ -251,8 +281,11 @@ class Events(commands.Cog):
         )
         embed.add_field(name="Before", value=(before.content or "_Empty_")[:1024], inline=False)
         embed.add_field(name="After", value=(after.content or "_Empty_")[:1024], inline=False)
+        if removed_attachments:
+            rem_names = "\n".join(f"• `{att.filename}` ({att.size / 1024:.1f} KB)" for att in removed_attachments[:5])
+            embed.add_field(name="Removed Attachments Preserved", value=rem_names, inline=False)
         embed.set_author(name=before.author.name, icon_url=before.author.display_avatar.url)
-        await self.send_log(before.guild, embed)
+        await self.send_log(before.guild, embed, files=discord_files if discord_files else None)
 
     @commands.Cog.listener()
     async def on_bulk_message_delete(self, messages):
