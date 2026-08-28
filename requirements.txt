@@ -19,3 +19,4 @@ gTTS
 imageio-ffmpeg
 davey
 edge-tts
+curl_cffi

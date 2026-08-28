@@ -308,7 +308,68 @@ async def load_extensions():
                 print(f"Error loading cogs.{filename[:-3]}: {e}")
 
 
-async def main():
+async def setup_hook():
+    bot.session = aiohttp.ClientSession()
+
+    # Auto-Restore from Discord backup channel if database is missing or unseeded (e.g. fresh Discloud deploy)
+    backup_channel_id = os.environ.get("BACKUP_CHANNEL_ID")
+    should_restore = False
+
+    if not os.path.exists("bot_database.db"):
+        should_restore = True
+    else:
+        try:
+            import sqlite3
+            test_conn = sqlite3.connect("bot_database.db")
+            cur = test_conn.cursor()
+            cur.execute("SELECT 1 FROM dictionary_words LIMIT 1")
+            cur.fetchone()
+            test_conn.close()
+        except Exception:
+            should_restore = True
+
+    if should_restore and backup_channel_id:
+        try:
+            print(f"[Auto-Restore] Checking backup channel ID {backup_channel_id} for latest database snapshot...")
+            channel = bot.get_channel(int(backup_channel_id))
+            if not channel:
+                channel = await bot.fetch_channel(int(backup_channel_id))
+
+            if channel:
+                async for message in channel.history(limit=30):
+                    for attachment in message.attachments:
+                        if attachment.filename.endswith(".zip"):
+                            print(f"[Auto-Restore] Found zipped database backup {attachment.filename} ({attachment.size} bytes). Downloading & extracting...")
+                            temp_zip = "temp_auto_restore.zip"
+                            await attachment.save(temp_zip)
+                            def _extract_zip_sync():
+                                import zipfile
+                                with zipfile.ZipFile(temp_zip, "r") as zf:
+                                    zf.extract("bot_database.db", ".")
+                            await asyncio.to_thread(_extract_zip_sync)
+                            if os.path.exists(temp_zip):
+                                os.remove(temp_zip)
+                            print("[Auto-Restore] Successfully extracted bot_database.db from Discord zip backup!")
+                            break
+                        elif attachment.filename.endswith(".db"):
+                            print(f"[Auto-Restore] Found database backup {attachment.filename} ({attachment.size} bytes). Downloading...")
+                            await attachment.save("bot_database.db")
+                            print("[Auto-Restore] Successfully restored bot_database.db from Discord backup channel!")
+                            break
+                    if os.path.exists("bot_database.db"):
+                        try:
+                            import sqlite3
+                            chk_conn = sqlite3.connect("bot_database.db")
+                            chk_cur = chk_conn.cursor()
+                            chk_cur.execute("SELECT 1 FROM dictionary_words LIMIT 1")
+                            chk_cur.fetchone()
+                            chk_conn.close()
+                            break
+                        except Exception:
+                            pass
+        except Exception as e:
+            print(f"[Auto-Restore error]: {e}")
+
     bot.db = await aiosqlite.connect("bot_database.db")
     await bot.db.execute("PRAGMA journal_mode=WAL")
     await bot.db.execute("PRAGMA synchronous=NORMAL")
@@ -321,16 +382,22 @@ async def main():
 
     await load_extensions()
 
+bot.setup_hook = setup_hook
+
+
+async def main():
     token = os.environ.get("DISCORD_TOKEN")
     if not token:
         raise ValueError("DISCORD_TOKEN missing from environment variables.")
 
-    bot.session = aiohttp.ClientSession()
     async with bot:
         try:
             await bot.start(token)
         finally:
-            await bot.session.close()
+            if hasattr(bot, 'db') and bot.db:
+                await bot.db.close()
+            if hasattr(bot, 'session') and bot.session:
+                await bot.session.close()
 
 
 if __name__ == "__main__":

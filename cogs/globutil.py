@@ -23,6 +23,46 @@ import html
 import xml.etree.ElementTree as ET
 
 
+def _fetch_rl_sync(platform: str, username: str):
+    from curl_cffi import requests
+    url = f"https://api.tracker.gg/api/v2/rocket-league/standard/profile/{platform}/{urllib.parse.quote(username)}"
+    resp = requests.get(url, impersonate="chrome", timeout=15)
+    if resp.status_code == 404:
+        return 404, None
+    if resp.status_code != 200:
+        return resp.status_code, None
+    return 200, resp.json()
+
+
+class RocketLeagueView(discord.ui.View):
+    def __init__(self, author_id: int, embed_p1: discord.Embed, embed_p2: discord.Embed, profile_url: str = None):
+        super().__init__(timeout=120)
+        self.author_id = author_id
+        self.embed_p1 = embed_p1
+        self.embed_p2 = embed_p2
+
+        if profile_url:
+            self.add_item(discord.ui.Button(label="TRN Profile", url=profile_url, style=discord.ButtonStyle.link))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("Had l buttons mashi dyalek!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Competitive & Stats", style=discord.ButtonStyle.primary, emoji="🏆", disabled=True)
+    async def page_one(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page_one.disabled = True
+        self.page_two.disabled = False
+        await interaction.response.edit_message(embed=self.embed_p1, view=self)
+
+    @discord.ui.button(label="Extra Modes", style=discord.ButtonStyle.secondary, emoji="🎮")
+    async def page_two(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page_one.disabled = False
+        self.page_two.disabled = True
+        await interaction.response.edit_message(embed=self.embed_p2, view=self)
+
+
 class GlobUtil(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -1700,7 +1740,7 @@ class GlobUtil(commands.Cog):
                         raise Exception(f"osu! website returned status {resp.status}")
                     html_data = await resp.text()
 
-            match = re.search(r'data-initial data="([^"]+)"', html_data)
+            match = re.search(r'data-initial(?:-data|\s+data)=["\']([^"\']+)["\']', html_data)
             if not match:
                 await wait.edit(embed=discord.Embed(description="Mal9it ta data f page dyal had l user.", color=0x000000))
                 return
@@ -1804,6 +1844,179 @@ class GlobUtil(commands.Cog):
             gc.collect()
 
 
+    @commands.command(name="rocketleague", aliases=["rl", "rlstats"], help="Chouf stats ta3 chy wa7d f Rocket League.")
+    async def rocketleague(self, ctx, *args):
+        if not args:
+            await ctx.send(embed=discord.Embed(
+                description="3tini username dyal Rocket League.\n**Example:** `sat rl epic ApparentlyJack` wla `sat rl ApparentlyJack`\n**Platforms:** `epic`, `steam`, `psn`, `xbl`, `switch`",
+                color=0x000000
+            ))
+            return
+
+        platforms = {"epic", "steam", "psn", "xbl", "xbox", "switch", "playstation", "nintendo"}
+        first_arg = args[0].lower()
+        if first_arg in platforms and len(args) > 1:
+            platform = first_arg
+            if platform == "xbox":
+                platform = "xbl"
+            elif platform == "playstation":
+                platform = "psn"
+            elif platform == "nintendo":
+                platform = "switch"
+            username = " ".join(args[1:])
+        else:
+            platform = "epic"
+            username = " ".join(args)
+
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+
+        try:
+            status, data = await asyncio.to_thread(_fetch_rl_sync, platform, username)
+
+            if status == 404 or not data:
+                await wait.edit(embed=discord.Embed(
+                    description=f"Mal9itch had l user f Rocket League: `{username}` (Platform: `{platform}`)",
+                    color=0x000000
+                ))
+                return
+
+            if status != 200:
+                await wait.edit(embed=discord.Embed(
+                    description=f"Tracker Network returned status `{status}`. Jarreb mn be3d.",
+                    color=0x000000
+                ))
+                return
+
+            profile_data = data.get("data", {})
+            platform_info = profile_data.get("platformInfo", {})
+            user_handle = platform_info.get("platformUserHandle", username)
+            avatar_url = platform_info.get("avatarUrl")
+            platform_slug = platform_info.get("platformSlug", platform).lower()
+
+            platform_names = {
+                "epic": "Epic Games",
+                "steam": "Steam",
+                "psn": "PlayStation Network",
+                "xbl": "Xbox Live",
+                "switch": "Nintendo Switch"
+            }
+            platform_display = platform_names.get(platform_slug, platform_slug.capitalize())
+            profile_url = f"https://rocketleague.tracker.network/rocket-league/profile/{platform_slug}/{urllib.parse.quote(user_handle)}/overview"
+
+            segments = profile_data.get("segments", [])
+            overview_stats = {}
+            playlists = {}
+
+            for seg in segments:
+                stype = seg.get("type")
+                if stype == "overview":
+                    for k, v in seg.get("stats", {}).items():
+                        overview_stats[k] = v.get("displayValue", "N/A")
+                elif stype == "playlist":
+                    pname = seg.get("metadata", {}).get("name", "Unknown")
+                    stats = seg.get("stats", {})
+                    tier_info = stats.get("tier", {}).get("metadata", {})
+                    div_info = stats.get("division", {}).get("metadata", {})
+
+                    playlists[pname] = {
+                        "tier": tier_info.get("name", "Unranked"),
+                        "division": div_info.get("name", ""),
+                        "mmr": stats.get("rating", {}).get("displayValue", "N/A"),
+                        "matches": stats.get("matchesPlayed", {}).get("displayValue", "0"),
+                        "streak": stats.get("winStreak", {}).get("displayValue", "0"),
+                        "peak": stats.get("peakRating", {}).get("displayValue", "N/A"),
+                        "icon": tier_info.get("iconUrl")
+                    }
+
+            primary_icon = (
+                playlists.get("Ranked Doubles 2v2", {}).get("icon")
+                or playlists.get("Ranked Standard 3v3", {}).get("icon")
+                or playlists.get("Ranked Duel 1v1", {}).get("icon")
+                or "https://trackercdn.com/cdn/tracker.gg/rocket-league/ranks/s4-0.png"
+            )
+
+            # Format helper
+            def format_mode(key):
+                p = playlists.get(key)
+                if not p:
+                    return "`Unranked` (0 MMR)"
+                div_str = f" • {p['division']}" if p.get('division') else ""
+                streak_val = p.get('streak', '0')
+                streak_str = f" • Streak: `{streak_val}`" if streak_val != "0" else ""
+                return f"**{p['tier']}**{div_str}\n`{p['mmr']} MMR` ({p['matches']} matches{streak_str})"
+
+            # Page 1: Overview & Main Competitive
+            embed_p1 = discord.Embed(
+                title=f"Rocket League Stats: {user_handle}",
+                url=profile_url,
+                color=0x000000
+            )
+            if avatar_url:
+                embed_p1.set_thumbnail(url=avatar_url)
+            elif primary_icon:
+                embed_p1.set_thumbnail(url=primary_icon)
+
+            embed_p1.set_author(name=f"{platform_display} Profile", icon_url=primary_icon)
+
+            wins = overview_stats.get("wins", "N/A")
+            goals = overview_stats.get("goals", "N/A")
+            saves = overview_stats.get("saves", "N/A")
+            assists = overview_stats.get("assists", "N/A")
+            mvps = overview_stats.get("mVPs", "N/A")
+            accuracy = f"{overview_stats.get('goalShotRatio')}%" if overview_stats.get("goalShotRatio") else "N/A"
+            trn_score = overview_stats.get("score", "N/A")
+
+            overview_val = (
+                f"🏆 **Wins:** `{wins}` | 🎯 **Goals:** `{goals}`\n"
+                f"🧤 **Saves:** `{saves}` | 🤝 **Assists:** `{assists}`\n"
+                f"⭐ **MVPs:** `{mvps}` | 🎯 **Accuracy:** `{accuracy}`\n"
+                f"📊 **TRN Score:** `{trn_score}`"
+            )
+            embed_p1.add_field(name="📈 Lifetime Overview", value=overview_val, inline=False)
+            embed_p1.add_field(name="⚔️ Ranked 1v1 Duel", value=format_mode("Ranked Duel 1v1"), inline=True)
+            embed_p1.add_field(name="👥 Ranked 2v2 Doubles", value=format_mode("Ranked Doubles 2v2"), inline=True)
+            embed_p1.add_field(name="🛡️ Ranked 3v3 Standard", value=format_mode("Ranked Standard 3v3"), inline=True)
+
+            tourn = playlists.get("Tournament Matches")
+            tourn_text = f"**{tourn['tier']}**\n`{tourn['mmr']} MMR`" if tourn else "`Unranked`"
+            embed_p1.add_field(name="🏅 Tournaments", value=tourn_text, inline=True)
+
+            casual = playlists.get("Casual")
+            casual_text = f"`{casual['mmr']} MMR`" if casual else "`N/A`"
+            embed_p1.add_field(name="🎮 Casual MMR", value=casual_text, inline=True)
+
+            embed_p1.set_footer(text="Page 1/2 • Use buttons below to switch views")
+
+            # Page 2: Extra Modes
+            embed_p2 = discord.Embed(
+                title=f"Rocket League Extra Modes: {user_handle}",
+                url=profile_url,
+                color=0x000000
+            )
+            if avatar_url:
+                embed_p2.set_thumbnail(url=avatar_url)
+            elif primary_icon:
+                embed_p2.set_thumbnail(url=primary_icon)
+
+            embed_p2.set_author(name=f"{platform_display} Profile", icon_url=primary_icon)
+            embed_p2.add_field(name="🏀 Hoops", value=format_mode("Hoops"), inline=True)
+            embed_p2.add_field(name="⚡ Rumble", value=format_mode("Rumble"), inline=True)
+            embed_p2.add_field(name="💥 Dropshot", value=format_mode("Dropshot"), inline=True)
+            embed_p2.add_field(name="🏒 Snowday", value=format_mode("Snowday"), inline=True)
+            embed_p2.add_field(name="🚙 Ranked 4v4 Quads", value=format_mode("Ranked 4v4 Quads"), inline=True)
+
+            embed_p2.set_footer(text="Page 2/2 • Use buttons below to switch views")
+
+            view = RocketLeagueView(author_id=ctx.author.id, embed_p1=embed_p1, embed_p2=embed_p2, profile_url=profile_url)
+            await wait.edit(embed=embed_p1, view=view)
+
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+        finally:
+            import gc
+            if 'data' in locals():
+                del data
+            gc.collect()
 
 
 async def setup(bot):

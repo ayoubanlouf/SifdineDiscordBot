@@ -1,6 +1,6 @@
 AllBotCommands = {
     "Bot": [
-        "botinfo", "usage", "servers", "inviter", "block", "unblock", "blacklist", "suggestion", "bug"
+        "botinfo", "usage", "servers", "inviter", "block", "unblock", "blacklist", "suggestion", "bug", "backup"
     ],
     "Discord Util": [
         "serverinfo", "servericon", "userinfo", "avatar", "banner", "serveravatar", "boosts", "say", "webhook",
@@ -10,7 +10,7 @@ AllBotCommands = {
         "makegif", "image", "dictionary", "flag", "weather", "time", "translate", "youtube", "calculate", "rhyme",
         "locate", "reverse", "eightball", "gif", "coinflip", "dice", "kanyequote", "anime", "github", "reddit",
         "tiktok", "instagram", "twitter", "download", "username", "minecraft", "roblox", "chess",
-        "reminder", "qrcode", "ocr", "game", "steam", "osu"
+        "reminder", "qrcode", "ocr", "game", "steam", "osu", "rocketleague"
     ],
     "Fun": [
         "truth", "dare", "wouldyourather", "flags", "blacktea", "greentea",
