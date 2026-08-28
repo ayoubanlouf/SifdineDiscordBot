@@ -3258,6 +3258,13 @@ class Fun(commands.Cog):
         self.bot = bot
         self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
 
+    def _get_cursor(self):
+        try:
+            return self.dict_conn.cursor()
+        except Exception:
+            self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+            return self.dict_conn.cursor()
+
     async def record_minigame_win(self, guild_id: Optional[int], user_id: int, game: str):
         if not guild_id:
             return
@@ -3273,24 +3280,24 @@ class Fun(commands.Cog):
 
     def get_spellingbee_words(self, difficulty: int, count: int = 10) -> list[str]:
         words = []
-        try:
-            cur = self.dict_conn.cursor()
-            if difficulty == 1:
-                # Easy: 4-6 letter common recognizable words
-                cur.execute("SELECT word FROM hangman_targets WHERE LENGTH(word) BETWEEN 4 AND 6 ORDER BY RANDOM() LIMIT ?", (count,))
-            elif difficulty == 2:
-                # Medium: 7-8 letter common words
-                cur.execute("SELECT word FROM hangman_targets WHERE LENGTH(word) BETWEEN 7 AND 8 ORDER BY RANDOM() LIMIT ?", (count,))
-            else:
-                # Hard: 9-13 letter words
-                cur.execute("SELECT word FROM dictionary_words WHERE LENGTH(word) BETWEEN 9 AND 13 AND word GLOB '[a-z]*' ORDER BY RANDOM() LIMIT ?", (count,))
-            rows = cur.fetchall()
-            if rows:
-                words = [r[0].lower() for r in rows]
-        except Exception as e:
-            print(f"[get_spellingbee_words error]: {e}")
+        for attempt in range(2):
+            try:
+                cur = self._get_cursor()
+                if difficulty == 1:
+                    cur.execute("SELECT word FROM hangman_targets WHERE LENGTH(word) BETWEEN 4 AND 6 ORDER BY RANDOM() LIMIT ?", (count,))
+                elif difficulty == 2:
+                    cur.execute("SELECT word FROM hangman_targets WHERE LENGTH(word) BETWEEN 7 AND 8 ORDER BY RANDOM() LIMIT ?", (count,))
+                else:
+                    cur.execute("SELECT word FROM dictionary_words WHERE LENGTH(word) BETWEEN 9 AND 13 AND word GLOB '[a-z]*' ORDER BY RANDOM() LIMIT ?", (count,))
+                rows = cur.fetchall()
+                if rows:
+                    words = [r[0].lower() for r in rows]
+                break
+            except Exception as e:
+                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                if attempt == 1:
+                    print(f"[get_spellingbee_words error]: {e}")
 
-        # Fallback if query returns fewer words
         fallback = [
             "banana", "castle", "dragon", "bridge", "guitar", "planet", "summer", "yellow",
             "calendar", "umbrella", "mountain", "dinosaur", "elephant", "sandwich", "champion",
@@ -3301,36 +3308,48 @@ class Fun(commands.Cog):
         return words
 
     def get_wordle_secret(self) -> str:
-        try:
-            cur = self.dict_conn.cursor()
-            cur.execute("SELECT word FROM wordle_targets ORDER BY RANDOM() LIMIT 1")
-            row = cur.fetchone()
-            if row:
-                return row[0]
-        except Exception as e:
-            print(f"[get_wordle_secret error]: {e}")
+        for attempt in range(2):
+            try:
+                cur = self._get_cursor()
+                cur.execute("SELECT word FROM wordle_targets ORDER BY RANDOM() LIMIT 1")
+                row = cur.fetchone()
+                if row:
+                    return row[0]
+                break
+            except Exception as e:
+                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                if attempt == 1:
+                    print(f"[get_wordle_secret error]: {e}")
         return random.choice(["crane", "slate", "plant", "house", "light", "dream", "water", "apple", "stone", "beach"])
 
     def get_hangman_secret(self) -> str:
-        try:
-            cur = self.dict_conn.cursor()
-            cur.execute("SELECT word FROM hangman_targets ORDER BY RANDOM() LIMIT 1")
-            row = cur.fetchone()
-            if row:
-                return row[0]
-        except Exception as e:
-            print(f"[get_hangman_secret error]: {e}")
+        for attempt in range(2):
+            try:
+                cur = self._get_cursor()
+                cur.execute("SELECT word FROM hangman_targets ORDER BY RANDOM() LIMIT 1")
+                row = cur.fetchone()
+                if row:
+                    return row[0]
+                break
+            except Exception as e:
+                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                if attempt == 1:
+                    print(f"[get_hangman_secret error]: {e}")
         return random.choice(["planet", "castle", "dragon", "monster", "python", "bridge", "silver", "garden", "forest", "wizard"])
 
     def get_combo(self) -> str:
-        try:
-            cur = self.dict_conn.cursor()
-            cur.execute("SELECT combo FROM word_combos ORDER BY RANDOM() LIMIT 1")
-            row = cur.fetchone()
-            if row:
-                return row[0]
-        except Exception as e:
-            print(f"[get_combo error]: {e}")
+        for attempt in range(2):
+            try:
+                cur = self._get_cursor()
+                cur.execute("SELECT combo FROM word_combos ORDER BY RANDOM() LIMIT 1")
+                row = cur.fetchone()
+                if row:
+                    return row[0]
+                break
+            except Exception as e:
+                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                if attempt == 1:
+                    print(f"[get_combo error]: {e}")
         return random.choice(["ing", "ter", "con", "sta", "ent", "ear", "tra", "man", "all", "ver", "pro", "dis", "cal", "ted", "ith"])
 
     def is_english_word(self, word: str) -> bool:
@@ -3339,13 +3358,16 @@ class Fun(commands.Cog):
         clean_word = word.strip().lower()
         if not clean_word.isalpha() or len(clean_word) < 3:
             return False
-        try:
-            cur = self.dict_conn.cursor()
-            cur.execute("SELECT 1 FROM dictionary_words WHERE word = ? LIMIT 1", (clean_word,))
-            return cur.fetchone() is not None
-        except Exception as e:
-            print(f"[is_english_word error]: {e}")
-            return False
+        for attempt in range(2):
+            try:
+                cur = self._get_cursor()
+                cur.execute("SELECT 1 FROM dictionary_words WHERE word = ? LIMIT 1", (clean_word,))
+                return cur.fetchone() is not None
+            except Exception as e:
+                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                if attempt == 1:
+                    print(f"[is_english_word error]: {e}")
+        return False
 
     @commands.command(aliases=["swl", "sewel", "swel"], help="Nswlk so2al khssk tjawb 3lih b sara7a.")
     async def truth(self, ctx):
