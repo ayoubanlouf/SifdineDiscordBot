@@ -9,9 +9,13 @@ import discord
 from discord.ext import commands
 from discord.ui import Button, View, Modal, TextInput
 from PIL import Image, ImageDraw, ImageFont
+import os
 import aiohttp
 import time
 import json
+from gtts import gTTS
+import edge_tts
+import imageio_ffmpeg
 
 from converters import FuzzyMember
 
@@ -3125,12 +3129,73 @@ def render_typeracer_image(text: str) -> io.BytesIO:
     return output
 
 
+# ============ SPELLING BEE HELPERS ============
+
+async def play_tts_speech(voice_client: discord.VoiceClient, text: str):
+    ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+    filename = f"tts_{int(time.time() * 1000)}.mp3"
+
+    try:
+        try:
+            communicate = edge_tts.Communicate(text, "en-US-GuyNeural")
+            await communicate.save(filename)
+        except Exception as e:
+            print(f"[edge_tts error, using gtts fallback]: {e}")
+            tts = gTTS(text=text, lang="en")
+            tts.save(filename)
+
+        if voice_client and voice_client.is_connected():
+            if voice_client.is_playing():
+                voice_client.stop()
+            source = discord.FFmpegPCMAudio(filename, executable=ffmpeg_bin)
+            voice_client.play(source)
+            while voice_client.is_playing():
+                await asyncio.sleep(0.1)
+    except Exception as e:
+        print(f"[play_tts_speech error]: {e}")
+    finally:
+        if os.path.exists(filename):
+            try:
+                os.remove(filename)
+            except Exception:
+                pass
+
+
 # ============ MAIN COG ============
 
 class Fun(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+
+    def get_spellingbee_words(self, difficulty: int, count: int = 10) -> list[str]:
+        words = []
+        try:
+            cur = self.dict_conn.cursor()
+            if difficulty == 1:
+                # Easy: 4-6 letter common recognizable words
+                cur.execute("SELECT word FROM hangman_targets WHERE LENGTH(word) BETWEEN 4 AND 6 ORDER BY RANDOM() LIMIT ?", (count,))
+            elif difficulty == 2:
+                # Medium: 7-8 letter common words
+                cur.execute("SELECT word FROM hangman_targets WHERE LENGTH(word) BETWEEN 7 AND 8 ORDER BY RANDOM() LIMIT ?", (count,))
+            else:
+                # Hard: 9-13 letter words
+                cur.execute("SELECT word FROM dictionary_words WHERE LENGTH(word) BETWEEN 9 AND 13 AND word GLOB '[a-z]*' ORDER BY RANDOM() LIMIT ?", (count,))
+            rows = cur.fetchall()
+            if rows:
+                words = [r[0].lower() for r in rows]
+        except Exception as e:
+            print(f"[get_spellingbee_words error]: {e}")
+
+        # Fallback if query returns fewer words
+        fallback = [
+            "banana", "castle", "dragon", "bridge", "guitar", "planet", "summer", "yellow",
+            "calendar", "umbrella", "mountain", "dinosaur", "elephant", "sandwich", "champion",
+            "accommodate", "embarrass", "millennium", "silhouette", "pronunciation", "quarantine"
+        ]
+        while len(words) < count:
+            words.append(random.choice(fallback))
+        return words
 
     def get_wordle_secret(self) -> str:
         try:
@@ -3673,7 +3738,7 @@ class Fun(commands.Cog):
         content = f"⚔️ **Challenge dial Chess!**\n**{ctx.author.display_name}** challenga {member.mention} f match dial Chess!\n\n{member.mention}, t accepti?"
         await ctx.send(content=content, view=challenge_view)
 
-    @commands.command(name="rockpaperscissors", aliases=["rps", "zdimbomba7", "zba7"], help="L3eb Rock Paper Scissors ded bot wla s7bek.")
+    @commands.command(name="rockpaperscissors", aliases=["rps", "zdimbomba7", "zba7"], help="7ajar wara9 mi9as okda.")
     async def rps(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         if member is None:
             view = RPSBotView(ctx.author)
@@ -3703,7 +3768,7 @@ class Fun(commands.Cog):
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="minesweeper", aliases=["ms", "demineur"], help="L3eb Minesweeper solo wla ded s7bek.")
+    @commands.command(name="minesweeper", aliases=["ms", "demineur"], help="Hreb mn l9nabl (solo) wla l9a l9nabl (1v1).")
     async def minesweeper(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         if member is None:
             view = MinesweeperSoloView(ctx.author)
@@ -3729,7 +3794,7 @@ class Fun(commands.Cog):
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="wordle", aliases=["klma", "kelma"], help="L3eb Wordle solo wla 1v1 ded s7bek.")
+    @commands.command(name="wordle", aliases=["klma", "kelma"], help="9edder kelmat bach tl9a lkelma fach kanfkr.")
     async def wordle(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         if member is None:
             secret = self.get_wordle_secret()
@@ -3755,7 +3820,7 @@ class Fun(commands.Cog):
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="hangman", aliases=["hm", "michna9a"], help="L3eb Hangman solo wla 1v1 ded s7bek.")
+    @commands.command(name="hangman", aliases=["hm", "michna9a"], help="l9a lkelma 9bel matchne9.")
     async def hangman(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         if member is None:
             secret = self.get_hangman_secret()
@@ -3781,7 +3846,7 @@ class Fun(commands.Cog):
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="trivia", aliases=["quiz", "as2ila"], help="So2alat o ajwiba solo wla multiplayer.")
+    @commands.command(name="trivia", aliases=["quiz", "as2ila"], help="Man sayarba7 2 drahm.")
     async def trivia(self, ctx, round_duration: int = 20):
         if round_duration < 5:
             round_duration = 5
@@ -3913,7 +3978,7 @@ class Fun(commands.Cog):
                 color=0x000000
             ))
 
-    @commands.command(name="typeracer", aliases=["tr", "type", "monkeytype"], help="L3eb TypeRacer ded s7bek bach tchofo chkon asra3 wa7d.")
+    @commands.command(name="typeracer", aliases=["tr", "type", "monkeytype"], help="Kteb text li ghan3tik bzerba bach trb7.")
     async def typeracer(self, ctx, rounds: int = 3):
         rounds = max(1, min(10, rounds))
         join_emoji = "✅"
@@ -4066,6 +4131,199 @@ class Fun(commands.Cog):
         if ranked:
             leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 🎉")
         await ctx.send(embed=leaderboard_embed)
+
+    @commands.command(name="spellingbee", aliases=["bee", "spell"], help="Sme3 lkelma li ghangoul fl VC o ktebha s7i7a.")
+    async def spellingbee(self, ctx: commands.Context, difficulty: int = 1):
+        difficulty = max(1, min(3, difficulty))
+        diff_names = {1: "Easy (Level 1/3)", 2: "Normal (Level 2/3)", 3: "Hard (Level 3/3)"}
+
+        if not ctx.author.voice or not ctx.author.voice.channel:
+            await ctx.send("❌ Khassk tkoun f Voice Channel bach tbda SpellingBee.")
+            return
+
+        author_vc = ctx.author.voice.channel
+        join_emoji = "✅"
+
+        signup_embed = discord.Embed(
+            title="🐝 Spelling Bee!",
+            description=(
+                f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\n"
+                f"🔊 **[Clicki hna bach tdkhel l VC]({author_vc.jump_url})**\n\n"
+                f"Starts: <t:{int(time.time() + 21)}:R>\n"
+                f"Difficulty: **{diff_names[difficulty]}**\n"
+                f"Rounds: **10** (15s per word)"
+            ),
+            color=0x000000
+        )
+        signup_msg = await ctx.send(embed=signup_embed)
+        await signup_msg.add_reaction(join_emoji)
+        await asyncio.sleep(19)
+
+        signup_msg = await ctx.channel.fetch_message(signup_msg.id)
+        reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
+
+        players = []
+        if reaction:
+            async for user in reaction.users():
+                if not user.bot:
+                    players.append(user)
+
+        if not players:
+            await signup_msg.edit(embed=discord.Embed(
+                description="💨 7ta wa7d ma dkhel lgame ._.",
+                color=0x000000
+            ))
+            return
+
+        target_vc = None
+        if ctx.author in players and ctx.author.voice and ctx.author.voice.channel:
+            target_vc = ctx.author.voice.channel
+        else:
+            vc_counts = {}
+            for p in players:
+                member = ctx.guild.get_member(p.id) if ctx.guild else None
+                if member and member.voice and member.voice.channel:
+                    vc = member.voice.channel
+                    vc_counts[vc] = vc_counts.get(vc, 0) + 1
+            if vc_counts:
+                target_vc = max(vc_counts, key=vc_counts.get)
+
+        if not target_vc:
+            await signup_msg.edit(embed=discord.Embed(
+                description="❌ 7ta wa7d mn lplayers ma kayn f Voice Channel.",
+                color=0x000000
+            ))
+            return
+
+        voice_client = ctx.guild.voice_client
+        try:
+            if voice_client:
+                if voice_client.channel != target_vc:
+                    await voice_client.move_to(target_vc)
+            else:
+                voice_client = await target_vc.connect(timeout=10, reconnect=True)
+        except Exception as e:
+            await ctx.send(f"❌ Ma 9ditch ndkhel l Voice Channel: {e}")
+            return
+
+        scores = {p.id: 0 for p in players}
+        active_players = list(players)
+        words_pool = self.get_spellingbee_words(difficulty, count=10)
+
+        await signup_msg.edit(embed=discord.Embed(
+            description=(
+                f"▶️ **Spelling Bee bdat!** ({diff_names[difficulty]})\n"
+                f"🔊 Connected to: **{target_vc.name}**\n"
+                f"Players: " + ", ".join(p.mention for p in players)
+            ),
+            color=0x000000
+        ))
+        await asyncio.sleep(2)
+
+        try:
+            for round_idx in range(1, 11):
+                if not active_players:
+                    break
+
+                if not words_pool:
+                    words_pool = self.get_spellingbee_words(difficulty, count=10)
+
+                target_word = words_pool.pop(0).lower()
+
+                await play_tts_speech(voice_client, f"Please spell... {target_word}.")
+
+                start_time = time.perf_counter()
+                round_winner = None
+                round_elapsed = 0
+
+                active_ids = {p.id for p in active_players}
+
+                def check(m):
+                    if m.channel.id != ctx.channel.id or m.author.id not in active_ids:
+                        return False
+                    content = m.content.strip().lower()
+                    if content == "exitgame":
+                        return True
+                    return content == target_word
+
+                round_active = True
+                while round_active and active_players:
+                    time_left = max(1.0, 15.0 - (time.perf_counter() - start_time))
+                    try:
+                        msg = await self.bot.wait_for("message", check=check, timeout=time_left)
+                    except asyncio.TimeoutError:
+                        await ctx.send(embed=discord.Embed(
+                            description=f"⌛ **Sala lwe9t!** 7ta wa7d ma ktebha s7i7a.\nLkelma kant: **{target_word.upper()}**",
+                            color=0x000000
+                        ))
+                        round_active = False
+                        break
+
+                    if msg.content.strip().lower() == "exitgame":
+                        quitter = next((p for p in active_players if p.id == msg.author.id), None)
+                        if quitter:
+                            active_players.remove(quitter)
+                            active_ids.discard(quitter.id)
+                            await ctx.send(f"🚪 {quitter.mention} khrej mn lgame.")
+                        continue
+
+                    round_elapsed = time.perf_counter() - start_time
+                    round_winner = msg.author
+                    scores[msg.author.id] += 1
+                    await msg.add_reaction("✅")
+                    await ctx.send(embed=discord.Embed(
+                        description=f"🎉 {round_winner.mention} ktebha s7i7a f **{round_elapsed:.2f}s**! (+1 Point)\nLkelma: **{target_word.upper()}**",
+                        color=0x000000
+                    ))
+                    round_active = False
+                    break
+
+                await asyncio.sleep(2)
+
+            ranked = sorted(players, key=lambda p: scores.get(p.id, 0), reverse=True)
+            medals = ["🥇", "🥈", "🥉"] + [f"**#{i+1}**" for i in range(3, len(ranked))]
+
+            lines = []
+            for i, p in enumerate(ranked):
+                p_score = scores.get(p.id, 0)
+                lines.append(f"{medals[i]} {p.mention} — **{p_score}/10 points**")
+
+            leaderboard_embed = discord.Embed(
+                title="🏆 Spelling Bee — Final Results",
+                description="\n".join(lines),
+                color=0x000000
+            )
+            if ranked:
+                leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 👑")
+            await ctx.send(embed=leaderboard_embed)
+
+            # Announce winner in Voice Channel
+            try:
+                if len(players) == 1:
+                    solo_score = scores.get(players[0].id, 0)
+                    announcement = f"Game over {players[0].display_name}! You scored {solo_score} out of 10."
+                else:
+                    top_score = scores.get(ranked[0].id, 0)
+                    tied_players = [p.display_name for p in ranked if scores.get(p.id, 0) == top_score]
+                    if len(tied_players) == 1:
+                        announcement = f"Congratulations {ranked[0].display_name}! You won the Spelling Bee with {top_score} points!"
+                    elif top_score > 0:
+                        announcement = f"It is a tie between {' and '.join(tied_players)} with {top_score} points! Well played everyone!"
+                    else:
+                        announcement = "Game over! Better luck next time everyone!"
+
+                if voice_client and voice_client.is_connected():
+                    await play_tts_speech(voice_client, announcement)
+                    await asyncio.sleep(0.5)
+            except Exception as e:
+                print(f"[spellingbee voice announcement error]: {e}")
+
+        finally:
+            try:
+                if voice_client and voice_client.is_connected():
+                    await voice_client.disconnect(force=True)
+            except Exception as e:
+                print(f"[spellingbee disconnect error]: {e}")
 
 
 async def setup(bot):

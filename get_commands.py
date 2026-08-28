@@ -15,7 +15,7 @@ AllBotCommands = {
     "Fun": [
         "truth", "dare", "wouldyourather", "flags", "blacktea", "greentea",
         "tictactoe", "connectfour", "akinator", "playchess", "rockpaperscissors", "minesweeper", "wordle", "hangman", "trivia",
-        "typeracer"
+        "typeracer", "spellingbee"
     ],
     "Moderation": [
         "prefix", "clearsnipes", "cleareditsnipes", "clearreactionsnipes", "clearallsnipes", "role give", "role take",
