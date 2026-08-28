@@ -1559,6 +1559,336 @@ class RPSChallengeView(View):
 
 
 
+
+# ============ MINESWEEPER UI CLASSES (Module Level) ============
+
+class MinesweeperButton(Button):
+    def __init__(self, x: int, y: int):
+        super().__init__(
+            style=discord.ButtonStyle.primary,
+            label="❓",
+            custom_id=f"ms_{x}_{y}",
+            row=y
+        )
+        self.x = x
+        self.y = y
+
+
+class MinesweeperSoloView(View):
+    def __init__(self, player: discord.Member):
+        super().__init__(timeout=180)
+        self.player = player
+        self.message: Optional[discord.Message] = None
+        self.grid_size = 5
+        self.mine_count = 5
+        self.game_over = False
+        
+        # Place mines
+        all_coords = [(x, y) for x in range(self.grid_size) for y in range(self.grid_size)]
+        self.mines = set(random.sample(all_coords, self.mine_count))
+        self.revealed = set()
+        
+        # Add buttons
+        for y in range(self.grid_size):
+            for x in range(self.grid_size):
+                button = MinesweeperButton(x, y)
+                button.callback = self.button_callback
+                self.add_item(button)
+                
+    def get_button(self, x: int, y: int) -> Optional[MinesweeperButton]:
+        for item in self.children:
+            if isinstance(item, MinesweeperButton) and item.x == x and item.y == y:
+                return item
+        return None
+
+    def count_adjacent_mines(self, x: int, y: int) -> int:
+        count = 0
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if dx == 0 and dy == 0:
+                    continue
+                if (x + dx, y + dy) in self.mines:
+                    count += 1
+        return count
+
+    def reveal_cell(self, x: int, y: int):
+        if (x, y) in self.revealed:
+            return
+        self.revealed.add((x, y))
+        
+        button = self.get_button(x, y)
+        if not button:
+            return
+            
+        button.disabled = True
+        button.style = discord.ButtonStyle.secondary
+        
+        adjacent = self.count_adjacent_mines(x, y)
+        if adjacent == 0:
+            button.label = "⬜"
+            # Recursively reveal neighbors
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx == 0 and dy == 0:
+                        continue
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size:
+                        if (nx, ny) not in self.mines and (nx, ny) not in self.revealed:
+                            self.reveal_cell(nx, ny)
+        else:
+            number_emojis = {1: "1️⃣", 2: "2️⃣", 3: "3️⃣", 4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣", 8: "8️⃣"}
+            button.label = number_emojis.get(adjacent, str(adjacent))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user != self.player:
+            await interaction.response.send_message("Machy nta li m9ssr had lgame.", ephemeral=True)
+            return False
+        return True
+
+    async def button_callback(self, interaction: discord.Interaction):
+        if self.game_over:
+            await interaction.response.send_message("Had lgame deja salat.", ephemeral=True)
+            return
+
+        button_id = interaction.data.get("custom_id", "")
+        try:
+            _, x_str, y_str = button_id.split("_")
+            x, y = int(x_str), int(y_str)
+        except (ValueError, IndexError):
+            return
+
+        # Check if hit mine
+        if (x, y) in self.mines:
+            self.game_over = True
+            self.stop()
+            # Show all mines and disable everything
+            for item in self.children:
+                if isinstance(item, MinesweeperButton):
+                    item.disabled = True
+                    if (item.x, item.y) in self.mines:
+                        item.label = "💥"
+                        item.style = discord.ButtonStyle.danger
+            
+            content = f"💥 **Booooom! Game Over**\n{self.player.mention} khser hit 9as mine f ({x+1}, {y+1})!"
+            await interaction.response.edit_message(content=content, view=self)
+            return
+
+        # Reveal
+        self.reveal_cell(x, y)
+
+        # Check Win
+        if len(self.revealed) == (self.grid_size * self.grid_size - self.mine_count):
+            self.game_over = True
+            self.stop()
+            for item in self.children:
+                if isinstance(item, MinesweeperButton):
+                    item.disabled = True
+                    if (item.x, item.y) in self.mines:
+                        item.label = "💣"
+                        item.style = discord.ButtonStyle.success
+
+            content = f"🎉🏆 **Rbe7ti!**\n{self.player.mention} l9iti grid kaml blama t9is 7ta mine!"
+            await interaction.response.edit_message(content=content, view=self)
+            return
+
+        content = f"💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **{len(self.revealed)}/20**"
+        await interaction.response.edit_message(content=content, view=self)
+
+    async def on_timeout(self):
+        if not self.game_over:
+            self.game_over = True
+            for item in self.children:
+                item.disabled = True
+            if self.message:
+                try:
+                    await self.message.edit(content="⏰ **Sala lwe9t!** Match sala bsbab inactivity.", view=self)
+                except Exception:
+                    pass
+
+
+class MinesweeperMultiplayerView(View):
+    def __init__(self, p1: discord.Member, p2: discord.Member):
+        super().__init__(timeout=180)
+        self.p1 = p1
+        self.p2 = p2
+        self.scores = {p1.id: 0, p2.id: 0}
+        self.current_turn = p1
+        self.game_over = False
+        self.message: Optional[discord.Message] = None
+        self.grid_size = 5
+        self.mine_count = 5
+
+        # Place mines
+        all_coords = [(x, y) for x in range(self.grid_size) for y in range(self.grid_size)]
+        self.mines = set(random.sample(all_coords, self.mine_count))
+        self.found_mines = 0
+
+        # Add buttons
+        for y in range(self.grid_size):
+            for x in range(self.grid_size):
+                button = MinesweeperButton(x, y)
+                button.callback = self.button_callback
+                self.add_item(button)
+
+    def get_button(self, x: int, y: int) -> Optional[MinesweeperButton]:
+        for item in self.children:
+            if isinstance(item, MinesweeperButton) and item.x == x and item.y == y:
+                return item
+        return None
+
+    def count_adjacent_mines(self, x: int, y: int) -> int:
+        count = 0
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if dx == 0 and dy == 0:
+                    continue
+                if (x + dx, y + dy) in self.mines:
+                    count += 1
+        return count
+
+    def get_content(self) -> str:
+        if self.game_over:
+            p1_score = self.scores[self.p1.id]
+            p2_score = self.scores[self.p2.id]
+            if p1_score > p2_score:
+                return f"🏆 **{self.p1.mention} rbe7!**\nNatija: 🔴 **{self.p1.display_name}** ({p1_score}) vs 🔵 **{self.p2.display_name}** ({p2_score})"
+            elif p2_score > p1_score:
+                return f"🏆 **{self.p2.mention} rbe7!**\nNatija: 🔵 **{self.p2.display_name}** ({p2_score}) vs 🔴 **{self.p1.display_name}** ({p1_score})"
+            else:
+                return f"🤝 **Ta3adol!**\nNatija: **{p1_score}-{p2_score}**"
+        else:
+            return (
+                f"💣 **Minesweeper (Hunt the Mines)** — 9leb 3la l mines bach tjib points!\n"
+                f"🔴 **{self.p1.display_name}**: {self.scores[self.p1.id]} pts | 🔵 **{self.p2.display_name}**: {self.scores[self.p2.id]} pts\n\n"
+                f"⚡ Dor dial: {self.current_turn.mention}"
+            )
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user not in (self.p1, self.p2):
+            await interaction.response.send_message("Machy nta li m9ssr had lgame.", ephemeral=True)
+            return False
+        return True
+
+    async def button_callback(self, interaction: discord.Interaction):
+        if self.game_over:
+            await interaction.response.send_message("Had lgame deja salat.", ephemeral=True)
+            return
+
+        if interaction.user != self.current_turn:
+            await interaction.response.send_message("Machy dork asa7bi.", ephemeral=True)
+            return
+
+        button_id = interaction.data.get("custom_id", "")
+        try:
+            _, x_str, y_str = button_id.split("_")
+            x, y = int(x_str), int(y_str)
+        except (ValueError, IndexError):
+            return
+
+        button = self.get_button(x, y)
+        if not button:
+            return
+
+        # Check if hit mine
+        if (x, y) in self.mines:
+            self.scores[self.current_turn.id] += 1
+            self.found_mines += 1
+            
+            button.disabled = True
+            button.label = "💥"
+            button.style = discord.ButtonStyle.danger
+            
+            # Check win condition (majority is 3)
+            p1_score = self.scores[self.p1.id]
+            p2_score = self.scores[self.p2.id]
+            if p1_score >= 3 or p2_score >= 3 or self.found_mines == self.mine_count:
+                self.game_over = True
+                self.stop()
+                # Disable all other buttons and show remaining mines
+                for item in self.children:
+                    if isinstance(item, MinesweeperButton):
+                        item.disabled = True
+                        if (item.x, item.y) in self.mines and not item.disabled:
+                            item.label = "💣"
+                            item.style = discord.ButtonStyle.secondary
+            else:
+                # Bonus turn, so turn does not change!
+                pass
+        else:
+            # Hit safe cell: reveal adjacent
+            button.disabled = True
+            button.style = discord.ButtonStyle.secondary
+            adjacent = self.count_adjacent_mines(x, y)
+            if adjacent == 0:
+                button.label = "⬜"
+            else:
+                number_emojis = {1: "1️⃣", 2: "2️⃣", 3: "3️⃣", 4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣", 8: "8️⃣"}
+                button.label = number_emojis.get(adjacent, str(adjacent))
+            
+            # Pass turn to opponent
+            self.current_turn = self.p2 if self.current_turn == self.p1 else self.p1
+
+        await interaction.response.edit_message(content=self.get_content(), view=self)
+
+    async def on_timeout(self):
+        if not self.game_over:
+            self.game_over = True
+            for item in self.children:
+                item.disabled = True
+            if self.message:
+                try:
+                    await self.message.edit(content="⏰ **Sala lwe9t!** Match sala bsbab inactivity.", view=self)
+                except Exception:
+                    pass
+
+
+class MinesweeperChallengeView(View):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member):
+        super().__init__(timeout=60)
+        self.challenger = challenger
+        self.challenged = challenged
+        self.message: Optional[discord.Message] = None
+        self.accepted = False
+
+    @discord.ui.button(label="Accept Challenge", style=discord.ButtonStyle.success, emoji="✅")
+    async def accept_button(self, interaction: discord.Interaction, button: Button):
+        if interaction.user != self.challenged:
+            await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
+            return
+
+        self.accepted = True
+        self.stop()
+
+        game_view = MinesweeperMultiplayerView(self.challenger, self.challenged)
+        await interaction.response.edit_message(content=game_view.get_content(), view=game_view)
+        game_view.message = interaction.message
+
+    @discord.ui.button(label="Decline", style=discord.ButtonStyle.danger, emoji="❌")
+    async def decline_button(self, interaction: discord.Interaction, button: Button):
+        if interaction.user != self.challenged:
+            await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
+            return
+
+        self.stop()
+        for item in self.children:
+            item.disabled = True
+
+        await interaction.response.edit_message(
+            content=f"❌ {self.challenged.mention} mabghach il3eb.",
+            view=self
+        )
+
+    async def on_timeout(self):
+        if not self.accepted:
+            for item in self.children:
+                item.disabled = True
+            if self.message:
+                try:
+                    await self.message.edit(content="⏰ Challenge ma t acceptach.", view=self)
+                except discord.NotFound:
+                    pass
+
+
 # ============ MAIN COG ============
 
 class Fun(commands.Cog):
@@ -2070,6 +2400,31 @@ class Fun(commands.Cog):
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
+    @commands.command(name="minesweeper", aliases=["ms", "demineur"], help="L3eb Minesweeper solo wla ded s7bek.")
+    async def minesweeper(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+        if member is None:
+            view = MinesweeperSoloView(ctx.author)
+            content = "💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **0/20**"
+            message = await ctx.send(content=content, view=view)
+            view.message = message
+            return
+
+        if member.bot:
+            await ctx.send("❌ Mat9edch tchallengi bot..")
+            return
+
+        if member == ctx.author:
+            await ctx.send("❌ Mat9edch tchallengi rask..")
+            return
+
+        challenge_view = MinesweeperChallengeView(ctx.author, member)
+        content = (
+            f"⚔️ **Challenge dial Minesweeper!**\n"
+            f"**{ctx.author.display_name}** vs {member.mention}\n\n"
+            f"{member.mention}, t accepti?"
+        )
+        message = await ctx.send(content=content, view=challenge_view)
+        challenge_view.message = message
 
 
 async def setup(bot):
