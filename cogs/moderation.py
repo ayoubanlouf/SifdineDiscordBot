@@ -143,13 +143,13 @@ class Moderation(commands.Cog):
         else:
             if user == None:
                 await ctx.channel.purge(limit=amount + 1)
-                await ctx.send(f'Mse7t **{amount}** message', delete_after=5)
+                await ctx.send(f'Mse7t **{amount}** messages', delete_after=5)
             else:
                 def is_user(m):
                     return m.author == user
 
                 await ctx.channel.purge(limit=amount + 1, check=is_user)
-                await ctx.send(f'Mse7t **{amount}** message ta3 **{user}**', delete_after=5)
+                await ctx.send(f'Mse7t **{amount}** messages ta3 **{user}**', delete_after=5)
 
     @commands.group(name="role", help="Ga3 l commands ta3 roles.", invoke_without_command=True)
     async def role(self, ctx):

@@ -1336,6 +1336,228 @@ class AkinatorView(View):
         embed = self.build_question_embed(self.aki.question)
         await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self)
 
+# ============ ROCK PAPER SCISSORS UI CLASSES (Module Level) ============
+
+class RPSBotView(View):
+    def __init__(self, player: discord.Member):
+        super().__init__(timeout=60)
+        self.player = player
+        self.message: Optional[discord.Message] = None
+
+    @discord.ui.button(label="Rock", style=discord.ButtonStyle.secondary, emoji="🪨", custom_id="rps_rock")
+    async def rock(self, interaction: discord.Interaction, button: Button):
+        await self.process_choice(interaction, "rock")
+
+    @discord.ui.button(label="Paper", style=discord.ButtonStyle.secondary, emoji="📄", custom_id="rps_paper")
+    async def paper(self, interaction: discord.Interaction, button: Button):
+        await self.process_choice(interaction, "paper")
+
+    @discord.ui.button(label="Scissors", style=discord.ButtonStyle.secondary, emoji="✂️", custom_id="rps_scissors")
+    async def scissors(self, interaction: discord.Interaction, button: Button):
+        await self.process_choice(interaction, "scissors")
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user != self.player:
+            await interaction.response.send_message("Machy nta li m9ssr had lgame.", ephemeral=True)
+            return False
+        return True
+
+    async def process_choice(self, interaction: discord.Interaction, player_choice: str):
+        self.stop()
+        for item in self.children:
+            item.disabled = True
+
+        bot_choice = random.choice(["rock", "paper", "scissors"])
+        
+        emoji_map = {
+            "rock": "🪨 Rock",
+            "paper": "📄 Paper",
+            "scissors": "✂️ Scissors"
+        }
+
+        if player_choice == bot_choice:
+            title = "🤝 Ta3adol!"
+            outcome = f"Nta khtarti **{emoji_map[player_choice]}** o ana khtart **{emoji_map[bot_choice]}**."
+        elif (player_choice == "rock" and bot_choice == "scissors") or \
+             (player_choice == "paper" and bot_choice == "rock") or \
+             (player_choice == "scissors" and bot_choice == "paper"):
+            title = "🎉 Rbe7ti!"
+            outcome = f"Nta khtarti **{emoji_map[player_choice]}** o ana khtart **{emoji_map[bot_choice]}**."
+        else:
+            title = "🤖 Rb7tk!"
+            outcome = f"Nta khtarti **{emoji_map[player_choice]}** o ana khtart **{emoji_map[bot_choice]}**."
+
+        embed = discord.Embed(
+            title=title,
+            description=outcome,
+            color=0x000000
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                embed = discord.Embed(
+                    title="⏰ Sala lwe9t",
+                    description="Sala lwe9t o ma khtartich.",
+                    color=0x000000
+                )
+                await self.message.edit(embed=embed, view=self)
+            except discord.HTTPException:
+                pass
+
+
+class RPSMultiplayerView(View):
+    def __init__(self, player1: discord.Member, player2: discord.Member):
+        super().__init__(timeout=60)
+        self.player1 = player1
+        self.player2 = player2
+        self.choices = {player1.id: None, player2.id: None}
+        self.message: Optional[discord.Message] = None
+
+    @discord.ui.button(label="Rock", style=discord.ButtonStyle.secondary, emoji="🪨", custom_id="rps_m_rock")
+    async def rock(self, interaction: discord.Interaction, button: Button):
+        await self.record_choice(interaction, "rock")
+
+    @discord.ui.button(label="Paper", style=discord.ButtonStyle.secondary, emoji="📄", custom_id="rps_m_paper")
+    async def paper(self, interaction: discord.Interaction, button: Button):
+        await self.record_choice(interaction, "paper")
+
+    @discord.ui.button(label="Scissors", style=discord.ButtonStyle.secondary, emoji="✂️", custom_id="rps_m_scissors")
+    async def scissors(self, interaction: discord.Interaction, button: Button):
+        await self.record_choice(interaction, "scissors")
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user not in (self.player1, self.player2):
+            await interaction.response.send_message("Machy nta li m9ssr had lgame.", ephemeral=True)
+            return False
+        return True
+
+    async def record_choice(self, interaction: discord.Interaction, choice: str):
+        user_id = interaction.user.id
+        if self.choices[user_id] is not None:
+            await interaction.response.send_message("Khtarti deja, mat9derch tbedel.", ephemeral=True)
+            return
+
+        self.choices[user_id] = choice
+        
+        if all(c is not None for c in self.choices.values()):
+            self.stop()
+            for item in self.children:
+                item.disabled = True
+
+            emoji_map = {
+                "rock": "🪨 Rock",
+                "paper": "📄 Paper",
+                "scissors": "✂️ Scissors"
+            }
+            
+            p1_choice = self.choices[self.player1.id]
+            p2_choice = self.choices[self.player2.id]
+
+            if p1_choice == p2_choice:
+                title = "🤝 Ta3adol!"
+                outcome = f"{self.player1.mention} khtar **{emoji_map[p1_choice]}** o {self.player2.mention} khtar **{emoji_map[p2_choice]}**."
+            elif (p1_choice == "rock" and p2_choice == "scissors") or \
+                 (p1_choice == "paper" and p2_choice == "rock") or \
+                 (p1_choice == "scissors" and p2_choice == "paper"):
+                title = f"🏆 Winner: {self.player1.display_name}!"
+                outcome = f"{self.player1.mention} khtar **{emoji_map[p1_choice]}** o {self.player2.mention} khtar **{emoji_map[p2_choice]}**."
+            else:
+                title = f"🏆 Winner: {self.player2.display_name}!"
+                outcome = f"{self.player1.mention} khtar **{emoji_map[p1_choice]}** o {self.player2.mention} khtar **{emoji_map[p2_choice]}**."
+
+            embed = discord.Embed(
+                title=title,
+                description=outcome,
+                color=0x000000
+            )
+            await interaction.response.edit_message(embed=embed, view=self)
+        else:
+            other_player = self.player2 if interaction.user == self.player1 else self.player1
+            await interaction.response.send_message(f"Khtarti {choice}! Tsna {other_player.mention} i khtar.", ephemeral=True)
+            
+            embed = discord.Embed(
+                title="🪨 Rock Paper Scissors",
+                description=(
+                    f"⚔️ {self.player1.mention} vs {self.player2.mention}\n\n"
+                    f"✅ {interaction.user.mention} khtar choice dialo.\n"
+                    f"⏳ Tsna {other_player.mention} i khtar."
+                ),
+                color=0x000000
+            )
+            await interaction.message.edit(embed=embed)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                embed = discord.Embed(
+                    title="⏰ Game Timeout",
+                    description="Sala lwe9t o ma kmltoch lgame.",
+                    color=0x000000
+                )
+                await self.message.edit(embed=embed, view=self)
+            except discord.HTTPException:
+                pass
+
+
+class RPSChallengeView(View):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member):
+        super().__init__(timeout=60)
+        self.challenger = challenger
+        self.challenged = challenged
+        self.message: Optional[discord.Message] = None
+        self.accepted = False
+
+    @discord.ui.button(label="Accept Challenge", style=discord.ButtonStyle.success, emoji="✅")
+    async def accept_button(self, interaction: discord.Interaction, button: Button):
+        if interaction.user != self.challenged:
+            await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
+            return
+
+        self.accepted = True
+        self.stop()
+
+        game_view = RPSMultiplayerView(self.challenger, self.challenged)
+        embed = discord.Embed(
+            title="🪨 Rock Paper Scissors",
+            description=f"⚔️ {self.challenger.mention} vs {self.challenged.mention}\n\nKola wa7d ikhtar choice dialo b tkhbia!",
+            color=0x000000
+        )
+        await interaction.response.edit_message(content=None, embed=embed, view=game_view)
+        game_view.message = interaction.message
+
+    @discord.ui.button(label="Decline", style=discord.ButtonStyle.danger, emoji="❌")
+    async def decline_button(self, interaction: discord.Interaction, button: Button):
+        if interaction.user != self.challenged:
+            await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
+            return
+
+        self.stop()
+        for item in self.children:
+            item.disabled = True
+
+        await interaction.response.edit_message(
+            content=f"❌ {self.challenged.mention} mabghach il3eb.",
+            embed=None,
+            view=self
+        )
+
+    async def on_timeout(self):
+        if not self.accepted:
+            for item in self.children:
+                item.disabled = True
+            if self.message:
+                try:
+                    await self.message.edit(content="⏰ Challenge ma t acceptach.", embed=None, view=self)
+                except discord.NotFound:
+                    pass
+
+
 
 # ============ MAIN COG ============
 
@@ -1739,10 +1961,13 @@ class Fun(commands.Cog):
         random.shuffle(players)
         player_x, player_o = players[0], players[1]
 
+        p_x_str = player_x.mention if player_x == member else player_x.display_name
+        p_o_str = player_o.mention if player_o == member else player_o.display_name
+
         challenge_view = ChallengeView(ctx.author, member)
         content = (
             f"⚔️ **Tic-Tac-Toe Challenge!**\n"
-            f"{player_x.mention} (❌ X) vs {player_o.mention} (⭕ O)\n\n"
+            f"**{p_x_str}** (❌ X) vs **{p_o_str}** (⭕ O)\n\n"
             f"{member.mention}, t accepti?"
         )
         message = await ctx.send(content=content, view=challenge_view)
@@ -1768,7 +1993,7 @@ class Fun(commands.Cog):
         challenge_view = ConnectFourChallengeView(ctx.author, member)
         content = (
             f"⚔️ **Connect Four Challenge!**\n"
-            f"{ctx.author.mention} vs {member.mention}\n\n"
+            f"**{ctx.author.display_name}** vs {member.mention}\n\n"
             f"{member.mention}, t accepti?"
         )
         message = await ctx.send(content=content, view=challenge_view)
@@ -1812,8 +2037,39 @@ class Fun(commands.Cog):
 
         # Multiplayer Challenge
         challenge_view = ChessChallengeView(ctx.author, member)
-        content = f"⚔️ **Challenge dial Chess!**\n{ctx.author.mention} challenga {member.mention} f match dial Chess!\n\n{member.mention}, t accepti?"
+        content = f"⚔️ **Challenge dial Chess!**\n**{ctx.author.display_name}** challenga {member.mention} f match dial Chess!\n\n{member.mention}, t accepti?"
         await ctx.send(content=content, view=challenge_view)
+
+    @commands.command(name="rockpaperscissors", aliases=["rps", "zdimbomba7", "zba7"], help="L3eb Rock Paper Scissors ded bot wla s7bek.")
+    async def rps(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+        if member is None:
+            view = RPSBotView(ctx.author)
+            embed = discord.Embed(
+                title="🪨 Rock Paper Scissors",
+                description=f"⚔️ {ctx.author.mention} vs 🤖 Bot\n\nKhtar choice dialk:",
+                color=0x000000
+            )
+            message = await ctx.send(embed=embed, view=view)
+            view.message = message
+            return
+
+        if member.bot:
+            await ctx.send("❌ Mat9edch tchallengi bot..")
+            return
+
+        if member == ctx.author:
+            await ctx.send("❌ Mat9edch tchallengi rask..")
+            return
+
+        challenge_view = RPSChallengeView(ctx.author, member)
+        content = (
+            f"⚔️ **Challenge dial Rock Paper Scissors!**\n"
+            f"**{ctx.author.display_name}** vs {member.mention}\n\n"
+            f"{member.mention}, t accepti?"
+        )
+        message = await ctx.send(content=content, view=challenge_view)
+        challenge_view.message = message
+
 
 
 async def setup(bot):
