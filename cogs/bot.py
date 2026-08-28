@@ -66,7 +66,7 @@ class Bot(commands.Cog):
 
         title_text = f"Servers: ({len(self.bot.guilds)}) | Owners: ({len(owners)}) | Members: ({members})"
 
-        view = self.Paginator(ctx, pages=server_lines, per_page=10, title=title_text)
+        view = self.bot.Paginator(ctx, pages=server_lines, per_page=10, title=title_text)
         view.message = await ctx.send(embed=view.get_page(), view=view)
 
 
@@ -166,7 +166,7 @@ class Bot(commands.Cog):
             else:
                 blacklist_lines.append(f"• Unknown User (`{user_id}`)")
 
-        view = self.Paginator(ctx, pages=blacklist_lines, per_page=10, title=f"Blacklist ({len(rows)})")
+        view = self.bot.Paginator(ctx, pages=blacklist_lines, per_page=10, title=f"Blacklist ({len(rows)})")
         view.message = await ctx.send(embed=view.get_page(), view=view)
 
 

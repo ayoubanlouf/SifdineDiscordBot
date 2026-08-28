@@ -1,4 +1,5 @@
 from PIL import Image
+from typing import Optional
 import discord
 from discord.ext import commands
 import os
@@ -1077,6 +1078,71 @@ class Moderation(commands.Cog):
         
         embed.set_footer(text=f"Total: {len(enabled_perms)} enabled, {len(disabled_perms)} disabled")
         await ctx.send(embed=embed)
+
+    @commands.command(name="logs", aliases=["log", "logging", "audit"], help="Configuri log channel (dir nafs channel bach t7bs logs).")
+    @commands.has_permissions(administrator=True)
+    @commands.guild_only()
+    async def logs(self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None):
+        async with self.bot.db.execute("SELECT channel_id FROM guild_logs WHERE guild_id = ?", (ctx.guild.id,)) as cursor:
+            row = await cursor.fetchone()
+
+        current_channel_id = row[0] if row else None
+
+        if channel is None:
+            if current_channel_id:
+                cur_chan = ctx.guild.get_channel(current_channel_id)
+                chan_str = cur_chan.mention if cur_chan else f"`#{current_channel_id}`"
+                await ctx.send(embed=discord.Embed(
+                    description=f"📋 **Log Channel:** {chan_str}\n\nBach tbdel channel: `{ctx.prefix}logs <#channel>`\n-# _Dir nafs channel bach t7bs logs._",
+                    color=0x000000
+                ))
+            else:
+                await ctx.send(embed=discord.Embed(
+                    description=f"❌ Ta log channel mconfiguri f had server.\n\nDir `{ctx.prefix}logs <#channel>` bach tbda logging.",
+                    color=0x000000
+                ))
+            return
+
+        # Case 1: Same channel provided -> Disable/remove logging
+        if current_channel_id == channel.id:
+            async with self.bot.db.execute("DELETE FROM guild_logs WHERE guild_id = ?", (ctx.guild.id,)):
+                await self.bot.db.commit()
+
+            events_cog = self.bot.get_cog("Events")
+            if events_cog and hasattr(events_cog, "log_channels"):
+                events_cog.log_channels.pop(ctx.guild.id, None)
+
+            await ctx.send(embed=discord.Embed(
+                description=f"🛑 **Logging 7bes** f {channel.mention}.",
+                color=0x000000
+            ))
+            return
+
+        # Case 2: New channel provided (or switching channel)
+        bot_perms = channel.permissions_for(ctx.guild.me)
+        if not (bot_perms.send_messages and bot_perms.embed_links):
+            await ctx.send(embed=discord.Embed(
+                description=f"❌ Ma3ndich permissions dial `Send Messages` o `Embed Links` f {channel.mention}.",
+                color=0x000000
+            ))
+            return
+
+        async with self.bot.db.execute("""
+            INSERT INTO guild_logs (guild_id, channel_id)
+            VALUES (?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET channel_id = excluded.channel_id
+        """, (ctx.guild.id, channel.id)):
+            await self.bot.db.commit()
+
+        events_cog = self.bot.get_cog("Events")
+        if events_cog and hasattr(events_cog, "log_channels"):
+            events_cog.log_channels[ctx.guild.id] = channel.id
+
+        await ctx.send(embed=discord.Embed(
+            description=f"✅ **Log Channel tconfigura:** {channel.mention}\nLogging rah bda daba.",
+            color=0x000000
+        ))
+
 
 async def setup(bot):
     await bot.add_cog(Moderation(bot))

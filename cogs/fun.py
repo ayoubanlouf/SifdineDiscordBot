@@ -164,11 +164,12 @@ class MoveModal(Modal, title="La3eb Chess"):
         await self.game_view.process_move_input(interaction, self.move_input.value.strip())
 
 class ChessView(View):
-    def __init__(self, player_white: FuzzyMember, player_black: FuzzyMember, is_bot_game: bool = False):
+    def __init__(self, player_white: FuzzyMember, player_black: FuzzyMember, is_bot_game: bool = False, cog: Optional["Fun"] = None):
         super().__init__(timeout=120)
         self.player_white = player_white
         self.player_black = player_black
         self.is_bot_game = is_bot_game
+        self.cog = cog
         self.board = chess.Board()
         self.current_turn = player_white
         self.game_over = False
@@ -478,6 +479,12 @@ class ChessView(View):
         if self.board.is_game_over():
             self.game_over = True
             self.stop()
+            if self.board.is_checkmate() and not self.is_bot_game and self.cog and interaction.guild:
+                outcome = self.board.outcome()
+                if outcome and outcome.winner == chess.WHITE:
+                    asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.player_white.id, "chess"))
+                elif outcome and outcome.winner == chess.BLACK:
+                    asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.player_black.id, "chess"))
             board_file = await self.generate_board_file()
             await interaction.response.edit_message(embed=self.build_embed(), attachments=[board_file], view=self)
             return
@@ -536,6 +543,8 @@ class ChessView(View):
         self.game_over = True
         self.stop()
         winner = self.player_black if interaction.user == self.player_white else self.player_white
+        if not self.is_bot_game and self.cog and interaction.guild:
+            asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winner.id, "chess"))
         
         embed = self.build_embed()
         embed.description = f"🏳️ **{interaction.user.mention} steslem! {winner.mention} rbe7!**"
@@ -543,10 +552,11 @@ class ChessView(View):
         await interaction.response.edit_message(embed=embed, attachments=[board_file], view=None)
 
 class ChessChallengeView(View):
-    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember):
+    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember, cog: "Fun"):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
+        self.cog = cog
 
     @discord.ui.button(label="Qbel", style=discord.ButtonStyle.success, emoji="✅")
     async def accept(self, interaction: discord.Interaction, button: Button):
@@ -557,7 +567,7 @@ class ChessChallengeView(View):
         players = [self.challenger, self.challenged]
         random.shuffle(players)
         
-        game_view = ChessView(players[0], players[1], is_bot_game=False)
+        game_view = ChessView(players[0], players[1], is_bot_game=False, cog=self.cog)
         board_file = await game_view.generate_board_file()
         
         await interaction.response.edit_message(content=None, embed=game_view.build_embed(), attachments=[board_file], view=game_view)
@@ -601,11 +611,12 @@ class TicTacToeView(View):
         [(2, 0), (1, 1), (0, 2)],
     ]
 
-    def __init__(self, player_x: FuzzyMember, player_o: FuzzyMember, is_bot_game: bool = False, turn_timeout: int = 60):
+    def __init__(self, player_x: FuzzyMember, player_o: FuzzyMember, is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Fun"] = None):
         super().__init__(timeout=120)
         self.player_x = player_x
         self.player_o = player_o
         self.is_bot_game = is_bot_game
+        self.cog = cog
         self.current_turn = player_x  # X always goes first
         self.turn_timeout = turn_timeout
         self.turn_start = time.time()
@@ -689,6 +700,8 @@ class TicTacToeView(View):
                     content = f"⏰ **{current_player.mention} sala lik lwe9t!** Rb7tk!"
                 else:
                     content = f"⏰ **{current_player.mention} sala lih lwe9t!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
+                    if self.cog and self.message and self.message.guild:
+                        asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, winner.id, "tictactoe"))
 
                 if self.message:
                     await self.message.edit(content=content, view=self)
@@ -790,6 +803,9 @@ class TicTacToeView(View):
         if winner:
             self.game_over = True
             self.disable_all_buttons()
+            if winner in ("X", "O") and not self.is_bot_game and self.cog and interaction.guild:
+                winning_user = self.player_x if winner == "X" else self.player_o
+                asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe"))
             await interaction.response.edit_message(content=self.get_status_content(), view=self)
             self.stop()
             return
@@ -819,10 +835,11 @@ class TicTacToeView(View):
 
 class ChallengeView(View):
     """View for the challenge acceptance phase."""
-    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember):
+    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember, cog: "Fun"):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
+        self.cog = cog
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -839,7 +856,7 @@ class ChallengeView(View):
         random.shuffle(players)
         player_x, player_o = players[0], players[1]
 
-        game_view = TicTacToeView(player_x, player_o, is_bot_game=False)
+        game_view = TicTacToeView(player_x, player_o, is_bot_game=False, cog=self.cog)
         content = f"❌ **{player_x.mention}'s turn (X)**"
         await interaction.response.edit_message(content=content, view=game_view)
         game_view.message = interaction.message
@@ -889,11 +906,12 @@ class ConnectFourButton(Button):
 
 class ConnectFourView(View):
     """The main Connect Four game view."""
-    def __init__(self, player_red: FuzzyMember, player_yellow: FuzzyMember, is_bot_game: bool = False, turn_timeout: int = 60):
+    def __init__(self, player_red: FuzzyMember, player_yellow: FuzzyMember, is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Fun"] = None):
         super().__init__(timeout=120)
         self.player_red = player_red
         self.player_yellow = player_yellow
         self.is_bot_game = is_bot_game
+        self.cog = cog
         self.current_turn = player_red  # Red (🔴) goes first
         self.turn_timeout = turn_timeout
         self.turn_start = time.time()
@@ -1033,6 +1051,8 @@ class ConnectFourView(View):
                     content = f"{self.render_board()}\n\n⏰ **{current_player.mention} sala lik lwe9t!** Rb7tk!"
                 else:
                     content = f"{self.render_board()}\n\n⏰ **{current_player.mention} sala lih lwe9t!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
+                    if self.cog and self.message and self.message.guild:
+                        asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, winner.id, "connectfour"))
 
                 if self.message:
                     await self.message.edit(content=content, view=self)
@@ -1073,6 +1093,9 @@ class ConnectFourView(View):
         if winner:
             self.game_over = True
             self.disable_all_buttons()
+            if winner in ("🔴", "🟡") and not self.is_bot_game and self.cog and interaction.guild:
+                winning_user = self.player_red if winner == "🔴" else self.player_yellow
+                asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour"))
             await interaction.response.edit_message(content=self.get_status_content(), view=self)
             self.stop()
             return
@@ -1093,6 +1116,7 @@ class ConnectFourView(View):
 
         # Reset turn timer
         if not self.game_over:
+            self.turn_start = time.time()
             if hasattr(self, '_timeout_task') and self._timeout_task:
                 self._timeout_task.cancel()
             self._timeout_task = asyncio.create_task(self._turn_timeout_task())
@@ -1102,10 +1126,11 @@ class ConnectFourView(View):
 
 class ConnectFourChallengeView(View):
     """View for the Connect Four multiplayer challenge acceptance phase."""
-    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember):
+    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember, cog: "Fun"):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
+        self.cog = cog
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -1122,7 +1147,7 @@ class ConnectFourChallengeView(View):
         random.shuffle(players)
         player_red, player_yellow = players[0], players[1]
 
-        game_view = ConnectFourView(player_red, player_yellow, is_bot_game=False)
+        game_view = ConnectFourView(player_red, player_yellow, is_bot_game=False, cog=self.cog)
         content = game_view.get_status_content()
         await interaction.response.edit_message(content=content, view=game_view)
         game_view.message = interaction.message
@@ -1416,10 +1441,11 @@ class RPSBotView(View):
 
 
 class RPSMultiplayerView(View):
-    def __init__(self, player1: discord.Member, player2: discord.Member):
+    def __init__(self, player1: discord.Member, player2: discord.Member, cog: Optional["Fun"] = None):
         super().__init__(timeout=60)
         self.player1 = player1
         self.player2 = player2
+        self.cog = cog
         self.choices = {player1.id: None, player2.id: None}
         self.message: Optional[discord.Message] = None
 
@@ -1463,6 +1489,7 @@ class RPSMultiplayerView(View):
             p1_choice = self.choices[self.player1.id]
             p2_choice = self.choices[self.player2.id]
 
+            winning_user = None
             if p1_choice == p2_choice:
                 title = "🤝 Ta3adol!"
                 outcome = f"{self.player1.mention} khtar **{emoji_map[p1_choice]}** o {self.player2.mention} khtar **{emoji_map[p2_choice]}**."
@@ -1471,9 +1498,14 @@ class RPSMultiplayerView(View):
                  (p1_choice == "scissors" and p2_choice == "paper"):
                 title = f"🏆 Winner: {self.player1.display_name}!"
                 outcome = f"{self.player1.mention} khtar **{emoji_map[p1_choice]}** o {self.player2.mention} khtar **{emoji_map[p2_choice]}**."
+                winning_user = self.player1
             else:
                 title = f"🏆 Winner: {self.player2.display_name}!"
                 outcome = f"{self.player1.mention} khtar **{emoji_map[p1_choice]}** o {self.player2.mention} khtar **{emoji_map[p2_choice]}**."
+                winning_user = self.player2
+
+            if winning_user and self.cog and interaction.guild:
+                asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors"))
 
             embed = discord.Embed(
                 title=title,
@@ -1512,10 +1544,11 @@ class RPSMultiplayerView(View):
 
 
 class RPSChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun"):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
+        self.cog = cog
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -1528,7 +1561,7 @@ class RPSChallengeView(View):
         self.accepted = True
         self.stop()
 
-        game_view = RPSMultiplayerView(self.challenger, self.challenged)
+        game_view = RPSMultiplayerView(self.challenger, self.challenged, cog=self.cog)
         embed = discord.Embed(
             title="🪨 Rock Paper Scissors",
             description=f"⚔️ {self.challenger.mention} vs {self.challenged.mention}\n\nKola wa7d ikhtar choice dialo b tkhbia!",
@@ -1713,10 +1746,11 @@ class MinesweeperSoloView(View):
 
 
 class MinesweeperMultiplayerView(View):
-    def __init__(self, p1: discord.Member, p2: discord.Member):
+    def __init__(self, p1: discord.Member, p2: discord.Member, cog: Optional["Fun"] = None):
         super().__init__(timeout=180)
         self.p1 = p1
         self.p2 = p2
+        self.cog = cog
         self.scores = {p1.id: 0, p2.id: 0}
         self.current_turn = p1
         self.game_over = False
@@ -1810,6 +1844,11 @@ class MinesweeperMultiplayerView(View):
             if p1_score >= 3 or p2_score >= 3 or self.found_mines == self.mine_count:
                 self.game_over = True
                 self.stop()
+                if self.cog and interaction.guild:
+                    if p1_score > p2_score:
+                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.p1.id, "minesweeper"))
+                    elif p2_score > p1_score:
+                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.p2.id, "minesweeper"))
                 # Disable all other buttons and show remaining mines
                 for item in self.children:
                     if isinstance(item, MinesweeperButton):
@@ -1849,10 +1888,11 @@ class MinesweeperMultiplayerView(View):
 
 
 class MinesweeperChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun"):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
+        self.cog = cog
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -1865,7 +1905,7 @@ class MinesweeperChallengeView(View):
         self.accepted = True
         self.stop()
 
-        game_view = MinesweeperMultiplayerView(self.challenger, self.challenged)
+        game_view = MinesweeperMultiplayerView(self.challenger, self.challenged, cog=self.cog)
         await interaction.response.edit_message(content=game_view.get_content(), view=game_view)
         game_view.message = interaction.message
 
@@ -2238,6 +2278,24 @@ class WordleMultiplayerMatch:
             print(f"[spectator update error]: {e}")
 
         if self.game_over:
+            if self.cog and self.channel_msg and self.channel_msg.guild:
+                winner = None
+                if p1_quit and not p2_quit:
+                    winner = self.p2
+                elif p2_quit and not p1_quit:
+                    winner = self.p1
+                elif p1_won and not p2_won:
+                    winner = self.p1
+                elif p2_won and not p1_won:
+                    winner = self.p2
+                elif p1_won and p2_won:
+                    if p1_guesses_len < p2_guesses_len:
+                        winner = self.p1
+                    elif p2_guesses_len < p1_guesses_len:
+                        winner = self.p2
+                if winner:
+                    asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "wordle"))
+
             for p in (self.p1, self.p2):
                 dm_msg = self.dm_messages.get(p.id)
                 dm_v = self.dm_views.get(p.id)
@@ -2284,6 +2342,12 @@ class WordleMultiplayerMatch:
                 await opp_msg.edit(content=self.get_player_dm_content(opponent), view=opp_v)
             except Exception:
                 pass
+
+        if self.game_over and self.cog and self.channel_msg and self.channel_msg.guild:
+            if self.quit[self.p1.id] and not self.quit[self.p2.id]:
+                asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, self.p2.id, "wordle"))
+            elif self.quit[self.p2.id] and not self.quit[self.p1.id]:
+                asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, self.p1.id, "wordle"))
 
 
 class WordleChallengeView(View):
@@ -2769,6 +2833,26 @@ class HangmanMultiplayerMatch:
             print(f"[hangman spectator update error]: {e}")
 
         if self.game_over:
+            if self.cog and self.channel_msg and self.channel_msg.guild:
+                winner = None
+                p1_mistakes = len(self.wrong_guesses[self.p1.id])
+                p2_mistakes = len(self.wrong_guesses[self.p2.id])
+                if p1_quit and not p2_quit:
+                    winner = self.p2
+                elif p2_quit and not p1_quit:
+                    winner = self.p1
+                elif p1_won and not p2_won:
+                    winner = self.p1
+                elif p2_won and not p1_won:
+                    winner = self.p2
+                elif p1_won and p2_won:
+                    if p1_mistakes < p2_mistakes:
+                        winner = self.p1
+                    elif p2_mistakes < p1_mistakes:
+                        winner = self.p2
+                if winner:
+                    asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "hangman"))
+
             for p in (self.p1, self.p2):
                 dm_msg = self.dm_messages.get(p.id)
                 dm_v = self.dm_views.get(p.id)
@@ -2815,6 +2899,12 @@ class HangmanMultiplayerMatch:
                 await opp_msg.edit(content=self.get_player_dm_content(opponent), view=opp_v)
             except Exception:
                 pass
+
+        if self.game_over and self.cog and self.channel_msg and self.channel_msg.guild:
+            if self.quit[self.p1.id] and not self.quit[self.p2.id]:
+                asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, self.p2.id, "hangman"))
+            elif self.quit[self.p2.id] and not self.quit[self.p1.id]:
+                asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, self.p1.id, "hangman"))
 
 
 class HangmanChallengeView(View):
@@ -3168,6 +3258,19 @@ class Fun(commands.Cog):
         self.bot = bot
         self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
 
+    async def record_minigame_win(self, guild_id: Optional[int], user_id: int, game: str):
+        if not guild_id:
+            return
+        try:
+            await self.bot.db.execute("""
+                INSERT INTO minigame_leaderboard (guild_id, user_id, game, wins)
+                VALUES (?, ?, ?, 1)
+                ON CONFLICT(guild_id, user_id, game) DO UPDATE SET wins = wins + 1
+            """, (guild_id, user_id, game.lower()))
+            await self.bot.db.commit()
+        except Exception as e:
+            print(f"[record_minigame_win error]: {e}")
+
     def get_spellingbee_words(self, difficulty: int, count: int = 10) -> list[str]:
         words = []
         try:
@@ -3331,6 +3434,8 @@ class Fun(commands.Cog):
         while len(active_players) > 0:
             if not single_player and len(active_players) == 1:
                 winner = active_players[0]
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, winner.id, "flags")
                 win_embed = discord.Embed(
                     description=f"🏆 {winner.mention} rbe7 lgame!",
                     color=0x000000
@@ -3518,6 +3623,8 @@ class Fun(commands.Cog):
                                 active_players.remove(player)
 
                 if active_players:
+                    if not single_player and ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, active_players[0].id, "blacktea")
                     await ctx.send(embed=discord.Embed(
                         description=f"🏆 {active_players[0].mention} rbe7 lgame!",
                         color=0x000000
@@ -3625,6 +3732,8 @@ class Fun(commands.Cog):
                 if len(winners) == 1:
                     winner = self.bot.get_user(winners[0])
                     winner_str = winner.mention if winner else f"<@{winners[0]}>"
+                    if maxpoints > 0 and ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, winners[0], "greentea")
                     await ctx.send(embed=discord.Embed(
                         description=f"🏆 {winner_str} rbe7 lgame b **{maxpoints} pts**!",
                         color=0x000000
@@ -3662,7 +3771,7 @@ class Fun(commands.Cog):
         p_x_str = player_x.mention if player_x == member else player_x.display_name
         p_o_str = player_o.mention if player_o == member else player_o.display_name
 
-        challenge_view = ChallengeView(ctx.author, member)
+        challenge_view = ChallengeView(ctx.author, member, self)
         content = (
             f"⚔️ **Tic-Tac-Toe Challenge!**\n"
             f"**{p_x_str}** (❌ X) vs **{p_o_str}** (⭕ O)\n\n"
@@ -3688,7 +3797,7 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
-        challenge_view = ConnectFourChallengeView(ctx.author, member)
+        challenge_view = ConnectFourChallengeView(ctx.author, member, self)
         content = (
             f"⚔️ **Connect Four Challenge!**\n"
             f"**{ctx.author.display_name}** vs {member.mention}\n\n"
@@ -3734,7 +3843,7 @@ class Fun(commands.Cog):
             return
 
         # Multiplayer Challenge
-        challenge_view = ChessChallengeView(ctx.author, member)
+        challenge_view = ChessChallengeView(ctx.author, member, self)
         content = f"⚔️ **Challenge dial Chess!**\n**{ctx.author.display_name}** challenga {member.mention} f match dial Chess!\n\n{member.mention}, t accepti?"
         await ctx.send(content=content, view=challenge_view)
 
@@ -3759,7 +3868,7 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
-        challenge_view = RPSChallengeView(ctx.author, member)
+        challenge_view = RPSChallengeView(ctx.author, member, self)
         content = (
             f"⚔️ **Challenge dial Rock Paper Scissors!**\n"
             f"**{ctx.author.display_name}** vs {member.mention}\n\n"
@@ -3785,7 +3894,7 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
-        challenge_view = MinesweeperChallengeView(ctx.author, member)
+        challenge_view = MinesweeperChallengeView(ctx.author, member, self)
         content = (
             f"⚔️ **Challenge dial Minesweeper!**\n"
             f"**{ctx.author.display_name}** vs {member.mention}\n\n"
@@ -3902,6 +4011,8 @@ class Fun(commands.Cog):
         while len(active_players) > 0:
             if not single_player and len(active_players) == 1:
                 winner = active_players[0]
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, winner.id, "trivia")
                 await ctx.send(embed=discord.Embed(
                     description=f"🏆 {winner.mention} rbe7 lgame b **{scores[winner.id]} answers correct**!",
                     color=0x000000
@@ -4130,6 +4241,8 @@ class Fun(commands.Cog):
         )
         if ranked:
             leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 🎉")
+            if scores.get(ranked[0].id, 0) > 0 and ctx.guild:
+                await self.record_minigame_win(ctx.guild.id, ranked[0].id, "typeracer")
         await ctx.send(embed=leaderboard_embed)
 
     @commands.command(name="spellingbee", aliases=["bee", "spell"], help="Sme3 lkelma li ghangoul fl VC o ktebha s7i7a.")
@@ -4295,6 +4408,10 @@ class Fun(commands.Cog):
             )
             if ranked:
                 leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 👑")
+                if len(players) >= 2 and scores.get(ranked[0].id, 0) > 0 and ctx.guild:
+                    top_scorers = [p for p in ranked if scores.get(p.id, 0) == scores.get(ranked[0].id, 0)]
+                    if len(top_scorers) == 1:
+                        await self.record_minigame_win(ctx.guild.id, ranked[0].id, "spellingbee")
             await ctx.send(embed=leaderboard_embed)
 
             # Announce winner in Voice Channel
@@ -4324,6 +4441,107 @@ class Fun(commands.Cog):
                     await voice_client.disconnect(force=True)
             except Exception as e:
                 print(f"[spellingbee disconnect error]: {e}")
+
+    @commands.command(name="leaderboard", aliases=["lb", "top"], help="Leaderboard ta3 lminigames.")
+    async def leaderboard(self, ctx: commands.Context, game: Optional[str] = None):
+        if not ctx.guild:
+            await ctx.send("❌ Had l command khedama ghir f servers.")
+            return
+
+        minigame_map = {
+            "flags": ("🚩 Flags", ["flags", "flag", "rayat"]),
+            "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
+            "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
+            "tictactoe": ("❌ TicTacToe", ["tictactoe", "ttt", "morpion"]),
+            "connectfour": ("🔴 ConnectFour", ["connectfour", "c4", "connect4"]),
+            "chess": ("♟️ Chess", ["chess", "playchess", "shitranj"]),
+            "rockpaperscissors": ("✂️ RockPaperScissors", ["rockpaperscissors", "rps", "zdimbomba7", "zba7"]),
+            "minesweeper": ("💣 Minesweeper", ["minesweeper", "ms", "demineur"]),
+            "wordle": ("🟩 Wordle", ["wordle", "wdl", "klma", "kelma"]),
+            "hangman": ("🪢 Hangman", ["hangman", "hm", "michna9a"]),
+            "trivia": ("🧠 Trivia", ["trivia", "quiz", "as2ila"]),
+            "typeracer": ("🏎️ TypeRacer", ["typeracer", "tr", "type", "monkeytype"]),
+            "spellingbee": ("🐝 SpellingBee", ["spellingbee", "bee", "spell"]),
+        }
+
+        if game is None:
+            async with self.bot.db.execute("""
+                SELECT game, user_id, wins FROM minigame_leaderboard
+                WHERE guild_id = ?
+                ORDER BY wins DESC
+            """, (ctx.guild.id,)) as cursor:
+                rows = await cursor.fetchall()
+
+            top_by_game = {}
+            for g, uid, wins in rows:
+                if g not in top_by_game:
+                    top_by_game[g] = (uid, wins)
+
+            lines = []
+            for game_key, (display_name, _) in minigame_map.items():
+                if game_key in top_by_game:
+                    uid, wins = top_by_game[game_key]
+                    win_str = f"**{wins}** win" if wins == 1 else f"**{wins}** wins"
+                    lines.append(f"{display_name}\n└ 👑 <@{uid}> — {win_str}")
+                else:
+                    lines.append(f"{display_name}\n└ *Ta wa7d ma 3ndo wins ba9i*")
+
+            embed = discord.Embed(
+                title=f"🏆 Minigame Leaderboards — {ctx.guild.name}",
+                description="\n\n".join(lines),
+                color=0x000000
+            )
+            embed.set_footer(text=f"Bghiti tchouf ranking dial game specific? Kteb {ctx.clean_prefix}lb <game>")
+            await ctx.send(embed=embed)
+        else:
+            target_key = None
+            target_name = None
+            clean_game = game.strip().lower()
+            for k, (d_name, aliases) in minigame_map.items():
+                if clean_game == k or clean_game in aliases:
+                    target_key = k
+                    target_name = d_name
+                    break
+
+            if not target_key:
+                valid_list = ", ".join(f"`{k}`" for k in minigame_map.keys())
+                await ctx.send(embed=discord.Embed(
+                    description=f"❌ Had l game makynch: `{game}`.\n\nGames li kaynin:\n{valid_list}",
+                    color=0x000000
+                ))
+                return
+
+            async with self.bot.db.execute("""
+                SELECT user_id, wins FROM minigame_leaderboard
+                WHERE guild_id = ? AND game = ?
+                ORDER BY wins DESC
+            """, (ctx.guild.id, target_key)) as cursor:
+                rows = await cursor.fetchall()
+
+            if not rows:
+                await ctx.send(embed=discord.Embed(
+                    title=f"🏆 {target_name} Leaderboard",
+                    description=f"Walo wins msjlin f **{target_name}** ba9i f had server.",
+                    color=0x000000
+                ))
+                return
+
+            medals = ["🥇", "🥈", "🥉"]
+            lines = []
+            for i, (uid, wins) in enumerate(rows):
+                rank_str = medals[i] if i < 3 else f"**#{i+1}**"
+                win_str = f"**{wins}** win" if wins == 1 else f"**{wins}** wins"
+                lines.append(f"{rank_str} <@{uid}> — {win_str}")
+
+            view = self.bot.Paginator(
+                ctx,
+                pages=lines,
+                per_page=10,
+                title=f"🏆 {target_name} Leaderboard"
+            )
+            initial_embed = view.get_page()
+            msg = await ctx.send(embed=initial_embed, view=view)
+            view.message = msg
 
 
 async def setup(bot):

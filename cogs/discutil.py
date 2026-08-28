@@ -16,75 +16,6 @@ class DiscordUtil(commands.Cog):
             return asset.with_format("gif").with_size(1024).url
         return asset.with_format("png").with_size(1024).url
 
-    class Paginator(discord.ui.View):
-        def __init__(self, ctx, pages, per_page=10, title="Data List"):
-            super().__init__(timeout=60)
-            self.ctx = ctx
-            self.current_page = 0
-
-            # Check if we were passed a list of Embeds or a list of Strings
-            if isinstance(pages[0], discord.Embed):
-                self.pages = pages
-                self.is_embed_list = True
-            else:
-                self.is_embed_list = False
-                # Chunk string lines automatically if not already chunked
-                if isinstance(pages, list) and all(isinstance(x, str) for x in pages) and len(pages) > 0 and "\n" not in \
-                        pages[0]:
-                    self.chunks = ["\n".join(pages[i:i + per_page]) for i in range(0, len(pages), per_page)]
-                else:
-                    self.chunks = pages
-                self.title = title
-
-        def get_page(self):
-            if self.is_embed_list:
-                embed = self.pages[self.current_page]
-                embed.color = 0x000000
-                # Automatically update footer tracking
-                embed.set_footer(text=f"Page {self.current_page + 1}/{len(self.pages)}")
-                return embed
-            else:
-                embed = discord.Embed(
-                    title=self.title,
-                    description=self.chunks[self.current_page],
-                    color=0x000000
-                )
-                embed.set_footer(text=f"Page {self.current_page + 1}/{len(self.chunks)}")
-                return embed
-
-        async def interaction_check(self, interaction: discord.Interaction) -> bool:
-            if interaction.user.id != self.ctx.author.id:
-                await interaction.response.send_message("Mat9edch tkhdem had  buttons.", ephemeral=True)
-                return False
-            return True
-
-        @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
-        async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-            if self.current_page > 0:
-                self.current_page -= 1
-                await interaction.response.edit_message(embed=self.get_page())
-            else:
-                await interaction.response.defer()
-
-        @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
-        async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-            total = len(self.pages) if self.is_embed_list else len(self.chunks)
-            if self.current_page < total - 1:
-                self.current_page += 1
-                await interaction.response.edit_message(embed=self.get_page())
-            else:
-                await interaction.response.defer()
-
-        async def on_timeout(self):
-            for child in self.children:
-                child.disabled = True
-            if hasattr(self, 'message') and self.message:
-                try:
-                    await self.message.edit(view=self)
-                except Exception:
-                    pass
-
-    
     @commands.command(name="serverinfo", aliases=["server", "guild", "guildinfo"], help="Informations 3la server.")
     @commands.guild_only()
     async def serverinfo(self, ctx):
@@ -370,7 +301,7 @@ class DiscordUtil(commands.Cog):
                 em.set_image(url=data["attachment"])
             embeds.append(em)
 
-        view = self.Paginator(ctx, pages=embeds)
+        view = self.bot.Paginator(ctx, pages=embeds)
         initial_embed = view.get_page()
         msg = await ctx.send(embed=initial_embed, view=view)
         view.message = msg
@@ -395,7 +326,7 @@ class DiscordUtil(commands.Cog):
             em.add_field(name="After", value=data["new_content"] or "Empty", inline=False)
             embeds.append(em)
 
-        view = self.Paginator(ctx, pages=embeds)
+        view = self.bot.Paginator(ctx, pages=embeds)
         initial_embed = view.get_page()
         msg = await ctx.send(embed=initial_embed, view=view)
         view.message = msg
@@ -422,7 +353,7 @@ class DiscordUtil(commands.Cog):
             em.set_author(name=data["author_name"], icon_url=data["author_avatar"])
             embeds.append(em)
 
-        view = self.Paginator(ctx, pages=embeds)
+        view = self.bot.Paginator(ctx, pages=embeds)
         initial_embed = view.get_page()
         msg = await ctx.send(embed=initial_embed, view=view)
         view.message = msg

@@ -7,6 +7,7 @@ import aiosqlite
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from typing import Optional
 from get_commands import AllBotCommands
 
 print("[DEBUG] main.py interpreter:", sys.executable)
@@ -22,27 +23,45 @@ class Paginator(discord.ui.View):
         super().__init__(timeout=60)
         self.ctx = ctx
         self.current_page = 0
+        self.title = title
+        self.message: Optional[discord.Message] = None
+
+        if not pages:
+            pages = ["Walo data."]
 
         # Check if we were passed a list of Embeds or a list of Strings
         if isinstance(pages[0], discord.Embed):
             self.pages = pages
             self.is_embed_list = True
+            self.total_pages = len(self.pages)
         else:
             self.is_embed_list = False
             # Chunk string lines automatically if not already chunked
-            if isinstance(pages, list) and all(isinstance(x, str) for x in pages) and len(pages) > 0 and "\n" not in \
-                    pages[0]:
+            if isinstance(pages, list) and all(isinstance(x, str) for x in pages) and len(pages) > 0 and "\n" not in pages[0]:
                 self.chunks = ["\n".join(pages[i:i + per_page]) for i in range(0, len(pages), per_page)]
             else:
                 self.chunks = pages
-            self.title = title
+            self.total_pages = len(self.chunks)
+
+        self._update_button_states()
+
+    def _update_button_states(self):
+        if self.total_pages <= 1:
+            self.clear_items()
+        else:
+            for child in self.children:
+                if isinstance(child, discord.ui.Button):
+                    if child.label == "◀️":
+                        child.disabled = (self.current_page == 0)
+                    elif child.label == "▶️":
+                        child.disabled = (self.current_page == self.total_pages - 1)
 
     def get_page(self):
         if self.is_embed_list:
             embed = self.pages[self.current_page]
             embed.color = 0x000000
-            # Automatically update footer tracking
-            embed.set_footer(text=f"Page {self.current_page + 1}/{len(self.pages)}")
+            if self.total_pages > 1:
+                embed.set_footer(text=f"Page {self.current_page + 1}/{self.total_pages}")
             return embed
         else:
             embed = discord.Embed(
@@ -50,8 +69,14 @@ class Paginator(discord.ui.View):
                 description=self.chunks[self.current_page],
                 color=0x000000
             )
-            embed.set_footer(text=f"Page {self.current_page + 1}/{len(self.chunks)}")
+            if self.total_pages > 1:
+                embed.set_footer(text=f"Page {self.current_page + 1}/{self.total_pages}")
             return embed
+
+    async def send(self):
+        embed = self.get_page()
+        self.message = await self.ctx.send(embed=embed, view=self if self.total_pages > 1 else None)
+        return self.message
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.ctx.author.id:
@@ -63,16 +88,17 @@ class Paginator(discord.ui.View):
     async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page > 0:
             self.current_page -= 1
-            await interaction.response.edit_message(embed=self.get_page())
+            self._update_button_states()
+            await interaction.response.edit_message(embed=self.get_page(), view=self)
         else:
             await interaction.response.defer()
 
     @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        total = len(self.pages) if self.is_embed_list else len(self.chunks)
-        if self.current_page < total - 1:
+        if self.current_page < self.total_pages - 1:
             self.current_page += 1
-            await interaction.response.edit_message(embed=self.get_page())
+            self._update_button_states()
+            await interaction.response.edit_message(embed=self.get_page(), view=self)
         else:
             await interaction.response.defer()
 
@@ -289,6 +315,8 @@ async def main():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_prefixes (guild_id INTEGER PRIMARY KEY, prefix TEXT)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS blacklists (user_id INTEGER PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_logs (guild_id INTEGER PRIMARY KEY, channel_id INTEGER)")
     await bot.db.commit()
 
     await load_extensions()

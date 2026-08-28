@@ -15,14 +15,14 @@ AllBotCommands = {
     "Fun": [
         "truth", "dare", "wouldyourather", "flags", "blacktea", "greentea",
         "tictactoe", "connectfour", "akinator", "playchess", "rockpaperscissors", "minesweeper", "wordle", "hangman", "trivia",
-        "typeracer", "spellingbee"
+        "typeracer", "spellingbee", "leaderboard"
     ],
     "Moderation": [
         "prefix", "clearsnipes", "cleareditsnipes", "clearreactionsnipes", "clearallsnipes", "role give", "role take",
         "role name", "role color", "role icon", "role list", "role members", "purge", "sticker add", "sticker remove", "sticker steal",
         "sticker zoom", "emoji add", "emoji remove", "emoji steal", "emoji zoom", "setnick", "mute", "unmute", "timeout",
         "untimeout", "jail", "unjail", "antibot", "kick", "ban", "unban", "banlist", "voicemute", "voiceunmute",
-        "deafen", "undeafen", "disconnect", "voicenuke", "slowmode", "permissions"
+        "deafen", "undeafen", "disconnect", "voicenuke", "slowmode", "permissions", "logs"
     ],
     "Manipulation": [
         "worthless", "drake", "presidentialalert", "spongebobburnpaper", "lisastage", "changemymind", "awkwardmonkey",
