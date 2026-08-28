@@ -373,6 +373,7 @@ async def setup_hook():
     bot.db = await aiosqlite.connect("bot_database.db")
     await bot.db.execute("PRAGMA journal_mode=WAL")
     await bot.db.execute("PRAGMA synchronous=NORMAL")
+    await bot.db.execute("PRAGMA cache_size = -2000")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_prefixes (guild_id INTEGER PRIMARY KEY, prefix TEXT)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS blacklists (user_id INTEGER PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
@@ -381,6 +382,9 @@ async def setup_hook():
     await bot.db.commit()
 
     await load_extensions()
+
+    import gc
+    gc.collect()
 
 bot.setup_hook = setup_hook
 

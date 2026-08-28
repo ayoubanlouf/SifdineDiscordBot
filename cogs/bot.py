@@ -9,8 +9,10 @@ from converters import FuzzyMember
 
 
 def _compress_db_snapshot_sync(source_db_path: str, target_zip_path: str):
-    with zipfile.ZipFile(target_zip_path, 'w', compression=zipfile.ZIP_LZMA) as zf:
+    import gc
+    with zipfile.ZipFile(target_zip_path, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         zf.write(source_db_path, arcname="bot_database.db")
+    gc.collect()
 
 
 class Bot(commands.Cog):
@@ -83,10 +85,14 @@ class Bot(commands.Cog):
                     os.remove(zip_path)
                 except Exception:
                     pass
+            import gc
+            gc.collect()
 
     @auto_backup_db.before_loop
     async def before_auto_backup(self):
         await self.bot.wait_until_ready()
+        # Wait 6 hours before the first scheduled auto backup so boot RAM stays minimal
+        await asyncio.sleep(21600)
 
 
     def get_dir_size(self, path="."):

@@ -3257,12 +3257,20 @@ class Fun(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+        try:
+            self.dict_conn.execute("PRAGMA cache_size = -2000")
+        except Exception:
+            pass
 
     def _get_cursor(self):
         try:
             return self.dict_conn.cursor()
         except Exception:
             self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+            try:
+                self.dict_conn.execute("PRAGMA cache_size = -2000")
+            except Exception:
+                pass
             return self.dict_conn.cursor()
 
     async def record_minigame_win(self, guild_id: Optional[int], user_id: int, game: str):
