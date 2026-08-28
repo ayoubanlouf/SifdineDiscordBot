@@ -8,7 +8,7 @@ from typing import Optional
 import discord
 from discord.ext import commands
 from discord.ui import Button, View, Modal, TextInput
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import aiohttp
 import time
 import json
@@ -3035,6 +3035,96 @@ class TriviaQuestionView(View):
             self.event.set()
 
 
+# ============ TYPERACER HELPERS ============
+
+TYPERACER_SENTENCES = [
+    "The sun rose gently over the distant mountain peaks.",
+    "A journey of a thousand miles begins with a step.",
+    "Every great dream begins with a single curious thought.",
+    "The ancient forest was quiet under the pale moonlight.",
+    "Quick thinking and steady hands always win the race.",
+    "Fresh coffee filled the cozy kitchen with warm aroma.",
+    "Stars glittered brightly across the vast open night sky.",
+    "The golden leaves fell softly upon the river bank.",
+    "Never give up on something you really care about.",
+    "Bright morning light shone through the bedroom window glass.",
+    "The brave knight rode through the deep dark valley.",
+    "A gentle breeze carried the sweet scent of flowers.",
+    "She found a small hidden path near the garden.",
+    "Curiosity is the key to unlocking new secret worlds.",
+    "The old lighthouse guided ships safely toward the harbor.",
+    "Warm raindrops tapped rhythmically on the metal rooftop tonight.",
+    "Kindness is a language that everyone can easily understand.",
+    "The silver moon cast long shadows across the beach.",
+    "Success comes to those who work hard every day.",
+    "A sudden burst of laughter echoed in the room.",
+    "The clock ticked steadily as the night grew late.",
+    "He opened the mysterious wooden box with careful hands.",
+    "Blue waves crashed powerfully against the rocky coastal cliffs.",
+    "Silence enveloped the frozen lake during the winter dawn.",
+    "Bright ideas often come when you least expect them.",
+    "The majestic eagle soared high above the green forest.",
+    "Wisdom begins with listening more than speaking out loud.",
+    "Autumn leaves danced gracefully in the chilly evening wind.",
+    "Practice and patience will always lead to great results.",
+    "The distant horizon glowed in brilliant shades of orange.",
+    "A cup of hot tea warms both the heart.",
+    "The clever fox vanished quickly into the dense bushes.",
+    "Good friends are like stars that brighten dark nights.",
+    "Small positive habits create massive changes over long time.",
+    "The music played softly in the background all evening.",
+    "He solved the difficult riddle in less than a minute.",
+    "Snow covered the mountain tops with a white blanket.",
+    "The little boat sailed smoothly across the calm waters.",
+    "True bravery is facing your fears with an open mind.",
+    "A mysterious message was discovered inside the sealed bottle."
+]
+
+
+def render_typeracer_image(text: str) -> io.BytesIO:
+    width = 900
+    height = 240
+    img = Image.new("RGBA", (width, height), (22, 24, 29, 255))
+    draw = ImageDraw.Draw(img)
+
+    # Accent bar
+    draw.rectangle([(0, 0), (width, 8)], fill=(88, 101, 242, 255))
+
+    try:
+        header_font = ImageFont.truetype("arial.ttf", 20)
+        text_font = ImageFont.truetype("arialbd.ttf", 32)
+    except Exception:
+        header_font = ImageFont.load_default()
+        text_font = ImageFont.load_default()
+
+    draw.text((40, 25), "⌨️  TYPERACER  •  Type the text below as fast as you can!", fill=(160, 165, 175, 255), font=header_font)
+
+    words = text.split()
+    lines = []
+    current_line = []
+    for word in words:
+        current_line.append(word)
+        line_str = " ".join(current_line)
+        bbox = draw.textbbox((0, 0), line_str, font=text_font)
+        if (bbox[2] - bbox[0]) > 800:
+            current_line.pop()
+            lines.append(" ".join(current_line))
+            current_line = [word]
+    if current_line:
+        lines.append(" ".join(current_line))
+
+    draw.rounded_rectangle([(30, 65), (width - 30, height - 25)], radius=12, fill=(35, 39, 45, 255), outline=(60, 65, 75, 255), width=2)
+    y_start = 100 if len(lines) == 1 else 80
+    line_spacing = 45
+    for i, line in enumerate(lines):
+        draw.text((50, y_start + i * line_spacing), line, fill=(255, 255, 255, 255), font=text_font)
+
+    output = io.BytesIO()
+    img.save(output, format="PNG")
+    output.seek(0)
+    return output
+
+
 # ============ MAIN COG ============
 
 class Fun(commands.Cog):
@@ -3382,17 +3472,12 @@ class Fun(commands.Cog):
             join_emoji = "✅"
             signup_embed = discord.Embed(
                 title="🍵 GreenTea",
-                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 20)}:R>\nTime: **{time_display}**",
+                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nMin Players: **2**",
                 color=0x000000
             )
             start = await ctx.send(embed=signup_embed)
             await start.add_reaction(join_emoji)
             await asyncio.sleep(19)
-
-            await start.edit(embed=discord.Embed(
-                description="▶️ Bdina!",
-                color=0x000000
-            ))
 
             signup_msg = await ctx.channel.fetch_message(start.id)
             reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
@@ -3403,21 +3488,21 @@ class Fun(commands.Cog):
                     if not user.bot:
                         players.append(user)
 
-            if len(players) <= 1:
+            if len(players) < 2:
                 await start.edit(embed=discord.Embed(
-                    description="💨 7ta wa7d ma dkhel lgame ._.",
+                    description="❌ Khass minimum **2 players** bach tl3bo GreenTea.",
                     color=0x000000
                 ))
                 return
 
+            await start.edit(embed=discord.Embed(
+                description="▶️ **Bdina!** (10 Rounds)\nPlayers: " + ", ".join(p.mention for p in players),
+                color=0x000000
+            ))
+
             points = {p.id: 0 for p in players}
             player_ids = {p.id for p in players}
             used_words = set()
-
-            await ctx.send(embed=discord.Embed(
-                description="🔟 10 rounds total!",
-                color=0x000000
-            ))
             await asyncio.sleep(2)
 
             for round_num in range(1, 11):
@@ -3827,6 +3912,160 @@ class Fun(commands.Cog):
                 description=f"🎯 Game Over {player.mention}! Score dialk: **{scores[player.id]} questions correct**.",
                 color=0x000000
             ))
+
+    @commands.command(name="typeracer", aliases=["tr", "type", "monkeytype"], help="L3eb TypeRacer ded s7bek bach tchofo chkon asra3 wa7d.")
+    async def typeracer(self, ctx, rounds: int = 3):
+        rounds = max(1, min(10, rounds))
+        join_emoji = "✅"
+
+        signup_embed = discord.Embed(
+            title="🏎️ TypeRacer!",
+            description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nRounds: **{rounds}**\nMin Players: **2**",
+            color=0x000000
+        )
+        signup_msg = await ctx.send(embed=signup_embed)
+        await signup_msg.add_reaction(join_emoji)
+        await asyncio.sleep(19)
+
+        signup_msg = await ctx.channel.fetch_message(signup_msg.id)
+        reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
+
+        players = []
+        if reaction:
+            async for user in reaction.users():
+                if not user.bot:
+                    players.append(user)
+
+        if len(players) < 2:
+            await signup_msg.edit(embed=discord.Embed(
+                description="❌ Khass minimum **2 players** bach tl3bo TypeRacer.",
+                color=0x000000
+            ))
+            return
+
+        scores = {p.id: 0 for p in players}
+        wpm_records = {p.id: [] for p in players}
+        active_players = list(players)
+        available_sentences = list(TYPERACER_SENTENCES)
+
+        await signup_msg.edit(embed=discord.Embed(
+            description=f"▶️ **TypeRacer bda!** ({rounds} Rounds)\nPlayers: " + ", ".join(p.mention for p in players),
+            color=0x000000
+        ))
+        await asyncio.sleep(2)
+
+        for round_idx in range(1, rounds + 1):
+            if len(active_players) < 2:
+                break
+
+            if not available_sentences:
+                available_sentences = list(TYPERACER_SENTENCES)
+
+            sentence = random.choice(available_sentences)
+            available_sentences.remove(sentence)
+
+            # Ready countdown
+            countdown_msg = await ctx.send(embed=discord.Embed(
+                title=f"🏎️ Round {round_idx}/{rounds}",
+                description="3...",
+                color=0x000000
+            ))
+            await asyncio.sleep(1)
+            await countdown_msg.edit(embed=discord.Embed(
+                title=f"🏎️ Round {round_idx}/{rounds}",
+                description="2...",
+                color=0x000000
+            ))
+            await asyncio.sleep(1)
+            await countdown_msg.edit(embed=discord.Embed(
+                title=f"🏎️ Round {round_idx}/{rounds}",
+                description="1... **GO! 🚀**",
+                color=0x000000
+            ))
+
+            # Send image
+            img_buf = render_typeracer_image(sentence)
+            file = discord.File(img_buf, filename="typeracer.png")
+            await ctx.send(file=file)
+
+            start_time = time.perf_counter()
+            round_winner = None
+            round_elapsed = 0
+            round_wpm = 0
+
+            active_ids = {p.id for p in active_players}
+
+            def check(m):
+                if m.channel.id != ctx.channel.id or m.author.id not in active_ids:
+                    return False
+                content = m.content.strip()
+                if content.lower() == "exitgame":
+                    return True
+                return content.lower() == sentence.lower()
+
+            round_active = True
+            while round_active and len(active_players) >= 2:
+                time_left = max(1.0, 45.0 - (time.perf_counter() - start_time))
+                try:
+                    msg = await self.bot.wait_for("message", check=check, timeout=time_left)
+                except asyncio.TimeoutError:
+                    await ctx.send(embed=discord.Embed(
+                        description="⌛ **Sala lwe9t!** 7ta wa7d ma kteb lkelma s7i7a f had round.",
+                        color=0x000000
+                    ))
+                    round_active = False
+                    break
+
+                if msg.content.strip().lower() == "exitgame":
+                    quitter = next((p for p in active_players if p.id == msg.author.id), None)
+                    if quitter:
+                        active_players.remove(quitter)
+                        active_ids.discard(quitter.id)
+                        await ctx.send(f"🚪 {quitter.mention} khrej mn lgame.")
+                        if len(active_players) < 2:
+                            round_active = False
+                            break
+                    continue
+
+                # Correct sentence typed!
+                round_elapsed = time.perf_counter() - start_time
+                round_wpm = round(((len(sentence) / 5) / (round_elapsed / 60))) if round_elapsed > 0 else 0
+                round_winner = msg.author
+                scores[msg.author.id] += 1
+                wpm_records[msg.author.id].append(round_wpm)
+
+                await ctx.send(embed=discord.Embed(
+                    description=f"🎉 {round_winner.mention} rbe7 **Round {round_idx}** f **{round_elapsed:.2f}s** (**{round_wpm} WPM**)!",
+                    color=0x000000
+                ))
+                round_active = False
+                break
+
+            await asyncio.sleep(3)
+
+        # Game Over Leaderboard
+        def player_rank_key(p):
+            p_scores = scores.get(p.id, 0)
+            avg_wpm = (sum(wpm_records[p.id]) / len(wpm_records[p.id])) if wpm_records[p.id] else 0
+            return (p_scores, avg_wpm)
+
+        ranked = sorted(players, key=player_rank_key, reverse=True)
+        medals = ["🥇", "🥈", "🥉"] + [f"**#{i+1}**" for i in range(3, len(ranked))]
+
+        lines = []
+        for i, p in enumerate(ranked):
+            p_scores = scores.get(p.id, 0)
+            avg_wpm = round(sum(wpm_records[p.id]) / len(wpm_records[p.id])) if wpm_records[p.id] else 0
+            lines.append(f"{medals[i]} {p.mention} — **{p_scores} wins** (Avg: **{avg_wpm} WPM**)")
+
+        leaderboard_embed = discord.Embed(
+            title="🏆 TypeRacer — Final Results",
+            description="\n".join(lines),
+            color=0x000000
+        )
+        if ranked:
+            leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 🎉")
+        await ctx.send(embed=leaderboard_embed)
 
 
 async def setup(bot):
