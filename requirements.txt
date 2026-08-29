@@ -15,8 +15,4 @@ deep-translator
 langdetect
 yt-dlp
 pynacl
-gTTS
-imageio-ffmpeg
-davey
-edge-tts
 curl_cffi
