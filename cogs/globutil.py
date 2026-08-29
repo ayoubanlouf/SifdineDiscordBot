@@ -2033,7 +2033,8 @@ class GlobUtil(commands.Cog):
             clean_url = "https://" + clean_url
 
         wait = await ctx.send(embed=discord.Embed(description="Kan9esser f link...", color=0x000000))
-        api_url = f"https://tinyurl.com/api-create.php?url={urllib.parse.quote(clean_url, safe=':/?#[]@!$&\'()*+,;=')}"
+        encoded_url = urllib.parse.quote(clean_url, safe=":/?#[]@!$&'()*+,;=")
+        api_url = f"https://tinyurl.com/api-create.php?url={encoded_url}"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }

@@ -10,6 +10,8 @@ from discord.ext import commands
 from discord.ui import Button, View, Modal, TextInput
 from PIL import Image, ImageDraw, ImageFont
 import os
+import shutil
+import stat
 import aiohttp
 import time
 import json
@@ -1618,22 +1620,34 @@ class MinesweeperSoloView(View):
         super().__init__(timeout=180)
         self.player = player
         self.message: Optional[discord.Message] = None
-        self.grid_size = 5
-        self.mine_count = 5
+        self.width = 5
+        self.height = 4
+        self.mine_count = 4
         self.game_over = False
-        
+
         # Place mines
-        all_coords = [(x, y) for x in range(self.grid_size) for y in range(self.grid_size)]
+        all_coords = [(x, y) for x in range(self.width) for y in range(self.height)]
         self.mines = set(random.sample(all_coords, self.mine_count))
         self.revealed = set()
-        
-        # Add buttons
-        for y in range(self.grid_size):
-            for x in range(self.grid_size):
+
+        # Add grid buttons (rows 0, 1, 2, 3)
+        for y in range(self.height):
+            for x in range(self.width):
                 button = MinesweeperButton(x, y)
                 button.callback = self.button_callback
                 self.add_item(button)
-                
+
+        # Add Exit Game button on row 4
+        exit_btn = Button(
+            label="Exit Game",
+            style=discord.ButtonStyle.danger,
+            emoji="🚪",
+            custom_id="ms_solo_exit",
+            row=4
+        )
+        exit_btn.callback = self.exit_callback
+        self.add_item(exit_btn)
+
     def get_button(self, x: int, y: int) -> Optional[MinesweeperButton]:
         for item in self.children:
             if isinstance(item, MinesweeperButton) and item.x == x and item.y == y:
@@ -1654,14 +1668,14 @@ class MinesweeperSoloView(View):
         if (x, y) in self.revealed:
             return
         self.revealed.add((x, y))
-        
+
         button = self.get_button(x, y)
         if not button:
             return
-            
+
         button.disabled = True
         button.style = discord.ButtonStyle.secondary
-        
+
         adjacent = self.count_adjacent_mines(x, y)
         if adjacent == 0:
             button.label = "⬜"
@@ -1671,7 +1685,7 @@ class MinesweeperSoloView(View):
                     if dx == 0 and dy == 0:
                         continue
                     nx, ny = x + dx, y + dy
-                    if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size:
+                    if 0 <= nx < self.width and 0 <= ny < self.height:
                         if (nx, ny) not in self.mines and (nx, ny) not in self.revealed:
                             self.reveal_cell(nx, ny)
         else:
@@ -1683,6 +1697,23 @@ class MinesweeperSoloView(View):
             await interaction.response.send_message("Machy nta li m9ssr had lgame.", ephemeral=True)
             return False
         return True
+
+    async def exit_callback(self, interaction: discord.Interaction):
+        if self.game_over:
+            await interaction.response.send_message("Had lgame deja salat.", ephemeral=True)
+            return
+
+        self.game_over = True
+        self.stop()
+        for item in self.children:
+            item.disabled = True
+            if isinstance(item, MinesweeperButton) and (item.x, item.y) in self.mines:
+                item.label = "💣"
+                item.style = discord.ButtonStyle.secondary
+
+        total_safe = (self.width * self.height) - self.mine_count
+        content = f"🚪 **{self.player.mention}** khrej mn lgame (Game Over).\nSafe squares revealed: **{len(self.revealed)}/{total_safe}**"
+        await interaction.response.edit_message(content=content, view=self)
 
     async def button_callback(self, interaction: discord.Interaction):
         if self.game_over:
@@ -1702,12 +1733,11 @@ class MinesweeperSoloView(View):
             self.stop()
             # Show all mines and disable everything
             for item in self.children:
-                if isinstance(item, MinesweeperButton):
-                    item.disabled = True
-                    if (item.x, item.y) in self.mines:
-                        item.label = "💥"
-                        item.style = discord.ButtonStyle.danger
-            
+                item.disabled = True
+                if isinstance(item, MinesweeperButton) and (item.x, item.y) in self.mines:
+                    item.label = "💥"
+                    item.style = discord.ButtonStyle.danger
+
             content = f"💥 **Booooom! Game Over**\n{self.player.mention} khser hit 9as mine f ({x+1}, {y+1})!"
             await interaction.response.edit_message(content=content, view=self)
             return
@@ -1715,22 +1745,22 @@ class MinesweeperSoloView(View):
         # Reveal
         self.reveal_cell(x, y)
 
+        total_safe = (self.width * self.height) - self.mine_count
         # Check Win
-        if len(self.revealed) == (self.grid_size * self.grid_size - self.mine_count):
+        if len(self.revealed) == total_safe:
             self.game_over = True
             self.stop()
             for item in self.children:
-                if isinstance(item, MinesweeperButton):
-                    item.disabled = True
-                    if (item.x, item.y) in self.mines:
-                        item.label = "💣"
-                        item.style = discord.ButtonStyle.success
+                item.disabled = True
+                if isinstance(item, MinesweeperButton) and (item.x, item.y) in self.mines:
+                    item.label = "💣"
+                    item.style = discord.ButtonStyle.success
 
             content = f"🎉🏆 **Rbe7ti!**\n{self.player.mention} l9iti grid kaml blama t9is 7ta mine!"
             await interaction.response.edit_message(content=content, view=self)
             return
 
-        content = f"💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **{len(self.revealed)}/20**"
+        content = f"💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **{len(self.revealed)}/{total_safe}**"
         await interaction.response.edit_message(content=content, view=self)
 
     async def on_timeout(self):
@@ -1755,20 +1785,32 @@ class MinesweeperMultiplayerView(View):
         self.current_turn = p1
         self.game_over = False
         self.message: Optional[discord.Message] = None
-        self.grid_size = 5
-        self.mine_count = 5
+        self.width = 5
+        self.height = 4
+        self.mine_count = 4
 
         # Place mines
-        all_coords = [(x, y) for x in range(self.grid_size) for y in range(self.grid_size)]
+        all_coords = [(x, y) for x in range(self.width) for y in range(self.height)]
         self.mines = set(random.sample(all_coords, self.mine_count))
         self.found_mines = 0
 
-        # Add buttons
-        for y in range(self.grid_size):
-            for x in range(self.grid_size):
+        # Add buttons (rows 0, 1, 2, 3)
+        for y in range(self.height):
+            for x in range(self.width):
                 button = MinesweeperButton(x, y)
                 button.callback = self.button_callback
                 self.add_item(button)
+
+        # Add Exit Game button on row 4
+        exit_btn = Button(
+            label="Exit Game",
+            style=discord.ButtonStyle.danger,
+            emoji="🚪",
+            custom_id="ms_multi_exit",
+            row=4
+        )
+        exit_btn.callback = self.exit_callback
+        self.add_item(exit_btn)
 
     def get_button(self, x: int, y: int) -> Optional[MinesweeperButton]:
         for item in self.children:
@@ -1809,6 +1851,32 @@ class MinesweeperMultiplayerView(View):
             return False
         return True
 
+    async def exit_callback(self, interaction: discord.Interaction):
+        if self.game_over:
+            await interaction.response.send_message("Had lgame deja salat.", ephemeral=True)
+            return
+
+        quitter = interaction.user
+        winner = self.p2 if quitter == self.p1 else self.p1
+
+        self.game_over = True
+        self.stop()
+
+        if self.cog and interaction.guild:
+            asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winner.id, "minesweeper"))
+
+        for item in self.children:
+            item.disabled = True
+            if isinstance(item, MinesweeperButton) and (item.x, item.y) in self.mines and not item.disabled:
+                item.label = "💣"
+                item.style = discord.ButtonStyle.secondary
+
+        content = (
+            f"🚪 **{quitter.mention}** khrej mn lgame (Forfeit).\n"
+            f"🏆 **{winner.mention}** rbe7 lmatch!"
+        )
+        await interaction.response.edit_message(content=content, view=self)
+
     async def button_callback(self, interaction: discord.Interaction):
         if self.game_over:
             await interaction.response.send_message("Had lgame deja salat.", ephemeral=True)
@@ -1833,12 +1901,12 @@ class MinesweeperMultiplayerView(View):
         if (x, y) in self.mines:
             self.scores[self.current_turn.id] += 1
             self.found_mines += 1
-            
+
             button.disabled = True
             button.label = "💥"
             button.style = discord.ButtonStyle.danger
-            
-            # Check win condition (majority is 3)
+
+            # Check win condition (majority is 3 or all 4 mines found)
             p1_score = self.scores[self.p1.id]
             p2_score = self.scores[self.p2.id]
             if p1_score >= 3 or p2_score >= 3 or self.found_mines == self.mine_count:
@@ -1851,11 +1919,10 @@ class MinesweeperMultiplayerView(View):
                         asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.p2.id, "minesweeper"))
                 # Disable all other buttons and show remaining mines
                 for item in self.children:
-                    if isinstance(item, MinesweeperButton):
-                        item.disabled = True
-                        if (item.x, item.y) in self.mines and not item.disabled:
-                            item.label = "💣"
-                            item.style = discord.ButtonStyle.secondary
+                    item.disabled = True
+                    if isinstance(item, MinesweeperButton) and (item.x, item.y) in self.mines and not item.disabled:
+                        item.label = "💣"
+                        item.style = discord.ButtonStyle.secondary
             else:
                 # Bonus turn, so turn does not change!
                 pass
@@ -1869,7 +1936,7 @@ class MinesweeperMultiplayerView(View):
             else:
                 number_emojis = {1: "1️⃣", 2: "2️⃣", 3: "3️⃣", 4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣", 8: "8️⃣"}
                 button.label = number_emojis.get(adjacent, str(adjacent))
-            
+
             # Pass turn to opponent
             self.current_turn = self.p2 if self.current_turn == self.p1 else self.p1
 
@@ -3131,50 +3198,6 @@ class TriviaQuestionView(View):
 
 # ============ TYPERACER HELPERS ============
 
-TYPERACER_SENTENCES = [
-    "The sun rose gently over the distant mountain peaks.",
-    "A journey of a thousand miles begins with a step.",
-    "Every great dream begins with a single curious thought.",
-    "The ancient forest was quiet under the pale moonlight.",
-    "Quick thinking and steady hands always win the race.",
-    "Fresh coffee filled the cozy kitchen with warm aroma.",
-    "Stars glittered brightly across the vast open night sky.",
-    "The golden leaves fell softly upon the river bank.",
-    "Never give up on something you really care about.",
-    "Bright morning light shone through the bedroom window glass.",
-    "The brave knight rode through the deep dark valley.",
-    "A gentle breeze carried the sweet scent of flowers.",
-    "She found a small hidden path near the garden.",
-    "Curiosity is the key to unlocking new secret worlds.",
-    "The old lighthouse guided ships safely toward the harbor.",
-    "Warm raindrops tapped rhythmically on the metal rooftop tonight.",
-    "Kindness is a language that everyone can easily understand.",
-    "The silver moon cast long shadows across the beach.",
-    "Success comes to those who work hard every day.",
-    "A sudden burst of laughter echoed in the room.",
-    "The clock ticked steadily as the night grew late.",
-    "He opened the mysterious wooden box with careful hands.",
-    "Blue waves crashed powerfully against the rocky coastal cliffs.",
-    "Silence enveloped the frozen lake during the winter dawn.",
-    "Bright ideas often come when you least expect them.",
-    "The majestic eagle soared high above the green forest.",
-    "Wisdom begins with listening more than speaking out loud.",
-    "Autumn leaves danced gracefully in the chilly evening wind.",
-    "Practice and patience will always lead to great results.",
-    "The distant horizon glowed in brilliant shades of orange.",
-    "A cup of hot tea warms both the heart.",
-    "The clever fox vanished quickly into the dense bushes.",
-    "Good friends are like stars that brighten dark nights.",
-    "Small positive habits create massive changes over long time.",
-    "The music played softly in the background all evening.",
-    "He solved the difficult riddle in less than a minute.",
-    "Snow covered the mountain tops with a white blanket.",
-    "The little boat sailed smoothly across the calm waters.",
-    "True bravery is facing your fears with an open mind.",
-    "A mysterious message was discovered inside the sealed bottle."
-]
-
-
 def render_typeracer_image(text: str) -> io.BytesIO:
     width = 900
     height = 240
@@ -3221,9 +3244,41 @@ def render_typeracer_image(text: str) -> io.BytesIO:
 
 # ============ SPELLING BEE HELPERS ============
 
+def get_ffmpeg_binary():
+    sys_ffmpeg = shutil.which("ffmpeg")
+    if sys_ffmpeg:
+        return sys_ffmpeg
+    try:
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if exe and os.path.exists(exe):
+            try:
+                os.chmod(exe, os.stat(exe).st_mode | stat.S_IEXEC)
+            except Exception:
+                pass
+            return exe
+    except Exception:
+        pass
+    return "ffmpeg"
+
+
+def ensure_opus_loaded():
+    if not discord.opus.is_loaded():
+        for opus_lib in ('libopus.so.0', 'libopus.so', 'libopus-0.dll', 'opus', '/usr/lib/x86_64-linux-gnu/libopus.so.0', '/usr/lib/libopus.so.0'):
+            try:
+                discord.opus.load_opus(opus_lib)
+                if discord.opus.is_loaded():
+                    break
+            except Exception:
+                pass
+
+
 async def play_tts_speech(voice_client: discord.VoiceClient, text: str):
-    ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
-    filename = f"tts_{int(time.time() * 1000)}.mp3"
+    if not voice_client or not voice_client.is_connected():
+        return
+
+    ensure_opus_loaded()
+    ffmpeg_bin = get_ffmpeg_binary()
+    filename = f"tts_{int(time.time() * 1000)}_{random.randint(1000, 9999)}.mp3"
 
     try:
         try:
@@ -3231,16 +3286,39 @@ async def play_tts_speech(voice_client: discord.VoiceClient, text: str):
             await communicate.save(filename)
         except Exception as e:
             print(f"[edge_tts error, using gtts fallback]: {e}")
-            tts = gTTS(text=text, lang="en")
-            tts.save(filename)
+            try:
+                tts = gTTS(text=text, lang="en")
+                tts.save(filename)
+            except Exception as e2:
+                print(f"[gtts fallback error]: {e2}")
+                return
+
+        if not os.path.exists(filename) or os.path.getsize(filename) == 0:
+            print(f"[play_tts_speech] Audio file was not created or empty.")
+            return
 
         if voice_client and voice_client.is_connected():
             if voice_client.is_playing():
                 voice_client.stop()
+
+            loop = asyncio.get_running_loop()
+            playback_done = asyncio.Event()
+
+            def after_playing(error):
+                if error:
+                    print(f"[voice playback error]: {error}")
+                loop.call_soon_threadsafe(playback_done.set)
+
             source = discord.FFmpegPCMAudio(filename, executable=ffmpeg_bin)
-            voice_client.play(source)
-            while voice_client.is_playing():
-                await asyncio.sleep(0.1)
+            voice_client.play(source, after=after_playing)
+
+            try:
+                await asyncio.wait_for(playback_done.wait(), timeout=15.0)
+            except asyncio.TimeoutError:
+                if voice_client.is_playing():
+                    voice_client.stop()
+
+            await asyncio.sleep(0.3)
     except Exception as e:
         print(f"[play_tts_speech error]: {e}")
     finally:
@@ -3315,20 +3393,53 @@ class Fun(commands.Cog):
             words.append(random.choice(fallback))
         return words
 
+    def get_typeracer_text(self) -> str:
+        count = random.randint(6, 8)
+        words = []
+        for attempt in range(2):
+            try:
+                cur = self._get_cursor()
+                cur.execute("SELECT word FROM dictionary_words WHERE word GLOB '[a-z]*' ORDER BY RANDOM() LIMIT ?", (count,))
+                rows = cur.fetchall()
+                if rows:
+                    words = [r[0].lower() for r in rows if r[0] and r[0].isalpha()]
+                break
+            except Exception as e:
+                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                if attempt == 1:
+                    print(f"[get_typeracer_text error]: {e}")
+
+        fallback_pool = [
+            "guitar", "bridge", "summer", "yellow", "orange", "bottle", "window", "forest",
+            "dragon", "castle", "planet", "silver", "garden", "market", "shadow", "future",
+            "system", "engine", "wonder", "nature", "memory", "rocket", "energy", "stream",
+            "island", "harbor", "puzzle", "flight", "circle", "season", "moment", "tunnel",
+            "coffee", "camera", "mirror", "pencil", "desert", "shield", "breeze", "beacon"
+        ]
+        while len(words) < count:
+            words.append(random.choice(fallback_pool))
+
+        return " ".join(words[:count])
+
     def get_wordle_secret(self) -> str:
         for attempt in range(2):
             try:
                 cur = self._get_cursor()
                 cur.execute("SELECT word FROM wordle_targets ORDER BY RANDOM() LIMIT 1")
                 row = cur.fetchone()
-                if row:
-                    return row[0]
+                if row and row[0]:
+                    return row[0].lower()
+                # Fallback to common 5-letter words from hangman_targets
+                cur.execute("SELECT word FROM hangman_targets WHERE LENGTH(word) = 5 AND word GLOB '[a-z]*' ORDER BY RANDOM() LIMIT 1")
+                row = cur.fetchone()
+                if row and row[0]:
+                    return row[0].lower()
                 break
             except Exception as e:
                 self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
                 if attempt == 1:
                     print(f"[get_wordle_secret error]: {e}")
-        return random.choice(["crane", "slate", "plant", "house", "light", "dream", "water", "apple", "stone", "beach"])
+        return random.choice(["crane", "slate", "plant", "house", "light", "dream", "water", "apple", "stone", "beach", "flame", "sound", "smart", "heart", "cloud"])
 
     def get_hangman_secret(self) -> str:
         for attempt in range(2):
@@ -3911,7 +4022,7 @@ class Fun(commands.Cog):
     async def minesweeper(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         if member is None:
             view = MinesweeperSoloView(ctx.author)
-            content = "💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **0/20**"
+            content = "💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **0/16**"
             message = await ctx.send(content=content, view=view)
             view.message = message
             return
@@ -4152,7 +4263,6 @@ class Fun(commands.Cog):
         scores = {p.id: 0 for p in players}
         wpm_records = {p.id: [] for p in players}
         active_players = list(players)
-        available_sentences = list(TYPERACER_SENTENCES)
 
         await signup_msg.edit(embed=discord.Embed(
             description=f"▶️ **TypeRacer bda!** ({rounds} Rounds)\nPlayers: " + ", ".join(p.mention for p in players),
@@ -4164,11 +4274,7 @@ class Fun(commands.Cog):
             if len(active_players) < 2:
                 break
 
-            if not available_sentences:
-                available_sentences = list(TYPERACER_SENTENCES)
-
-            sentence = random.choice(available_sentences)
-            available_sentences.remove(sentence)
+            sentence = self.get_typeracer_text()
 
             # Ready countdown
             countdown_msg = await ctx.send(embed=discord.Embed(
@@ -4408,6 +4514,9 @@ class Fun(commands.Cog):
                             active_players.remove(quitter)
                             active_ids.discard(quitter.id)
                             await ctx.send(f"🚪 {quitter.mention} khrej mn lgame.")
+                            if not active_players:
+                                round_active = False
+                                break
                         continue
 
                     round_elapsed = time.perf_counter() - start_time
