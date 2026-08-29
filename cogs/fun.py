@@ -20,6 +20,7 @@ import edge_tts
 import imageio_ffmpeg
 
 from converters import FuzzyMember
+from assets.wordle_words import WORDLE_TARGETS
 
 # Compatibility shim for newer akinator API variations
 import akinator
@@ -127,7 +128,9 @@ def render_chess_board(board: chess.Board) -> io.BytesIO:
             
             color_str = "white" if piece.color == chess.WHITE else "black"
             piece_str = piece_map.get(piece.piece_type)
-            fname = f"chess_pieces/{color_str}-{piece_str}.png"
+            fname = f"assets/chess_pieces/{color_str}-{piece_str}.png"
+            if not os.path.exists(fname):
+                fname = f"chess_pieces/{color_str}-{piece_str}.png"
             
             if fname not in _PIECE_IMAGE_CACHE:
                 try:
@@ -2093,7 +2096,7 @@ class WordleSoloView(View):
             return False
         return True
 
-    @discord.ui.button(label="Submit Guess", style=discord.ButtonStyle.primary, emoji="🔤")
+    @discord.ui.button(label="Type Word", style=discord.ButtonStyle.primary, emoji="⌨️")
     async def guess_button(self, interaction: discord.Interaction, button: Button):
         if self.game_over:
             await interaction.response.send_message("Had lgame deja salat.", ephemeral=True)
@@ -2166,7 +2169,7 @@ class WordleDMView(View):
         self.match = match
         self.player = player
 
-    @discord.ui.button(label="Submit Guess", style=discord.ButtonStyle.primary, emoji="🔤")
+    @discord.ui.button(label="Type Word", style=discord.ButtonStyle.primary, emoji="⌨️")
     async def guess_button(self, interaction: discord.Interaction, button: Button):
         if self.match.game_over or self.match.finished.get(self.player.id, False):
             await interaction.response.send_message("Saliti attempts dialk wla lmatch deja sala.", ephemeral=True)
@@ -2335,7 +2338,7 @@ class WordleMultiplayerMatch:
         view = self.dm_views.get(player.id)
         if self.finished[player.id] and view:
             for item in view.children:
-                if isinstance(item, Button) and item.label == "Submit Guess":
+                if isinstance(item, Button) and item.label == "Type Word":
                     item.disabled = True
         await interaction.response.edit_message(content=self.get_player_dm_content(player), view=view)
 
@@ -3248,11 +3251,14 @@ def get_ffmpeg_binary():
     sys_ffmpeg = shutil.which("ffmpeg")
     if sys_ffmpeg:
         return sys_ffmpeg
+    for p in ("/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/bin/ffmpeg"):
+        if os.path.exists(p):
+            return p
     try:
         exe = imageio_ffmpeg.get_ffmpeg_exe()
         if exe and os.path.exists(exe):
             try:
-                os.chmod(exe, os.stat(exe).st_mode | stat.S_IEXEC)
+                os.chmod(exe, 0o755)
             except Exception:
                 pass
             return exe
@@ -3263,64 +3269,102 @@ def get_ffmpeg_binary():
 
 def ensure_opus_loaded():
     if not discord.opus.is_loaded():
-        for opus_lib in ('libopus.so.0', 'libopus.so', 'libopus-0.dll', 'opus', '/usr/lib/x86_64-linux-gnu/libopus.so.0', '/usr/lib/libopus.so.0'):
+        try:
+            discord.opus._load_default()
+        except Exception:
+            pass
+    if not discord.opus.is_loaded():
+        opus_candidates = (
+            'libopus.so.0',
+            'libopus.so',
+            'libopus-0.dll',
+            'opus',
+            '/usr/lib/x86_64-linux-gnu/libopus.so.0',
+            '/usr/lib/x86_64-linux-gnu/libopus.so',
+            '/usr/lib/libopus.so.0',
+            '/usr/lib/libopus.so',
+            '/usr/lib/aarch64-linux-gnu/libopus.so.0',
+            '/usr/lib/aarch64-linux-gnu/libopus.so',
+            '/usr/local/lib/libopus.so.0',
+            '/usr/local/lib/libopus.so',
+        )
+        for candidate in opus_candidates:
             try:
-                discord.opus.load_opus(opus_lib)
+                discord.opus.load_opus(candidate)
                 if discord.opus.is_loaded():
                     break
             except Exception:
                 pass
 
 
-async def play_tts_speech(voice_client: discord.VoiceClient, text: str):
+async def play_tts_speech(voice_client: discord.VoiceClient, text: str) -> tuple[bool, Optional[str]]:
     if not voice_client or not voice_client.is_connected():
-        return
+        return False, "Voice client is not connected to a channel."
 
     ensure_opus_loaded()
+    if not discord.opus.is_loaded():
+        return False, "Opus audio library is not loaded. Ensure libopus0 is installed in container."
+
     ffmpeg_bin = get_ffmpeg_binary()
     filename = f"tts_{int(time.time() * 1000)}_{random.randint(1000, 9999)}.mp3"
 
     try:
+        # Step 1: Generate audio
+        tts_err = None
         try:
             communicate = edge_tts.Communicate(text, "en-US-GuyNeural")
             await communicate.save(filename)
         except Exception as e:
-            print(f"[edge_tts error, using gtts fallback]: {e}")
+            tts_err = e
+            print(f"[edge_tts error, trying gtts fallback]: {e}", flush=True)
             try:
-                tts = gTTS(text=text, lang="en")
-                tts.save(filename)
+                def _gtts_task():
+                    tts = gTTS(text=text, lang="en")
+                    tts.save(filename)
+                await asyncio.to_thread(_gtts_task)
             except Exception as e2:
-                print(f"[gtts fallback error]: {e2}")
-                return
+                print(f"[gtts fallback error]: {e2}", flush=True)
+                return False, f"TTS generation failed: edge-tts ({tts_err}), gTTS ({e2})"
 
         if not os.path.exists(filename) or os.path.getsize(filename) == 0:
-            print(f"[play_tts_speech] Audio file was not created or empty.")
-            return
+            return False, "Audio file was not generated or is empty."
 
-        if voice_client and voice_client.is_connected():
+        if not voice_client.is_connected():
+            return False, "Voice client disconnected before playback could start."
+
+        if voice_client.is_playing():
+            voice_client.stop()
+
+        loop = asyncio.get_running_loop()
+        playback_done = asyncio.Event()
+        playback_errors = []
+
+        def after_playing(error):
+            if error:
+                print(f"[voice playback error]: {error}", flush=True)
+                playback_errors.append(str(error))
+            loop.call_soon_threadsafe(playback_done.set)
+
+        try:
+            source = discord.FFmpegPCMAudio(filename, executable=ffmpeg_bin)
+            voice_client.play(source, after=after_playing)
+        except Exception as e:
+            return False, f"FFmpeg playback start failed ({ffmpeg_bin}): {e}"
+
+        try:
+            await asyncio.wait_for(playback_done.wait(), timeout=15.0)
+        except asyncio.TimeoutError:
             if voice_client.is_playing():
                 voice_client.stop()
 
-            loop = asyncio.get_running_loop()
-            playback_done = asyncio.Event()
+        if playback_errors:
+            return False, f"Audio playback error: {playback_errors[0]}"
 
-            def after_playing(error):
-                if error:
-                    print(f"[voice playback error]: {error}")
-                loop.call_soon_threadsafe(playback_done.set)
-
-            source = discord.FFmpegPCMAudio(filename, executable=ffmpeg_bin)
-            voice_client.play(source, after=after_playing)
-
-            try:
-                await asyncio.wait_for(playback_done.wait(), timeout=15.0)
-            except asyncio.TimeoutError:
-                if voice_client.is_playing():
-                    voice_client.stop()
-
-            await asyncio.sleep(0.3)
+        await asyncio.sleep(0.3)
+        return True, None
     except Exception as e:
-        print(f"[play_tts_speech error]: {e}")
+        print(f"[play_tts_speech exception]: {e}", flush=True)
+        return False, str(e)
     finally:
         if os.path.exists(filename):
             try:
@@ -3422,24 +3466,7 @@ class Fun(commands.Cog):
         return " ".join(words[:count])
 
     def get_wordle_secret(self) -> str:
-        for attempt in range(2):
-            try:
-                cur = self._get_cursor()
-                cur.execute("SELECT word FROM wordle_targets ORDER BY RANDOM() LIMIT 1")
-                row = cur.fetchone()
-                if row and row[0]:
-                    return row[0].lower()
-                # Fallback to common 5-letter words from hangman_targets
-                cur.execute("SELECT word FROM hangman_targets WHERE LENGTH(word) = 5 AND word GLOB '[a-z]*' ORDER BY RANDOM() LIMIT 1")
-                row = cur.fetchone()
-                if row and row[0]:
-                    return row[0].lower()
-                break
-            except Exception as e:
-                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
-                if attempt == 1:
-                    print(f"[get_wordle_secret error]: {e}")
-        return random.choice(["crane", "slate", "plant", "house", "light", "dream", "water", "apple", "stone", "beach", "flame", "sound", "smart", "heart", "cloud"])
+        return random.choice(WORDLE_TARGETS)
 
     def get_hangman_secret(self) -> str:
         for attempt in range(2):
@@ -4446,13 +4473,19 @@ class Fun(commands.Cog):
 
         voice_client = ctx.guild.voice_client
         try:
-            if voice_client:
+            if voice_client and voice_client.is_connected():
                 if voice_client.channel != target_vc:
                     await voice_client.move_to(target_vc)
             else:
-                voice_client = await target_vc.connect(timeout=10, reconnect=True)
+                if voice_client:
+                    try:
+                        await voice_client.disconnect(force=True)
+                    except Exception:
+                        pass
+                voice_client = await target_vc.connect(timeout=60.0, reconnect=True, self_deaf=True)
         except Exception as e:
-            await ctx.send(f"❌ Ma 9ditch ndkhel l Voice Channel: {e}")
+            err_msg = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
+            await ctx.send(f"❌ Ma 9ditch ndkhel l Voice Channel: `{err_msg}`")
             return
 
         scores = {p.id: 0 for p in players}
@@ -4479,7 +4512,9 @@ class Fun(commands.Cog):
 
                 target_word = words_pool.pop(0).lower()
 
-                await play_tts_speech(voice_client, f"Please spell... {target_word}.")
+                speech_ok, speech_err = await play_tts_speech(voice_client, f"Please spell... {target_word}.")
+                if not speech_ok and round_idx == 1:
+                    await ctx.send(f"⚠️ **Voice Audio Error**: `{speech_err}`\n*(T2ked wach bot 3ndo permission ta3 Speak fl VC wla libopus mstalya)*")
 
                 start_time = time.perf_counter()
                 round_winner = None
