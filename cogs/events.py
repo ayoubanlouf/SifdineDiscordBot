@@ -90,9 +90,9 @@ class Events(commands.Cog):
             if ctx.command.parent:
                 parent_command = ctx.command.full_parent_name
                 command_signature = ctx.command.signature
-                correct_usage = f"sat {parent_command} {ctx.command.name} {command_signature}"
+                correct_usage = f"{ctx.prefix}{parent_command} {ctx.command.name} {command_signature}"
             else:
-                correct_usage = f"sat {ctx.command.name} {ctx.command.signature}"
+                correct_usage = f"{ctx.prefix}{ctx.command.name} {ctx.command.signature}"
 
             aliases_str = '|'.join(ctx.command.aliases) if ctx.command.aliases else "_"
             e = discord.Embed(
@@ -115,9 +115,9 @@ class Events(commands.Cog):
             if ctx.command.parent:
                 parent_command = ctx.command.full_parent_name
                 command_signature = ctx.command.signature
-                correct_usage = f"sat {parent_command} {ctx.command.name} {command_signature}"
+                correct_usage = f"{ctx.prefix}{parent_command} {ctx.command.name} {command_signature}"
             else:
-                correct_usage = f"sat {ctx.command.name} {ctx.command.signature}"
+                correct_usage = f"{ctx.prefix}{ctx.command.name} {ctx.command.signature}"
 
             aliases_str = '|'.join(ctx.command.aliases) if ctx.command.aliases else "_"
             e = discord.Embed(

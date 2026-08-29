@@ -1325,7 +1325,7 @@ class GlobUtil(commands.Cog):
         except Exception:
             pass
 
-    @commands.command(name="reminder", aliases=["remind", "timer"], help="Sets a timer/reminder. Usage: sat reminder <time> [message]")
+    @commands.command(name="reminder", aliases=["remind", "timer"], help=f"Goul lia nfekrek o sir hnnak lah.")
     async def reminder(self, ctx, time_input: str, *, message: str = "Reminder!"):
         duration = self.parse_time(time_input)
         if duration <= 0:
@@ -1848,7 +1848,7 @@ class GlobUtil(commands.Cog):
     async def rocketleague(self, ctx, *args):
         if not args:
             await ctx.send(embed=discord.Embed(
-                description="3tini username dyal Rocket League.\n**Example:** `sat rl epic ApparentlyJack` wla `sat rl ApparentlyJack`\n**Platforms:** `epic`, `steam`, `psn`, `xbl`, `switch`",
+                description=f"3tini username dyal Rocket League.\n**Example:** `{ctx.prefix}rl epic ApparentlyJack` wla `{ctx.prefix}rl ApparentlyJack`\n**Platforms:** `epic`, `steam`, `psn`, `xbl`, `switch`",
                 color=0x000000
             ))
             return
@@ -2017,6 +2017,46 @@ class GlobUtil(commands.Cog):
             if 'data' in locals():
                 del data
             gc.collect()
+
+
+    @commands.command(name="shortenurl", aliases=["shorten", "shorturl", "tinyurl", "short"], help="9esser chy link/URL twil.")
+    async def shortenurl(self, ctx, url: str = None):
+        if not url:
+            await ctx.send(embed=discord.Embed(
+                description=f"3tini link li bghiti t9esser.\n**Example:** `{ctx.prefix}shortenurl https://example.com/very/long/url`",
+                color=0x000000
+            ))
+            return
+
+        clean_url = url.strip()
+        if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
+            clean_url = "https://" + clean_url
+
+        wait = await ctx.send(embed=discord.Embed(description="Kan9esser f link...", color=0x000000))
+        api_url = f"https://tinyurl.com/api-create.php?url={urllib.parse.quote(clean_url, safe=':/?#[]@!$&\'()*+,;=')}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        try:
+            async with ReusableSession(self.bot.session) as session:
+                async with session.get(api_url, headers=headers, timeout=10) as resp:
+                    if resp.status == 200:
+                        short_url = (await resp.text()).strip()
+                        if short_url.startswith("http"):
+                            embed = discord.Embed(
+                                title="🔗 Link T9esser",
+                                description=f"• **Original:** {clean_url}\n• **Shortened:** {short_url}",
+                                color=0x000000
+                            )
+                            embed.set_footer(text=f"Requested by {ctx.author.name}", icon_url=ctx.author.display_avatar.url)
+                            view = discord.ui.View()
+                            view.add_item(discord.ui.Button(label="Open Link", url=short_url, style=discord.ButtonStyle.link))
+                            await wait.edit(embed=embed, view=view)
+                            return
+
+            await wait.edit(embed=discord.Embed(description="❌ Ma9ditch n9esser had l link. T2ked mn URL.", color=0x000000))
+        except Exception as e:
+            await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
 
 async def setup(bot):

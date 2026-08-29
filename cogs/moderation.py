@@ -154,7 +154,7 @@ class Moderation(commands.Cog):
 
     @commands.group(name="role", help="Ga3 l commands ta3 roles.", invoke_without_command=True)
     async def role(self, ctx):
-        await ctx.send(f"Hada command group. Kteb `sat help role` bach tchouf subcommands.")
+        await ctx.send(f"Hada command group. Kteb `{ctx.prefix}help role` bach tchouf subcommands.")
 
     @role.command(aliases=["g", "add"], help="3ti chy role l chy wa7d.")
     @commands.has_permissions(manage_roles=True)
@@ -275,7 +275,7 @@ class Moderation(commands.Cog):
 
     @commands.group(name="sticker", invoke_without_command=True, help="Ga3 l commands ta3 stickers.")
     async def sticker(self, ctx):
-        await ctx.send(f"Hada command group. Kteb `sat help sticker` bach tchouf subcommands.")
+        await ctx.send(f"Hada command group. Kteb `{ctx.prefix}help sticker` bach tchouf subcommands.")
 
     @sticker.command(name="add", aliases=["a"], help="Zid sticker l server")
     @commands.has_permissions(manage_expressions=True)
@@ -1098,7 +1098,7 @@ class Moderation(commands.Cog):
                 ))
             else:
                 await ctx.send(embed=discord.Embed(
-                    description=f"❌ Ta log channel mconfiguri f had server.\n\nDir `{ctx.prefix}logs <#channel>` bach tbda logging.",
+                    description=f"❌ Ta log channel ma mconfiguri f had server.\n\nDir `{ctx.prefix}logs <#channel>` bach tbda logging.",
                     color=0x000000
                 ))
             return

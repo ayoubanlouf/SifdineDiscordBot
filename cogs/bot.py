@@ -319,7 +319,7 @@ class Bot(commands.Cog):
 
         embed = discord.Embed(
             title=f"{self.bot.user.name}",
-            description="Seftni lkhwadri AyouBot nkhdem blasto.\nIla khastk chy 7aja goul `sat 3te9`.",
+            description=f"Seftni lkhwadri AyouBot nkhdem blasto.\nIla khastk chy 7aja goul `{ctx.prefix}3te9`.",
             color=0x000000,
             timestamp=ctx.message.created_at
         )
