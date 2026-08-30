@@ -41,30 +41,36 @@ class Events(commands.Cog):
         channel_id = self.log_channels.get(guild.id)
         if not channel_id:
             return
-        channel = guild.get_channel(channel_id)
+
+        channel = guild.get_channel(channel_id) or self.bot.get_channel(channel_id)
         if not channel:
-            # Channel was deleted or is inaccessible, clean up configuration
-            self.log_channels.pop(guild.id, None)
             try:
-                await self.bot.db.execute("DELETE FROM guild_logs WHERE guild_id = ?", (guild.id,))
-                await self.bot.db.commit()
-            except Exception:
-                pass
-            return
+                channel = await self.bot.fetch_channel(channel_id)
+            except discord.NotFound:
+                # Only remove from config/DB if the channel was explicitly deleted on Discord (404)
+                self.log_channels.pop(guild.id, None)
+                try:
+                    await self.bot.db.execute("DELETE FROM guild_logs WHERE guild_id = ?", (guild.id,))
+                    await self.bot.db.commit()
+                except Exception:
+                    pass
+                return
+            except (discord.Forbidden, discord.HTTPException, Exception):
+                return
+
         try:
             if files:
                 await channel.send(embed=embed, files=files)
             else:
                 await channel.send(embed=embed)
         except discord.NotFound:
-            # Channel was deleted on Discord
             self.log_channels.pop(guild.id, None)
             try:
                 await self.bot.db.execute("DELETE FROM guild_logs WHERE guild_id = ?", (guild.id,))
                 await self.bot.db.commit()
             except Exception:
                 pass
-        except (discord.Forbidden, discord.HTTPException):
+        except (discord.Forbidden, discord.HTTPException, Exception):
             pass
 
     async def get_audit_entry(self, guild: Optional[discord.Guild], action: discord.AuditLogAction, target_id: Optional[int] = None):
@@ -74,7 +80,8 @@ class Events(commands.Cog):
             await asyncio.sleep(0.6)
             async for entry in guild.audit_logs(limit=6, action=action):
                 if (datetime.now(timezone.utc) - entry.created_at).total_seconds() <= 15:
-                    if target_id is None or (entry.target and entry.target.id == target_id):
+                    entry_target_id = getattr(entry.target, "id", None)
+                    if target_id is None or entry_target_id == target_id:
                         return entry
         except Exception:
             pass
@@ -260,7 +267,7 @@ class Events(commands.Cog):
             "new_content": after.content,
             "author_name": before.author.name,
             "author_avatar": before.author.display_avatar.url,
-            "time": after.edited_at or datetime.utcnow()
+            "time": after.edited_at or datetime.now(timezone.utc)
         })
 
         discord_files = []
@@ -315,8 +322,25 @@ class Events(commands.Cog):
         if member and member.bot:
             return
 
-        username = member.name if member else f"User ID {payload.user_id}"
-        avatar = member.display_avatar.url if member else None
+        username = f"User ID {payload.user_id}"
+        avatar = None
+
+        if member:
+            username = member.name
+            avatar = member.display_avatar.url
+        else:
+            user = self.bot.get_user(payload.user_id)
+            if not user:
+                try:
+                    user = await self.bot.fetch_user(payload.user_id)
+                except Exception:
+                    user = None
+
+            if user:
+                if user.bot:
+                    return
+                username = user.name
+                avatar = user.display_avatar.url
 
         self.bot.reaction_cache[channel_id].append({
             "emoji": str(payload.emoji),
@@ -324,7 +348,7 @@ class Events(commands.Cog):
             "guild_id": payload.guild_id,
             "author_name": username,
             "author_avatar": avatar,
-            "time": datetime.utcnow()
+            "time": datetime.now(timezone.utc)
         })
 
     def cog_unload(self):
@@ -478,6 +502,11 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
+        # If member was banned, on_member_ban will handle the log cleanly
+        ban_entry = await self.get_audit_entry(member.guild, discord.AuditLogAction.ban, target_id=member.id)
+        if ban_entry:
+            return
+
         joined_ts = int(member.joined_at.timestamp()) if member.joined_at else None
         joined_str = f"<t:{joined_ts}:R>" if joined_ts else "Unknown"
         roles_list = [r.mention for r in member.roles if r.name != "@everyone"]
@@ -950,6 +979,174 @@ class Events(commands.Cog):
                 timestamp=datetime.now(timezone.utc)
             )
             await self.send_log(guild, embed)
+
+    # ============ AUTOMOD EVENT LISTENERS ============
+
+    @commands.Cog.listener()
+    async def on_automod_rule_create(self, rule: discord.AutoModRule):
+        audit_entry = await self.get_audit_entry(rule.guild, discord.AuditLogAction.automod_rule_create, target_id=rule.id)
+        mod_str = f"\n**Created By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)" if audit_entry and audit_entry.user else ""
+        if not mod_str and rule.creator:
+            mod_str = f"\n**Creator:** {rule.creator.mention} (`{rule.creator.id}`)"
+
+        trigger_type_str = str(rule.trigger_type).replace("AutoModRuleTriggerType.", "").replace("_", " ").title()
+        actions_str = ", ".join(str(a.type).replace("AutoModRuleActionType.", "").replace("_", " ").title() for a in rule.actions) if rule.actions else "None"
+        status_str = "Enabled" if rule.enabled else "Disabled"
+
+        embed = discord.Embed(
+            title="🛡️ AutoMod Rule Created",
+            description=f"**Rule:** `{rule.name}`\n**Trigger Type:** `{trigger_type_str}`\n**Status:** `{status_str}`\n**Actions:** `{actions_str}`{mod_str}",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=f"Rule ID: {rule.id}")
+        await self.send_log(rule.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_automod_rule_update(self, rule: discord.AutoModRule):
+        audit_entry = await self.get_audit_entry(rule.guild, discord.AuditLogAction.automod_rule_update, target_id=rule.id)
+        mod_str = f"\n**Updated By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)" if audit_entry and audit_entry.user else ""
+
+        trigger_type_str = str(rule.trigger_type).replace("AutoModRuleTriggerType.", "").replace("_", " ").title()
+        status_str = "Enabled" if rule.enabled else "Disabled"
+        actions_str = ", ".join(str(a.type).replace("AutoModRuleActionType.", "").replace("_", " ").title() for a in rule.actions) if rule.actions else "None"
+
+        embed = discord.Embed(
+            title="🛡️ AutoMod Rule Updated",
+            description=f"**Rule:** `{rule.name}`\n**Trigger Type:** `{trigger_type_str}`\n**Status:** `{status_str}`\n**Actions:** `{actions_str}`{mod_str}",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=f"Rule ID: {rule.id}")
+        await self.send_log(rule.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_automod_rule_delete(self, rule: discord.AutoModRule):
+        audit_entry = await self.get_audit_entry(rule.guild, discord.AuditLogAction.automod_rule_delete, target_id=rule.id)
+        mod_str = f"\n**Deleted By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)" if audit_entry and audit_entry.user else ""
+
+        trigger_type_str = str(rule.trigger_type).replace("AutoModRuleTriggerType.", "").replace("_", " ").title()
+
+        embed = discord.Embed(
+            title="🗑️ AutoMod Rule Deleted",
+            description=f"**Rule:** `{rule.name}`\n**Trigger Type:** `{trigger_type_str}`{mod_str}",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=f"Rule ID: {rule.id}")
+        await self.send_log(rule.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_automod_action_execution(self, execution: discord.AutoModActionExecution):
+        guild = execution.guild
+        if not guild:
+            return
+
+        user_mention = f"<@{execution.user_id}> (`{execution.user_id}`)"
+        channel_mention = execution.channel.mention if execution.channel else f"Channel ID `{execution.channel_id}`"
+        action_type = str(execution.action.type).replace("AutoModRuleActionType.", "").replace("_", " ").title()
+
+        embed = discord.Embed(
+            title="🚨 AutoMod Action Executed",
+            description=f"**User:** {user_mention}\n**Channel:** {channel_mention}\n**Action Taken:** `{action_type}`\n**Rule Trigger:** `{execution.rule_trigger_type}`",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+        if execution.matched_keyword:
+            embed.add_field(name="Matched Keyword", value=f"`{execution.matched_keyword}`", inline=False)
+        if execution.matched_content:
+            embed.add_field(name="Matched Content", value=execution.matched_content[:1024], inline=False)
+        if execution.content:
+            embed.add_field(name="Message Content", value=execution.content[:1024], inline=False)
+        if execution.member:
+            embed.set_thumbnail(url=execution.member.display_avatar.url)
+            embed.set_author(name=execution.member.name, icon_url=execution.member.display_avatar.url)
+
+        await self.send_log(guild, embed)
+
+    # ============ WEBHOOKS & INTEGRATIONS LISTENERS ============
+
+    @commands.Cog.listener()
+    async def on_webhooks_update(self, channel: discord.abc.GuildChannel):
+        guild = channel.guild
+        if not guild:
+            return
+
+        # Check for create, delete, or update in audit logs
+        entry = (
+            await self.get_audit_entry(guild, discord.AuditLogAction.webhook_create) or
+            await self.get_audit_entry(guild, discord.AuditLogAction.webhook_delete) or
+            await self.get_audit_entry(guild, discord.AuditLogAction.webhook_update)
+        )
+
+        mod_str = ""
+        action_title = "🔗 Webhooks Updated"
+        target_name = "Unknown Webhook"
+
+        if entry:
+            if entry.user:
+                mod_str = f"\n**By:** {entry.user.mention} (`{entry.user.id}`)"
+            if entry.target and hasattr(entry.target, "name"):
+                target_name = entry.target.name
+            if entry.action == discord.AuditLogAction.webhook_create:
+                action_title = "🔗 Webhook Created"
+            elif entry.action == discord.AuditLogAction.webhook_delete:
+                action_title = "🗑️ Webhook Deleted"
+            elif entry.action == discord.AuditLogAction.webhook_update:
+                action_title = "✏️ Webhook Updated"
+
+        embed = discord.Embed(
+            title=action_title,
+            description=f"**Webhook:** `{target_name}`\n**Channel:** {channel.mention}{mod_str}",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+        await self.send_log(guild, embed)
+
+    @commands.Cog.listener()
+    async def on_guild_integrations_update(self, guild: discord.Guild):
+        # Look for bot addition or integration creation/update/delete in audit log
+        entry = (
+            await self.get_audit_entry(guild, discord.AuditLogAction.bot_add) or
+            await self.get_audit_entry(guild, discord.AuditLogAction.integration_create) or
+            await self.get_audit_entry(guild, discord.AuditLogAction.integration_delete) or
+            await self.get_audit_entry(guild, discord.AuditLogAction.integration_update)
+        )
+
+        if not entry:
+            return
+
+        mod_str = f"\n**Added/Updated By:** {entry.user.mention} (`{entry.user.id}`)" if entry.user else ""
+
+        if entry.action == discord.AuditLogAction.bot_add:
+            bot_target = entry.target
+            bot_str = f"{bot_target.mention} (`{bot_target.id}`)" if bot_target else "Unknown Bot"
+            title = "🤖 Bot Added to Server"
+            desc = f"**Bot:** {bot_str}{mod_str}"
+            embed = discord.Embed(
+                title=title,
+                description=desc,
+                color=0x000000,
+                timestamp=datetime.now(timezone.utc)
+            )
+            if bot_target and hasattr(bot_target, "display_avatar"):
+                embed.set_thumbnail(url=bot_target.display_avatar.url)
+        else:
+            action_map = {
+                discord.AuditLogAction.integration_create: "Integration Created",
+                discord.AuditLogAction.integration_delete: "Integration Deleted",
+                discord.AuditLogAction.integration_update: "Integration Updated",
+            }
+            action_name = action_map.get(entry.action, "Integration Changed")
+            target_name = getattr(entry.target, "name", "Unknown Integration")
+            embed = discord.Embed(
+                title=f"🔌 {action_name}",
+                description=f"**Integration:** `{target_name}`{mod_str}",
+                color=0x000000,
+                timestamp=datetime.now(timezone.utc)
+            )
+
+        await self.send_log(guild, embed)
 
 
 async def setup(bot):
