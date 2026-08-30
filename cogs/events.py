@@ -1037,7 +1037,7 @@ class Events(commands.Cog):
         await self.send_log(rule.guild, embed)
 
     @commands.Cog.listener()
-    async def on_automod_action_execution(self, execution: discord.AutoModActionExecution):
+    async def on_automod_action_execution(self, execution: discord.AutoModAction):
         guild = execution.guild
         if not guild:
             return
