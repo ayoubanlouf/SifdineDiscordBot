@@ -156,13 +156,26 @@ class HelpDropdown(discord.ui.Select):
         selected_category = self.values[0]
         command_names = AllBotCommands.get(selected_category, [])
 
-        formatted_commands = " ".join([f"`{name}`" for name in command_names])
+        has_group = False
+        formatted_list = []
+        for name in command_names:
+            cmd = self.help_command.context.bot.get_command(name)
+            if isinstance(cmd, commands.Group):
+                has_group = True
+                formatted_list.append(f"`{name}*`")
+            else:
+                formatted_list.append(f"`{name}`")
+
+        formatted_commands = " ".join(formatted_list)
 
         embed = discord.Embed(
             title=f"Category: {selected_category}",
             description=formatted_commands or "Category khawya.",
             color=0x000000
         )
+        if has_group:
+            p = self.help_command.context.clean_prefix
+            embed.set_footer(text=f"* = Command Group (Dir {p}help <command> bach tchouf subcommands).")
 
         await interaction.response.edit_message(embed=embed)
 
@@ -205,13 +218,27 @@ class ModernHelpCommand(commands.HelpCommand):
     async def send_category_help(self, category):
         ctx = self.context
         command_names = AllBotCommands.get(category, [])
-        formatted_commands = " ".join([f"`{name}`" for name in command_names])
+
+        has_group = False
+        formatted_list = []
+        for name in command_names:
+            cmd = ctx.bot.get_command(name)
+            if isinstance(cmd, commands.Group):
+                has_group = True
+                formatted_list.append(f"`{name}*`")
+            else:
+                formatted_list.append(f"`{name}`")
+
+        formatted_commands = " ".join(formatted_list)
 
         embed = discord.Embed(
             title=f"Category: {category}",
             description=formatted_commands or "Category khawya.",
             color=0x000000
         )
+        if has_group:
+            p = ctx.clean_prefix
+            embed.set_footer(text=f"* = Command Group (Dir {p}help <command> bach tchouf subcommands).")
         
         view = HelpDropdownView(self)
         await ctx.send(embed=embed, view=view)
@@ -230,7 +257,7 @@ class ModernHelpCommand(commands.HelpCommand):
             description="\n".join(categories_summary) if categories_summary else "Walo categories.",
             color=0x000000
         )
-        embed.set_footer(text="Khtar chy category bach tchouf l commands li fiha.")
+        embed.set_footer(text="Khtar chy category bach tchouf l commands (* = Command Group).")
 
         view = HelpDropdownView(self)
         view.message = await ctx.send(embed=embed, view=view)

@@ -3,6 +3,7 @@ import psutil
 import time
 import zipfile
 import asyncio
+from datetime import datetime, timezone
 import discord
 from discord.ext import commands, tasks
 from converters import FuzzyMember
@@ -104,27 +105,234 @@ class Bot(commands.Cog):
                     total_size += os.path.getsize(fp)
         return total_size
 
+    def get_discloud_app_id(self):
+        app_id = os.environ.get("DISCLOUD_APP_ID")
+        if app_id:
+            return app_id.strip()
+        if os.path.exists("discloud.config"):
+            try:
+                with open("discloud.config", "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("ID="):
+                            return line.split("=", 1)[1].strip()
+            except Exception:
+                pass
+        return "1522281059163701349"
 
-    @commands.command(name="usage", help="Katchouf ch7al t resources mkhdm l bot.")
-    async def usage(self, ctx):
+    async def _discloud_request(self, method: str, endpoint: str, json_data: dict = None):
+        token = os.environ.get("DISCLOUD_API_TOKEN")
+        if not token:
+            return {"status": "error", "message": "DISCLOUD_API_TOKEN missing from .env"}
+
+        headers = {
+            "api-token": token.strip(),
+            "User-Agent": "SifdineDiscordBot/1.0"
+        }
+        url = f"https://api.discloud.app/v2{endpoint}"
+        session = getattr(self.bot, "session", None)
+        if not session or session.closed:
+            return {"status": "error", "message": "Bot session not ready"}
+
+        try:
+            async with session.request(method, url, headers=headers, json=json_data, timeout=12) as resp:
+                data = await resp.json()
+                return data
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def _make_progress_bar(self, used: float, total: float, length: int = 8) -> str:
+        if total <= 0:
+            return "[░░░░░░░░]"
+        pct = min(1.0, max(0.0, used / total))
+        filled = int(round(pct * length))
+        return f"[`{'█' * filled}{'░' * (length - filled)}` {pct * 100:.0f}%]"
+
+    async def _send_host_status(self, ctx):
+        # Local metrics
         process = psutil.Process(os.getpid())
         ram_bytes = process.memory_info().rss
-        ram_mb = ram_bytes / (1024 * 1024)
-
-        cpu_pct = psutil.cpu_percent(interval=None)
+        local_ram_mb = ram_bytes / (1024 * 1024)
+        local_cpu_pct = psutil.cpu_percent(interval=None)
 
         db_path = "bot_database.db"
         db_size_mb = os.path.getsize(db_path) / (1024 * 1024) if os.path.exists(db_path) else 0.0
-
         dir_size_mb = self.get_dir_size(".") / (1024 * 1024)
 
-        embed = discord.Embed(title="System Metrics", color=0x000000)
-        embed.add_field(name="Memory (RAM)", value=f"`{ram_mb:.2f} MB`", inline=True)
-        embed.add_field(name="CPU Usage", value=f"`{cpu_pct:.1f}%`", inline=True)
+        app_id = self.get_discloud_app_id()
+        data = await self._discloud_request("GET", f"/app/{app_id}/status")
+
+        embed = discord.Embed(
+            title="☁️ Discloud Host Status",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc) if 'datetime' in globals() else ctx.message.created_at
+        )
+
+        if data.get("status") == "ok" and "apps" in data:
+            apps_data = data["apps"]
+            if isinstance(apps_data, list) and apps_data:
+                app_info = apps_data[0]
+            elif isinstance(apps_data, dict):
+                app_info = apps_data
+            else:
+                app_info = {}
+
+            container_status = app_info.get("container", "Online")
+            status_emoji = "🟢" if container_status.lower() == "online" else "🔴"
+            cpu_val = app_info.get("cpu", f"{local_cpu_pct:.1f}%")
+            memory_str = app_info.get("memory", f"{local_ram_mb:.1f}/100MB")
+            started_at = app_info.get("startedAt", "Unknown")
+            restarts = app_info.get("restarts", 0)
+            net_io = app_info.get("netIO", {})
+            ssd_str = app_info.get("ssd", "N/A")
+
+            # Parse memory numbers for progress bar if formatted as X/YMB
+            ram_bar_str = ""
+            try:
+                if "/" in memory_str:
+                    parts = memory_str.replace("MB", "").replace("GB", "").split("/")
+                    used_val = float(parts[0])
+                    total_val = float(parts[1])
+                    ram_bar_str = f"\n{self._make_progress_bar(used_val, total_val)}"
+            except Exception:
+                pass
+
+            embed.description = f"**Container State:** {status_emoji} `{container_status}`\n**App ID:** `{app_id}`"
+            embed.add_field(name="Host RAM", value=f"`{memory_str}`{ram_bar_str}", inline=True)
+            embed.add_field(name="Host CPU", value=f"`{cpu_val}`", inline=True)
+            embed.add_field(name="Restarts", value=f"`{restarts}`", inline=True)
+
+            if net_io:
+                down_str = net_io.get("down", "0 MB")
+                up_str = net_io.get("up", "0 MB")
+                embed.add_field(name="Network I/O", value=f"⬇️ `{down_str}` • ⬆️ `{up_str}`", inline=True)
+
+            if ssd_str != "N/A":
+                embed.add_field(name="SSD Storage", value=f"`{ssd_str}`", inline=True)
+
+            embed.add_field(name="Container Uptime", value=f"`{started_at}`", inline=True)
+        else:
+            # Fallback if token not set or API error
+            err_msg = data.get("message", "API unavailable")
+            embed.description = f"⚠️ *Discloud API: {err_msg}*\nShowing local process metrics:"
+            embed.add_field(name="Process RAM (RSS)", value=f"`{local_ram_mb:.2f} MB`", inline=True)
+            embed.add_field(name="Process CPU", value=f"`{local_cpu_pct:.1f}%`", inline=True)
+
         embed.add_field(name="Database Size", value=f"`{db_size_mb:.2f} MB`", inline=True)
-        embed.add_field(name="Project Directory", value=f"`{dir_size_mb:.2f} MB`", inline=True)
+        embed.add_field(name="Project Folder", value=f"`{dir_size_mb:.2f} MB`", inline=True)
+        embed.set_footer(text="Discloud Host Management", icon_url=self.bot.user.display_avatar.url)
 
         await ctx.send(embed=embed)
+
+    @commands.group(name="host", aliases=["discloud"], invoke_without_command=True, help="Discloud host & server metrics.")
+    async def host(self, ctx):
+        await self._send_host_status(ctx)
+
+    @host.command(name="status", aliases=["stats", "info", "usage"], help="Tchouf live stats ta3 container f Discloud.")
+    async def host_status(self, ctx):
+        await self._send_host_status(ctx)
+
+    @host.command(name="logs", aliases=["log", "terminal"], help="Tchouf live terminal console logs ta3 Discloud.")
+    @commands.is_owner()
+    async def host_logs(self, ctx):
+        wait_msg = await ctx.send("⏳ Kanjbed logs mn Discloud terminal...")
+        app_id = self.get_discloud_app_id()
+        data = await self._discloud_request("GET", f"/app/{app_id}/logs")
+
+        if data.get("status") != "ok" or "apps" not in data:
+            err = data.get("message", "Mal9itch logs")
+            await wait_msg.edit(content=f"❌ Mochkil f Discloud API: `{err}`")
+            return
+
+        apps_data = data["apps"]
+        if isinstance(apps_data, list) and apps_data:
+            app_obj = apps_data[0]
+        elif isinstance(apps_data, dict):
+            app_obj = apps_data
+        else:
+            app_obj = {}
+
+        terminal_data = app_obj.get("terminal", {})
+        raw_logs = ""
+        if isinstance(terminal_data, dict):
+            raw_logs = terminal_data.get("big") or terminal_data.get("small") or terminal_data.get("url") or ""
+        elif isinstance(terminal_data, str):
+            raw_logs = terminal_data
+
+        if not raw_logs.strip():
+            await wait_msg.edit(content="📄 Terminal logs khawyin f Discloud.")
+            return
+
+        # Chunk lines into pages for paginator (~25 lines or ~1200 chars per page)
+        log_lines = raw_logs.strip().splitlines()
+        pages = []
+        current_chunk = []
+        current_len = 0
+
+        for line in log_lines:
+            if current_len + len(line) > 1200 or len(current_chunk) >= 20:
+                pages.append("```ini\n" + "\n".join(current_chunk) + "\n```")
+                current_chunk = [line]
+                current_len = len(line)
+            else:
+                current_chunk.append(line)
+                current_len += len(line)
+        if current_chunk:
+            pages.append("```ini\n" + "\n".join(current_chunk) + "\n```")
+
+        await wait_msg.delete()
+        view = self.bot.Paginator(ctx, pages=pages, title=f"🖥️ Discloud Terminal Logs ({len(log_lines)} lines)")
+        view.message = await ctx.send(embed=view.get_page(), view=view if len(pages) > 1 else None)
+
+    @host.command(name="restart", aliases=["reboot"], help="Rebooti container f Discloud.")
+    @commands.is_owner()
+    async def host_restart(self, ctx):
+        confirm_msg = await ctx.send("🔄 Kan-sift reboot request l Discloud container...")
+        app_id = self.get_discloud_app_id()
+        data = await self._discloud_request("PUT", f"/app/{app_id}/restart")
+
+        if data.get("status") == "ok":
+            await confirm_msg.edit(content="✅ **Reboot request dazt!** Container rah ghadi yredemarri daba.")
+        else:
+            err = data.get("message", "Error unknown")
+            await confirm_msg.edit(content=f"❌ Tra mochkil f reboot: `{err}`")
+
+    @host.command(name="backup", aliases=["snapshot", "cloudbackup"], help="Telechargi backup kamla mn Discloud.")
+    @commands.is_owner()
+    async def host_backup(self, ctx):
+        wait_msg = await ctx.send("📦 Kan-tlbo backup link mn Discloud...")
+        app_id = self.get_discloud_app_id()
+        data = await self._discloud_request("GET", f"/app/{app_id}/backup")
+
+        if data.get("status") == "ok" and "backups" in data:
+            backups_data = data["backups"]
+            if isinstance(backups_data, list) and backups_data:
+                backup_obj = backups_data[0]
+            elif isinstance(backups_data, dict):
+                backup_obj = backups_data
+            else:
+                backup_obj = {}
+
+            backup_url = backup_obj.get("url")
+            if not backup_url:
+                await wait_msg.edit(content="❌ Mal9itch download URL f response ta3 Discloud.")
+                return
+
+            embed = discord.Embed(
+                title="📦 Discloud Cloud Backup",
+                description=f"✅ **Backup URL t9adat:**\n[🔗 Download Full Project Backup Zip]({backup_url})\n\n-# _Link kay-expiri mora chwya dyal lwa9t._",
+                color=0x000000,
+                timestamp=ctx.message.created_at
+            )
+            embed.set_footer(text=f"App ID: {app_id}")
+            try:
+                await ctx.author.send(embed=embed)
+                await wait_msg.edit(content="✅ Sifet lik direct Discloud backup download link f DMs!")
+            except Exception:
+                await ctx.send(embed=embed)
+                await wait_msg.delete()
+        else:
+            err = data.get("message", "Error unknown")
+            await wait_msg.edit(content=f"❌ Tra mochkil f Discloud backup: `{err}`")
 
 
 
