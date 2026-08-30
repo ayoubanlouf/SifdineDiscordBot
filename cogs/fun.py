@@ -4,6 +4,9 @@ import io
 import chess
 import sqlite3
 import html
+import difflib
+import re
+import unicodedata
 from typing import Optional
 import discord
 from discord.ext import commands
@@ -718,11 +721,12 @@ class TicTacToeView(View):
         best_score = -float('inf')
         best_move = None
 
+        # Try all legal moves
         for y in range(3):
             for x in range(3):
                 if self.board[y][x] == " ":
                     self.board[y][x] = "O"
-                    score = self.minimax(False)
+                    score = self.minimax(depth=0, is_maximizing=False)
                     self.board[y][x] = " "
                     if score > best_score:
                         best_score = score
@@ -733,12 +737,12 @@ class TicTacToeView(View):
             self.board[y][x] = "O"
             self.update_button(x, y, "O")
 
-    def minimax(self, is_maximizing: bool) -> int:
+    def minimax(self, depth: int, is_maximizing: bool) -> int:
         winner = self.check_winner()
         if winner == "O":
-            return 1
+            return 10 - depth
         elif winner == "X":
-            return -1
+            return depth - 10
         elif winner == "draw":
             return 0
 
@@ -748,7 +752,7 @@ class TicTacToeView(View):
                 for x in range(3):
                     if self.board[y][x] == " ":
                         self.board[y][x] = "O"
-                        score = self.minimax(False)
+                        score = self.minimax(depth + 1, False)
                         self.board[y][x] = " "
                         best_score = max(score, best_score)
             return best_score
@@ -758,7 +762,7 @@ class TicTacToeView(View):
                 for x in range(3):
                     if self.board[y][x] == " ":
                         self.board[y][x] = "X"
-                        score = self.minimax(True)
+                        score = self.minimax(depth + 1, True)
                         self.board[y][x] = " "
                         best_score = min(score, best_score)
             return best_score
@@ -992,40 +996,125 @@ class ConnectFourView(View):
 
         return None
 
+    def _evaluate_window(self, window: list[str], piece: str) -> int:
+        opp_piece = "🔴" if piece == "🟡" else "🟡"
+        score = 0
+        p_cnt = window.count(piece)
+        opp_cnt = window.count(opp_piece)
+        empty_cnt = window.count("⚪")
+
+        if p_cnt == 4:
+            score += 10000
+        elif p_cnt == 3 and empty_cnt == 1:
+            score += 100
+        elif p_cnt == 2 and empty_cnt == 2:
+            score += 10
+
+        if opp_cnt == 3 and empty_cnt == 1:
+            score -= 120
+        elif opp_cnt == 2 and empty_cnt == 2:
+            score -= 15
+
+        return score
+
+    def _score_position(self, piece: str) -> int:
+        score = 0
+
+        # Center column preference
+        center_count = [self.board[r][3] for r in range(6)].count(piece)
+        score += center_count * 6
+
+        # Center-adjacent columns
+        c2_count = [self.board[r][2] for r in range(6)].count(piece)
+        c4_count = [self.board[r][4] for r in range(6)].count(piece)
+        score += (c2_count + c4_count) * 3
+
+        # Horizontal
+        for r in range(6):
+            row_array = self.board[r]
+            for c in range(4):
+                window = row_array[c:c+4]
+                score += self._evaluate_window(window, piece)
+
+        # Vertical
+        for c in range(7):
+            col_array = [self.board[r][c] for r in range(6)]
+            for r in range(3):
+                window = col_array[r:r+4]
+                score += self._evaluate_window(window, piece)
+
+        # Positive Diagonal
+        for r in range(3):
+            for c in range(4):
+                window = [self.board[r+i][c+i] for i in range(4)]
+                score += self._evaluate_window(window, piece)
+
+        # Negative Diagonal
+        for r in range(3, 6):
+            for c in range(4):
+                window = [self.board[r-i][c+i] for i in range(4)]
+                score += self._evaluate_window(window, piece)
+
+        return score
+
+    def _c4_minimax(self, depth: int, alpha: float, beta: float, is_maximizing: bool) -> tuple[Optional[int], float]:
+        valid_cols = [c for c in [3, 2, 4, 1, 5, 0, 6] if self.board[0][c] == "⚪"]
+        winner = self.check_winner()
+
+        if winner == "🟡":
+            return (None, 1000000 + depth * 1000)
+        elif winner == "🔴":
+            return (None, -1000000 - depth * 1000)
+        elif winner == "draw" or not valid_cols:
+            return (None, 0)
+        elif depth == 0:
+            return (None, self._score_position("🟡"))
+
+        if is_maximizing:
+            value = -float('inf')
+            best_col = valid_cols[0]
+            for col in valid_cols:
+                for r in reversed(range(6)):
+                    if self.board[r][col] == "⚪":
+                        self.board[r][col] = "🟡"
+                        new_score = self._c4_minimax(depth - 1, alpha, beta, False)[1]
+                        self.board[r][col] = "⚪"
+                        if new_score > value:
+                            value = new_score
+                            best_col = col
+                        alpha = max(alpha, value)
+                        break
+                if alpha >= beta:
+                    break
+            return best_col, value
+        else:
+            value = float('inf')
+            best_col = valid_cols[0]
+            for col in valid_cols:
+                for r in reversed(range(6)):
+                    if self.board[r][col] == "⚪":
+                        self.board[r][col] = "🔴"
+                        new_score = self._c4_minimax(depth - 1, alpha, beta, True)[1]
+                        self.board[r][col] = "⚪"
+                        if new_score < value:
+                            value = new_score
+                            best_col = col
+                        beta = min(beta, value)
+                        break
+                if alpha >= beta:
+                    break
+            return best_col, value
+
     def make_bot_move(self):
-        valid_cols = [c for c in range(7) if self.board[0][c] == "⚪"]
+        valid_cols = [c for c in [3, 2, 4, 1, 5, 0, 6] if self.board[0][c] == "⚪"]
         if not valid_cols:
             return
 
-        # 1. Check if bot can win immediately
-        for c in valid_cols:
-            for r in reversed(range(6)):
-                if self.board[r][c] == "⚪":
-                    self.board[r][c] = "🟡"
-                    if self.check_winner() == "🟡":
-                        if r == 0:
-                            self.get_button(c).disabled = True
-                        return
-                    self.board[r][c] = "⚪"
-                    break
+        col, _ = self._c4_minimax(depth=5, alpha=-float('inf'), beta=float('inf'), is_maximizing=True)
+        if col is None or col not in valid_cols:
+            col = valid_cols[0]
 
-        # 2. Check if player can win next turn and block
-        for c in valid_cols:
-            for r in reversed(range(6)):
-                if self.board[r][c] == "⚪":
-                    self.board[r][c] = "🔴"
-                    if self.check_winner() == "🔴":
-                        self.board[r][c] = "🟡"
-                        if r == 0:
-                            self.get_button(c).disabled = True
-                        return
-                    self.board[r][c] = "⚪"
-                    break
-
-        # 3. Otherwise pick center or random column
-        preferred = [3, 2, 4, 1, 5, 0, 6]
-        best_col = next((c for c in preferred if c in valid_cols), random.choice(valid_cols))
-        self.drop_piece(best_col, "🟡")
+        self.drop_piece(col, "🟡")
 
     def get_button(self, col: int) -> Optional[ConnectFourButton]:
         for item in self.children:
@@ -1398,7 +1487,12 @@ class RPSBotView(View):
         for item in self.children:
             item.disabled = True
 
-        bot_choice = random.choice(["rock", "paper", "scissors"])
+        counter_map = {
+            "rock": "paper",
+            "paper": "scissors",
+            "scissors": "rock"
+        }
+        bot_choice = counter_map.get(player_choice, "rock")
         
         emoji_map = {
             "rock": "🪨 Rock",
@@ -1618,8 +1712,8 @@ class MinesweeperSoloView(View):
         super().__init__(timeout=180)
         self.player = player
         self.message: Optional[discord.Message] = None
-        self.width = 5
-        self.height = 4
+        self.width = 4
+        self.height = 5
         self.mine_count = 4
         self.game_over = False
 
@@ -1628,14 +1722,14 @@ class MinesweeperSoloView(View):
         self.mines = set(random.sample(all_coords, self.mine_count))
         self.revealed = set()
 
-        # Add grid buttons (rows 0, 1, 2, 3)
+        # Add grid buttons (rows 0, 1, 2, 3, 4)
         for y in range(self.height):
             for x in range(self.width):
                 button = MinesweeperButton(x, y)
                 button.callback = self.button_callback
                 self.add_item(button)
 
-        # Add Exit Game button on row 4
+        # Add Exit Game button on row 4 alongside the 4 grid buttons (total 5 buttons in row 4)
         exit_btn = Button(
             label="Exit Game",
             style=discord.ButtonStyle.danger,
@@ -1783,8 +1877,8 @@ class MinesweeperMultiplayerView(View):
         self.current_turn = p1
         self.game_over = False
         self.message: Optional[discord.Message] = None
-        self.width = 5
-        self.height = 4
+        self.width = 4
+        self.height = 5
         self.mine_count = 4
 
         # Place mines
@@ -1792,14 +1886,14 @@ class MinesweeperMultiplayerView(View):
         self.mines = set(random.sample(all_coords, self.mine_count))
         self.found_mines = 0
 
-        # Add buttons (rows 0, 1, 2, 3)
+        # Add buttons (rows 0, 1, 2, 3, 4)
         for y in range(self.height):
             for x in range(self.width):
                 button = MinesweeperButton(x, y)
                 button.callback = self.button_callback
                 self.add_item(button)
 
-        # Add Exit Game button on row 4
+        # Add Exit Game button on row 4 alongside the 4 grid buttons (total 5 buttons in row 4)
         exit_btn = Button(
             label="Exit Game",
             style=discord.ButtonStyle.danger,
@@ -3197,22 +3291,27 @@ class TriviaQuestionView(View):
 # ============ TYPERACER HELPERS ============
 
 def render_typeracer_image(text: str) -> io.BytesIO:
-    width = 900
+    width = 960
     height = 240
-    img = Image.new("RGBA", (width, height), (22, 24, 29, 255))
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 255))
     draw = ImageDraw.Draw(img)
 
-    # Accent bar
-    draw.rectangle([(0, 0), (width, 8)], fill=(88, 101, 242, 255))
+    # Accent line at the very top
+    draw.rectangle([(0, 0), (width, 4)], fill=(255, 255, 255, 255))
 
     try:
-        header_font = ImageFont.truetype("arial.ttf", 20)
-        text_font = ImageFont.truetype("arialbd.ttf", 32)
+        header_font = ImageFont.truetype("arial.ttf", 16)
+        text_font = ImageFont.truetype("arialbd.ttf", 46)
     except Exception:
         header_font = ImageFont.load_default()
         text_font = ImageFont.load_default()
 
-    draw.text((40, 25), "⌨️  TYPERACER  •  Type the text below as fast as you can!", fill=(160, 165, 175, 255), font=header_font)
+    draw.text((40, 22), "TYPERACER  •  Type the 5 words below as fast as you can!", fill=(160, 160, 160, 255), font=header_font)
+
+    # Inner container card
+    card_top = 58
+    card_bottom = height - 25
+    draw.rounded_rectangle([(30, card_top), (width - 30, card_bottom)], radius=12, fill=(15, 15, 15, 255), outline=(45, 45, 45, 255), width=2)
 
     words = text.split()
     lines = []
@@ -3221,18 +3320,32 @@ def render_typeracer_image(text: str) -> io.BytesIO:
         current_line.append(word)
         line_str = " ".join(current_line)
         bbox = draw.textbbox((0, 0), line_str, font=text_font)
-        if (bbox[2] - bbox[0]) > 800:
+        if (bbox[2] - bbox[0]) > 860:
             current_line.pop()
             lines.append(" ".join(current_line))
             current_line = [word]
     if current_line:
         lines.append(" ".join(current_line))
 
-    draw.rounded_rectangle([(30, 65), (width - 30, height - 25)], radius=12, fill=(35, 39, 45, 255), outline=(60, 65, 75, 255), width=2)
-    y_start = 100 if len(lines) == 1 else 80
-    line_spacing = 45
-    for i, line in enumerate(lines):
-        draw.text((50, y_start + i * line_spacing), line, fill=(255, 255, 255, 255), font=text_font)
+    card_center_y = (card_top + card_bottom) // 2
+
+    if len(lines) == 1:
+        line = lines[0]
+        bbox = draw.textbbox((0, 0), line, font=text_font)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+        x = (width - text_w) // 2
+        y = card_center_y - (text_h // 2) - bbox[1]
+        draw.text((x, y), line, fill=(255, 255, 255, 255), font=text_font)
+    else:
+        line_spacing = 54
+        total_h = len(lines) * line_spacing
+        y_start = card_center_y - (total_h // 2)
+        for i, line in enumerate(lines):
+            bbox = draw.textbbox((0, 0), line, font=text_font)
+            text_w = bbox[2] - bbox[0]
+            x = (width - text_w) // 2
+            draw.text((x, y_start + i * line_spacing), line, fill=(255, 255, 255, 255), font=text_font)
 
     output = io.BytesIO()
     img.save(output, format="PNG")
@@ -3241,6 +3354,86 @@ def render_typeracer_image(text: str) -> io.BytesIO:
 
 
 
+
+
+# ============ FLAGS HELPERS ============
+
+FLAG_ALIASES = {
+    "ae": ["uae", "emirates", "united arab emirates"],
+    "us": ["usa", "us", "america", "united states", "united states of america"],
+    "gb": ["uk", "britain", "great britain", "england", "united kingdom"],
+    "cd": ["dr congo", "drc", "democratic republic of the congo", "congo"],
+    "cg": ["congo", "republic of the congo", "congo brazzaville"],
+    "kr": ["south korea", "korea"],
+    "kp": ["north korea"],
+    "sa": ["saudi", "saudi arabia", "ksa"],
+    "ru": ["russia", "russian federation"],
+    "cz": ["czechia", "czech republic"],
+    "tz": ["tanzania", "united republic of tanzania"],
+    "va": ["vatican", "vatican city", "holy see"],
+    "ps": ["palestine", "state of palestine"],
+    "sy": ["syria", "syrian arab republic"],
+    "la": ["laos", "lao"],
+    "ci": ["ivory coast", "cote d ivoire", "cote divoire", "cote d'ivoire"],
+    "cf": ["car", "central african republic"],
+    "nz": ["nz", "new zealand"],
+    "do": ["dominican republic", "dominican rep"],
+    "tt": ["trinidad", "trinidad and tobago"],
+    "st": ["sao tome", "sao tome and principe"],
+    "pg": ["png", "papua new guinea"],
+    "ba": ["bosnia", "bosnia and herzegovina"],
+    "cv": ["cape verde", "cabo verde"],
+    "kn": ["saint kitts", "st kitts", "st kitts and nevis", "saint kitts and nevis"],
+    "lc": ["saint lucia", "st lucia"],
+    "vc": ["saint vincent", "st vincent", "saint vincent and the grenadines", "st vincent and the grenadines"],
+    "fm": ["micronesia", "federated states of micronesia"],
+    "ir": ["iran", "islamic republic of iran"],
+    "mm": ["myanmar", "burma"],
+    "mk": ["north macedonia", "macedonia"],
+    "sz": ["eswatini", "swaziland"],
+    "tl": ["east timor", "timor leste", "timor"],
+    "nl": ["netherlands", "holland"],
+    "tr": ["turkey", "turkiye"],
+}
+
+def normalize_country_text(text: str) -> str:
+    if not text:
+        return ""
+    # Strip accents / diacritics
+    t = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
+    t = t.lower().strip()
+    if t.startswith("the "):
+        t = t[4:].strip()
+    t = re.sub(r"[.,'\-/&]", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+def is_flag_guess_correct(guess: str, code: str, country_name: str) -> bool:
+    norm_guess = normalize_country_text(guess)
+    norm_target = normalize_country_text(country_name)
+
+    if not norm_guess or not norm_target:
+        return False
+
+    # 1. Direct exact match
+    if norm_guess == norm_target:
+        return True
+
+    # 2. Check predefined aliases
+    code_aliases = FLAG_ALIASES.get(code.lower(), [])
+    for alias in code_aliases:
+        norm_alias = normalize_country_text(alias)
+        if norm_guess == norm_alias:
+            return True
+        if len(norm_guess) >= 4 and difflib.SequenceMatcher(None, norm_guess, norm_alias).ratio() >= 0.85:
+            return True
+
+    # 3. Fuzzy match on country name (e.g. minor typos: "philipines" -> "philippines")
+    similarity = difflib.SequenceMatcher(None, norm_guess, norm_target).ratio()
+    if similarity >= 0.82:
+        return True
+
+    return False
 
 
 # ============ MAIN COG ============
@@ -3279,7 +3472,7 @@ class Fun(commands.Cog):
             print(f"[record_minigame_win error]: {e}")
 
     def get_typeracer_text(self) -> str:
-        count = random.randint(6, 8)
+        count = 5
         words = []
         for attempt in range(2):
             try:
@@ -3433,6 +3626,10 @@ class Fun(commands.Cog):
         hp = {player.id: 3 for player in players}
         active_players = list(players)
 
+        # Match pool to prevent any repeated flags in the same match
+        match_pool = list(country_pool)
+        random.shuffle(match_pool)
+
         start_embed = discord.Embed(
             description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.",
             color=0x000000
@@ -3456,9 +3653,14 @@ class Fun(commands.Cog):
                 if not single_player and len(active_players) == 1:
                     break
 
-                target = random.choice(country_pool)
+                if not match_pool:
+                    match_pool = list(country_pool)
+                    random.shuffle(match_pool)
+
+                target = match_pool.pop()
                 correct_name = target["name"]
-                flag_url = f"https://flagcdn.com/w320/{target['code']}.png"
+                target_code = target["code"]
+                flag_url = f"https://flagcdn.com/w320/{target_code}.png"
 
                 game_embed = discord.Embed(
                     description=f"❓ Chno smit had dawla?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}",
@@ -3488,7 +3690,7 @@ class Fun(commands.Cog):
                             guessed_correctly = True
                             break
 
-                        if msg.content.strip().lower() == correct_name.lower():
+                        if is_flag_guess_correct(msg.content, target_code, correct_name):
                             await msg.add_reaction("✅")
                             guessed_correctly = True
                             break
@@ -3510,7 +3712,7 @@ class Fun(commands.Cog):
                 await asyncio.sleep(2)
 
     @commands.command(aliases=["jklm"], help="Kteb kelma fiha l7orof li ghan3tik.")
-    async def blacktea(self, ctx, round_duration: int = 10):
+    async def blacktea(self, ctx, round_duration: int = 15):
         if round_duration < 5:
             round_duration = 5
             time_display = "5s (Minimum)"
@@ -3642,7 +3844,7 @@ class Fun(commands.Cog):
             print(f"[blacktea error]: {e}")
 
     @commands.command(help="Kteb kelma fiha l7orof li ghan3tik bzerba.")
-    async def greentea(self, ctx, round_duration: int = 10):
+    async def greentea(self, ctx, round_duration: int = 15):
         if round_duration < 5:
             round_duration = 5
             time_display = "5s (Minimum)"
