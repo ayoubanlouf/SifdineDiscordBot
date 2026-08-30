@@ -105,19 +105,33 @@ class Bot(commands.Cog):
                     total_size += os.path.getsize(fp)
         return total_size
 
-    def get_discloud_app_id(self):
-        app_id = os.environ.get("DISCLOUD_APP_ID")
-        if app_id:
-            return app_id.strip()
+    async def get_discloud_app_id(self, force_refresh: bool = False):
+        app_id_env = os.environ.get("DISCLOUD_APP_ID")
+        if app_id_env and app_id_env.strip():
+            return app_id_env.strip()
+
+        if not force_refresh and hasattr(self, "_cached_discloud_app_id") and self._cached_discloud_app_id:
+            return self._cached_discloud_app_id
+
+        # Query /user endpoint to discover active app ID
+        data = await self._discloud_request("GET", "/user")
+        if data.get("status") == "ok" and "user" in data:
+            user_apps = data["user"].get("apps", [])
+            if user_apps and len(user_apps) > 0:
+                self._cached_discloud_app_id = str(user_apps[0])
+                return self._cached_discloud_app_id
+
         if os.path.exists("discloud.config"):
             try:
                 with open("discloud.config", "r", encoding="utf-8") as f:
                     for line in f:
                         if line.startswith("ID="):
-                            return line.split("=", 1)[1].strip()
+                            val = line.split("=", 1)[1].strip()
+                            if val:
+                                return val
             except Exception:
                 pass
-        return "1522281059163701349"
+        return "all"
 
     async def _discloud_request(self, method: str, endpoint: str, json_data: dict = None):
         token = os.environ.get("DISCLOUD_API_TOKEN")
@@ -158,8 +172,13 @@ class Bot(commands.Cog):
         db_size_mb = os.path.getsize(db_path) / (1024 * 1024) if os.path.exists(db_path) else 0.0
         dir_size_mb = self.get_dir_size(".") / (1024 * 1024)
 
-        app_id = self.get_discloud_app_id()
+        app_id = await self.get_discloud_app_id()
         data = await self._discloud_request("GET", f"/app/{app_id}/status")
+
+        # Auto-retry if app ID changed
+        if data.get("status") != "ok" and "not found" in str(data.get("message", "")).lower():
+            app_id = await self.get_discloud_app_id(force_refresh=True)
+            data = await self._discloud_request("GET", f"/app/{app_id}/status")
 
         embed = discord.Embed(
             title="☁️ Discloud Host Status",
@@ -196,7 +215,7 @@ class Bot(commands.Cog):
             except Exception:
                 pass
 
-            embed.description = f"**Container State:** {status_emoji} `{container_status}`\n**App ID:** `{app_id}`"
+            embed.description = f"**Container State:** {status_emoji} `{container_status}`\n**App ID:** `{app_info.get('id', app_id)}`"
             embed.add_field(name="Host RAM", value=f"`{memory_str}`{ram_bar_str}", inline=True)
             embed.add_field(name="Host CPU", value=f"`{cpu_val}`", inline=True)
             embed.add_field(name="Restarts", value=f"`{restarts}`", inline=True)
@@ -235,8 +254,12 @@ class Bot(commands.Cog):
     @commands.is_owner()
     async def host_logs(self, ctx):
         wait_msg = await ctx.send("⏳ Kanjbed logs mn Discloud terminal...")
-        app_id = self.get_discloud_app_id()
+        app_id = await self.get_discloud_app_id()
         data = await self._discloud_request("GET", f"/app/{app_id}/logs")
+
+        if data.get("status") != "ok" and "not found" in str(data.get("message", "")).lower():
+            app_id = await self.get_discloud_app_id(force_refresh=True)
+            data = await self._discloud_request("GET", f"/app/{app_id}/logs")
 
         if data.get("status") != "ok" or "apps" not in data:
             err = data.get("message", "Mal9itch logs")
@@ -287,8 +310,12 @@ class Bot(commands.Cog):
     @commands.is_owner()
     async def host_restart(self, ctx):
         confirm_msg = await ctx.send("🔄 Kan-sift reboot request l Discloud container...")
-        app_id = self.get_discloud_app_id()
+        app_id = await self.get_discloud_app_id()
         data = await self._discloud_request("PUT", f"/app/{app_id}/restart")
+
+        if data.get("status") != "ok" and "not found" in str(data.get("message", "")).lower():
+            app_id = await self.get_discloud_app_id(force_refresh=True)
+            data = await self._discloud_request("PUT", f"/app/{app_id}/restart")
 
         if data.get("status") == "ok":
             await confirm_msg.edit(content="✅ **Reboot request dazt!** Container rah ghadi yredemarri daba.")
@@ -300,8 +327,12 @@ class Bot(commands.Cog):
     @commands.is_owner()
     async def host_backup(self, ctx):
         wait_msg = await ctx.send("📦 Kan-tlbo backup link mn Discloud...")
-        app_id = self.get_discloud_app_id()
+        app_id = await self.get_discloud_app_id()
         data = await self._discloud_request("GET", f"/app/{app_id}/backup")
+
+        if data.get("status") != "ok" and "not found" in str(data.get("message", "")).lower():
+            app_id = await self.get_discloud_app_id(force_refresh=True)
+            data = await self._discloud_request("GET", f"/app/{app_id}/backup")
 
         if data.get("status") == "ok" and "backups" in data:
             backups_data = data["backups"]
