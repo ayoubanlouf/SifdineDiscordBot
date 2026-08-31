@@ -9,13 +9,14 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from typing import Optional
 from get_commands import AllBotCommands
+from database import create_database_client
 
 print("[DEBUG] main.py interpreter:", sys.executable)
 print("[DEBUG] main.py sys.path[0]:", sys.path[0] if sys.path else "N/A")
 
 load_dotenv()
 
-ENV = os.environ.get("ENVIRONMENT", "development").lower()
+ENV = os.environ.get("ENVIRONMENT", "prod").strip().strip("\"'").lower()
 
 
 class Paginator(discord.ui.View):
@@ -338,74 +339,15 @@ async def load_extensions():
 async def setup_hook():
     bot.session = aiohttp.ClientSession()
 
-    # Auto-Restore from Discord backup channel if database is missing or unseeded (e.g. fresh Discloud deploy)
-    backup_channel_id = os.environ.get("BACKUP_CHANNEL_ID")
-    should_restore = False
-
-    if not os.path.exists("bot_database.db"):
-        should_restore = True
-    else:
-        try:
-            import sqlite3
-            test_conn = sqlite3.connect("bot_database.db")
-            cur = test_conn.cursor()
-            cur.execute("SELECT 1 FROM dictionary_words LIMIT 1")
-            cur.fetchone()
-            test_conn.close()
-        except Exception:
-            should_restore = True
-
-    if should_restore and backup_channel_id:
-        try:
-            print(f"[Auto-Restore] Checking backup channel ID {backup_channel_id} for latest database snapshot...")
-            channel = bot.get_channel(int(backup_channel_id))
-            if not channel:
-                channel = await bot.fetch_channel(int(backup_channel_id))
-
-            if channel:
-                async for message in channel.history(limit=30):
-                    for attachment in message.attachments:
-                        if attachment.filename.endswith(".zip"):
-                            print(f"[Auto-Restore] Found zipped database backup {attachment.filename} ({attachment.size} bytes). Downloading & extracting...")
-                            temp_zip = "temp_auto_restore.zip"
-                            await attachment.save(temp_zip)
-                            def _extract_zip_sync():
-                                import zipfile
-                                with zipfile.ZipFile(temp_zip, "r") as zf:
-                                    zf.extract("bot_database.db", ".")
-                            await asyncio.to_thread(_extract_zip_sync)
-                            if os.path.exists(temp_zip):
-                                os.remove(temp_zip)
-                            print("[Auto-Restore] Successfully extracted bot_database.db from Discord zip backup!")
-                            break
-                        elif attachment.filename.endswith(".db"):
-                            print(f"[Auto-Restore] Found database backup {attachment.filename} ({attachment.size} bytes). Downloading...")
-                            await attachment.save("bot_database.db")
-                            print("[Auto-Restore] Successfully restored bot_database.db from Discord backup channel!")
-                            break
-                    if os.path.exists("bot_database.db"):
-                        try:
-                            import sqlite3
-                            chk_conn = sqlite3.connect("bot_database.db")
-                            chk_cur = chk_conn.cursor()
-                            chk_cur.execute("SELECT 1 FROM dictionary_words LIMIT 1")
-                            chk_cur.fetchone()
-                            chk_conn.close()
-                            break
-                        except Exception:
-                            pass
-        except Exception as e:
-            print(f"[Auto-Restore error]: {e}")
-
-    bot.db = await aiosqlite.connect("bot_database.db")
-    await bot.db.execute("PRAGMA journal_mode=WAL")
-    await bot.db.execute("PRAGMA synchronous=NORMAL")
-    await bot.db.execute("PRAGMA cache_size = -2000")
+    # Initialize Database (Turso Cloud Database with local fallback)
+    bot.db = await create_database_client()
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_prefixes (guild_id INTEGER PRIMARY KEY, prefix TEXT)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS blacklists (user_id INTEGER PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_logs (guild_id INTEGER PRIMARY KEY, channel_id INTEGER)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS reminders (user_id INTEGER, channel_id INTEGER, reminder_text TEXT, end_time INTEGER)")
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_reminders_end_time ON reminders (end_time)")
     await bot.db.commit()
 
     await load_extensions()

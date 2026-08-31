@@ -3441,7 +3441,8 @@ def is_flag_guess_correct(guess: str, code: str, country_name: str) -> bool:
 class Fun(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+        self.words_db_path = os.path.join("assets", "words.db")
+        self.dict_conn = sqlite3.connect(self.words_db_path, check_same_thread=False)
         try:
             self.dict_conn.execute("PRAGMA cache_size = -2000")
         except Exception:
@@ -3451,7 +3452,7 @@ class Fun(commands.Cog):
         try:
             return self.dict_conn.cursor()
         except Exception:
-            self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+            self.dict_conn = sqlite3.connect(self.words_db_path, check_same_thread=False)
             try:
                 self.dict_conn.execute("PRAGMA cache_size = -2000")
             except Exception:
@@ -3483,7 +3484,7 @@ class Fun(commands.Cog):
                     words = [r[0].lower() for r in rows if r[0] and r[0].isalpha()]
                 break
             except Exception as e:
-                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                self.dict_conn = sqlite3.connect(self.words_db_path, check_same_thread=False)
                 if attempt == 1:
                     print(f"[get_typeracer_text error]: {e}")
 
@@ -3512,7 +3513,7 @@ class Fun(commands.Cog):
                     return row[0]
                 break
             except Exception as e:
-                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                self.dict_conn = sqlite3.connect(self.words_db_path, check_same_thread=False)
                 if attempt == 1:
                     print(f"[get_hangman_secret error]: {e}")
         return random.choice(["planet", "castle", "dragon", "monster", "python", "bridge", "silver", "garden", "forest", "wizard"])
@@ -3527,7 +3528,7 @@ class Fun(commands.Cog):
                     return row[0]
                 break
             except Exception as e:
-                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                self.dict_conn = sqlite3.connect(self.words_db_path, check_same_thread=False)
                 if attempt == 1:
                     print(f"[get_combo error]: {e}")
         return random.choice(["ing", "ter", "con", "sta", "ent", "ear", "tra", "man", "all", "ver", "pro", "dis", "cal", "ted", "ith"])
@@ -3544,7 +3545,7 @@ class Fun(commands.Cog):
                 cur.execute("SELECT 1 FROM dictionary_words WHERE word = ? LIMIT 1", (clean_word,))
                 return cur.fetchone() is not None
             except Exception as e:
-                self.dict_conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+                self.dict_conn = sqlite3.connect(self.words_db_path, check_same_thread=False)
                 if attempt == 1:
                     print(f"[is_english_word error]: {e}")
         return False

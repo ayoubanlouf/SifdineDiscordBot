@@ -1,4 +1,6 @@
 import os
+import io
+import json
 import psutil
 import time
 import zipfile
@@ -9,91 +11,9 @@ from discord.ext import commands, tasks
 from converters import FuzzyMember
 
 
-def _compress_db_snapshot_sync(source_db_path: str, target_zip_path: str):
-    import gc
-    with zipfile.ZipFile(target_zip_path, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-        zf.write(source_db_path, arcname="bot_database.db")
-    gc.collect()
-
-
 class Bot(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.auto_backup_db.start()
-
-    def cog_unload(self):
-        self.auto_backup_db.cancel()
-
-    @tasks.loop(hours=6)
-    async def auto_backup_db(self):
-        env = os.environ.get("ENVIRONMENT", "development").lower()
-        if env == "dev":
-            return
-
-        backup_channel_id = os.environ.get("BACKUP_CHANNEL_ID")
-        if not backup_channel_id:
-            return
-
-        channel = self.bot.get_channel(int(backup_channel_id))
-        if not channel:
-            try:
-                channel = await self.bot.fetch_channel(int(backup_channel_id))
-            except Exception as e:
-                print(f"[auto_backup_db fetch_channel error]: {e}")
-                return
-
-        if not channel or not os.path.exists("bot_database.db"):
-            return
-
-        snapshot_path = "auto_snapshot_backup.db"
-        zip_path = "bot_database.db.zip"
-        try:
-            if os.path.exists(snapshot_path):
-                os.remove(snapshot_path)
-            if os.path.exists(zip_path):
-                os.remove(zip_path)
-
-            async with self.bot.db.execute(f"VACUUM INTO '{snapshot_path}'"):
-                pass
-
-            await asyncio.to_thread(_compress_db_snapshot_sync, snapshot_path, zip_path)
-
-            uncompressed_mb = os.path.getsize(snapshot_path) / (1024 * 1024)
-            compressed_mb = os.path.getsize(zip_path) / (1024 * 1024)
-
-            file = discord.File(zip_path, filename="bot_database.db.zip")
-            embed = discord.Embed(
-                title="📦 Automated Database Backup (6h)",
-                description=(
-                    f"• **Timestamp:** <t:{int(time.time())}:F>\n"
-                    f"• **Uncompressed Size:** `{uncompressed_mb:.2f} MB`\n"
-                    f"• **Compressed Zip:** `{compressed_mb:.2f} MB`\n"
-                    f"• **Guilds:** `{len(self.bot.guilds)}`"
-                ),
-                color=0x000000
-            )
-            await channel.send(embed=embed, file=file)
-        except Exception as e:
-            print(f"[auto_backup_db error]: {e}")
-        finally:
-            if os.path.exists(snapshot_path):
-                try:
-                    os.remove(snapshot_path)
-                except Exception:
-                    pass
-            if os.path.exists(zip_path):
-                try:
-                    os.remove(zip_path)
-                except Exception:
-                    pass
-            import gc
-            gc.collect()
-
-    @auto_backup_db.before_loop
-    async def before_auto_backup(self):
-        await self.bot.wait_until_ready()
-        # Wait 6 hours before the first scheduled auto backup so boot RAM stays minimal
-        await asyncio.sleep(21600)
 
 
     def get_dir_size(self, path="."):
@@ -592,59 +512,55 @@ class Bot(commands.Cog):
         await ctx.send(embed=embed, view=view)
 
 
-    @commands.command(name="backup", help="Sift backup ta3 database l DMs ta3 l owner.")
+    @commands.command(name="backup", help="Sift cloud backup ta3 database l DMs ta3 l owner.")
     async def backup(self, ctx):
         if not await self.bot.is_owner(ctx.author):
             await ctx.send("Ma3endekch l7e9 tsta3ml had l cmd :/")
             return
 
-        if not os.path.exists("bot_database.db"):
-            await ctx.send("❌ Mal9itch `bot_database.db` f disk.")
-            return
-
-        wait_msg = await ctx.send("📦 Kan9ad snapshot ta3 database, sber 3lia...")
-        snapshot_path = "manual_snapshot_backup.db"
-        zip_path = "manual_backup.zip"
+        wait_msg = await ctx.send("📦 Kanjbed snapshot mn database...")
+        tables = ["guild_prefixes", "guild_logs", "blacklists", "afk", "minigame_leaderboard", "reminders"]
+        backup_data = {
+            "timestamp": int(time.time()),
+            "datetime": datetime.now(timezone.utc).isoformat(),
+            "guilds": len(self.bot.guilds),
+            "tables": {}
+        }
         try:
-            if os.path.exists(snapshot_path):
-                os.remove(snapshot_path)
-            if os.path.exists(zip_path):
-                os.remove(zip_path)
+            total_records = 0
+            for t in tables:
+                async with self.bot.db.execute(f"SELECT * FROM {t}") as cursor:
+                    rows = await cursor.fetchall()
+                    col_names = cursor.col_names if hasattr(cursor, "col_names") else []
+                    records = []
+                    for r in rows:
+                        if hasattr(r, "_values"):
+                            records.append(list(r._values))
+                        else:
+                            records.append(list(r))
+                    backup_data["tables"][t] = {
+                        "columns": col_names,
+                        "rows": records
+                    }
+                    total_records += len(records)
 
-            async with self.bot.db.execute(f"VACUUM INTO '{snapshot_path}'"):
-                pass
-
-            await asyncio.to_thread(_compress_db_snapshot_sync, snapshot_path, zip_path)
-
-            uncompressed_mb = os.path.getsize(snapshot_path) / (1024 * 1024)
-            compressed_mb = os.path.getsize(zip_path) / (1024 * 1024)
-
-            file = discord.File(zip_path, filename="bot_database.db.zip")
+            json_bytes = json.dumps(backup_data, indent=2).encode("utf-8")
+            file = discord.File(io.BytesIO(json_bytes), filename=f"sifdine_cloud_backup_{int(time.time())}.json")
             embed = discord.Embed(
-                title="📦 Manual Database Backup",
+                title="☁️ Database Snapshot Backup",
                 description=(
                     f"• **Timestamp:** <t:{int(time.time())}:F>\n"
-                    f"• **Uncompressed Size:** `{uncompressed_mb:.2f} MB`\n"
-                    f"• **Compressed Zip:** `{compressed_mb:.2f} MB`\n"
+                    f"• **Tables Backed Up:** `{len(tables)}`\n"
+                    f"• **Total Records:** `{total_records:,}`\n"
+                    f"• **Size:** `{len(json_bytes) / 1024:.2f} KB`\n"
                     f"• **Guilds:** `{len(self.bot.guilds)}`"
                 ),
                 color=0x000000
             )
             await ctx.author.send(embed=embed, file=file)
-            await wait_msg.edit(content="✅ Sifet lik database snapshot f DMs!")
+            await wait_msg.edit(content="✅ Sifet lik database backup snapshot f DMs!")
         except Exception as e:
             await wait_msg.edit(content=f"❌ Tra mochkil f backup: `{e}`")
-        finally:
-            if os.path.exists(snapshot_path):
-                try:
-                    os.remove(snapshot_path)
-                except Exception:
-                    pass
-            if os.path.exists(zip_path):
-                try:
-                    os.remove(zip_path)
-                except Exception:
-                    pass
 
 
 async def setup(bot):
