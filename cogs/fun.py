@@ -3436,6 +3436,601 @@ def is_flag_guess_correct(guess: str, code: str, country_name: str) -> bool:
     return False
 
 
+# ============ PLAYING CARDS & TABLE RENDERING ============
+
+SUITS = ["♠️", "♥️", "♦️", "♣️"]
+RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+RANK_NAME_MAP = {
+    'A': 'ace', 'K': 'king', 'Q': 'queen', 'J': 'jack',
+    '10': '10', '9': '9', '8': '8', '7': '7', '6': '6',
+    '5': '5', '4': '4', '3': '3', '2': '2'
+}
+SUIT_NAME_MAP = {
+    '♠️': 'spades', '♥️': 'hearts', '♦️': 'diamonds', '♣️': 'clubs'
+}
+RANK_VALUES = {r: i + 2 for i, r in enumerate(RANKS)}
+
+def create_bj_deck():
+    deck = [{"rank": r, "suit": s} for s in SUITS for r in RANKS]
+    random.shuffle(deck)
+    return deck
+
+def calculate_bj_score(hand):
+    val = 0
+    aces = 0
+    for card in hand:
+        r = card["rank"]
+        if r in ["J", "Q", "K"]:
+            val += 10
+        elif r == "A":
+            aces += 1
+            val += 11
+        else:
+            val += int(r)
+    while val > 21 and aces > 0:
+        val -= 10
+        aces -= 1
+    return val
+
+def format_bj_card(card):
+    return f"`{card['rank']}{card['suit']}`"
+
+def render_bj_table(dealer_hand, player_hand, hide_dealer=True) -> io.BytesIO:
+    cw, ch = 110, 160
+    overlap = 40
+
+    d_len = len(dealer_hand)
+    p_len = len(player_hand)
+    max_cards = max(d_len, p_len, 2)
+    img_w = max(480, max_cards * (cw - overlap) + overlap + 60)
+    img_h = 390
+
+    canvas = Image.new('RGBA', (img_w, img_h), (16, 24, 18, 255))
+    draw = ImageDraw.Draw(canvas)
+
+    draw.rounded_rectangle([(10, 8), (img_w - 10, 185)], radius=10, fill=(22, 34, 26, 255), outline=(38, 62, 45, 255), width=2)
+    draw.rounded_rectangle([(10, 198), (img_w - 10, 380)], radius=10, fill=(22, 34, 26, 255), outline=(38, 62, 45, 255), width=2)
+
+    x_start = 30
+    y_d = 16
+    for idx, c in enumerate(dealer_hand):
+        x = x_start + idx * (cw - overlap)
+        if idx == 1 and hide_dealer:
+            card_back = Image.new('RGBA', (cw, ch), (28, 44, 70, 255))
+            b_draw = ImageDraw.Draw(card_back)
+            b_draw.rounded_rectangle([(0, 0), (cw-1, ch-1)], radius=6, fill=(30, 50, 85, 255), outline=(180, 150, 90, 255), width=3)
+            canvas.paste(card_back, (x, y_d), card_back)
+        else:
+            r = RANK_NAME_MAP.get(c['rank'], c['rank'].lower())
+            s = SUIT_NAME_MAP.get(c['suit'], 'spades')
+            path = os.path.join('assets', 'playing_cards', f'{r}_of_{s}.png')
+            if os.path.exists(path):
+                c_img = Image.open(path).convert('RGBA').resize((cw, ch), Image.Resampling.LANCZOS)
+                canvas.paste(c_img, (x, y_d), c_img)
+
+    y_p = 208
+    for idx, c in enumerate(player_hand):
+        x = x_start + idx * (cw - overlap)
+        r = RANK_NAME_MAP.get(c['rank'], c['rank'].lower())
+        s = SUIT_NAME_MAP.get(c['suit'], 'spades')
+        path = os.path.join('assets', 'playing_cards', f'{r}_of_{s}.png')
+        if os.path.exists(path):
+            c_img = Image.open(path).convert('RGBA').resize((cw, ch), Image.Resampling.LANCZOS)
+            canvas.paste(c_img, (x, y_p), c_img)
+
+    buf = io.BytesIO()
+    canvas.save(buf, format='PNG')
+    buf.seek(0)
+    return buf
+
+
+class BlackjackView(discord.ui.View):
+    def __init__(self, author: discord.Member, cog):
+        super().__init__(timeout=90)
+        self.author = author
+        self.cog = cog
+        self.deck = create_bj_deck()
+        self.player_hand = [self.deck.pop(), self.deck.pop()]
+        self.dealer_hand = [self.deck.pop(), self.deck.pop()]
+        self.game_over = False
+        self.message: Optional[discord.Message] = None
+
+    def get_render_file(self, dealer_reveal=False):
+        buf = render_bj_table(self.dealer_hand, self.player_hand, hide_dealer=not dealer_reveal)
+        return discord.File(buf, filename="blackjack_table.png")
+
+    def get_embed(self, dealer_reveal=False, outcome_text=""):
+        p_score = calculate_bj_score(self.player_hand)
+        d_score_str = f"**{calculate_bj_score(self.dealer_hand)}**" if dealer_reveal else "**?**"
+
+        embed = discord.Embed(
+            title="🃏 Blackjack Table",
+            color=0x000000
+        )
+        embed.add_field(name="🤖 Dealer", value=f"Score: {d_score_str}", inline=True)
+        embed.add_field(name=f"👤 {self.author.display_name}", value=f"Score: **{p_score}**", inline=True)
+        embed.set_image(url="attachment://blackjack_table.png")
+
+        if outcome_text:
+            embed.description = outcome_text
+
+        return embed
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            return False
+        return True
+
+    async def end_game(self, outcome_text: str, is_win: bool = False, interaction: Optional[discord.Interaction] = None):
+        self.game_over = True
+        for item in self.children:
+            item.disabled = True
+        if is_win and self.message and self.message.guild:
+            await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "blackjack")
+        embed = self.get_embed(dealer_reveal=True, outcome_text=outcome_text)
+        file = self.get_render_file(dealer_reveal=True)
+        if interaction and not interaction.response.is_done():
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[file])
+        elif self.message:
+            await self.message.edit(embed=embed, view=self, attachments=[file])
+        self.stop()
+
+    @discord.ui.button(label="Hit", style=discord.ButtonStyle.success, emoji="🃏")
+    async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.game_over:
+            return
+        self.player_hand.append(self.deck.pop())
+        p_score = calculate_bj_score(self.player_hand)
+
+        if p_score > 21:
+            await self.end_game(f"💥 **BUST!** Fat 21 (**{p_score}**). Khsrti!", is_win=False, interaction=interaction)
+        elif p_score == 21:
+            await self._dealer_turn(interaction, status_msg="🎯 **21!** Dealer ghadi yl3eb daba...")
+        else:
+            embed = self.get_embed()
+            file = self.get_render_file()
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[file])
+
+    @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger, emoji="🛑")
+    async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.game_over:
+            return
+        await self._dealer_turn(interaction)
+
+    @discord.ui.button(label="Double Down", style=discord.ButtonStyle.primary, emoji="⚡")
+    async def double_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.game_over:
+            return
+        self.player_hand.append(self.deck.pop())
+        p_score = calculate_bj_score(self.player_hand)
+        if p_score > 21:
+            await self.end_game(f"💥 **BUST!** Double down o fatet 21 (**{p_score}**). Khsrti!", is_win=False, interaction=interaction)
+        else:
+            await self._dealer_turn(interaction, status_msg="⚡ **Double Down!**")
+
+    async def _dealer_turn(self, interaction: Optional[discord.Interaction] = None, status_msg=""):
+        p_score = calculate_bj_score(self.player_hand)
+        while calculate_bj_score(self.dealer_hand) < 17:
+            self.dealer_hand.append(self.deck.pop())
+
+        d_score = calculate_bj_score(self.dealer_hand)
+
+        if d_score > 21:
+            outcome = f"🏆 **Dealer BUSTED ({d_score})!** Rbe7ti l game!"
+            is_win = True
+        elif p_score > d_score:
+            outcome = f"🏆 **Rbe7ti!** (**{p_score}** vs **{d_score}**)"
+            is_win = True
+        elif d_score > p_score:
+            outcome = f"💥 **Dealer rbe7!** (**{d_score}** vs **{p_score}**)"
+            is_win = False
+        else:
+            outcome = f"🤝 **Ta3adol (Push)!** (**{p_score}** vs **{d_score}**)"
+            is_win = False
+
+        if status_msg:
+            outcome = f"{status_msg}\n\n{outcome}"
+
+        await self.end_game(outcome, is_win=is_win, interaction=interaction)
+
+
+# ============ MINES GAMBLE VIEW ============
+
+class MinesGambleButton(discord.ui.Button):
+    def __init__(self, x: int, y: int):
+        super().__init__(style=discord.ButtonStyle.secondary, label="\u200b", row=y)
+        self.x = x
+        self.y = y
+
+    async def callback(self, interaction: discord.Interaction):
+        view: MinesGambleView = self.view
+        await view.process_click(interaction, self.x, self.y, self)
+
+
+class MinesGambleView(discord.ui.View):
+    def __init__(self, author: discord.Member, cog, bomb_count: int = 3):
+        super().__init__(timeout=120)
+        self.author = author
+        self.cog = cog
+        self.width = 5
+        self.height = 4  # 4 rows x 5 columns = 20 tiles + Cashout on row 4
+        self.bomb_count = bomb_count
+        self.revealed_count = 0
+        self.game_over = False
+        self.message: Optional[discord.Message] = None
+
+        all_cells = [(x, y) for y in range(self.height) for x in range(self.width)]
+        self.bombs = set(random.sample(all_cells, self.bomb_count))
+        self.buttons_map = {}
+
+        for y in range(self.height):
+            for x in range(self.width):
+                btn = MinesGambleButton(x, y)
+                self.add_item(btn)
+                self.buttons_map[(x, y)] = btn
+
+        self.multipliers = [
+            1.00, 1.15, 1.35, 1.62, 1.98, 2.45, 3.10, 4.00, 5.30, 7.20,
+            10.10, 14.80, 22.50, 36.00, 62.00, 120.00, 280.00
+        ]
+
+    def get_current_multiplier(self) -> float:
+        if self.revealed_count == 0:
+            return 1.00
+        idx = min(self.revealed_count, len(self.multipliers) - 1)
+        return self.multipliers[idx]
+
+    def get_next_multiplier(self) -> float:
+        idx = min(self.revealed_count + 1, len(self.multipliers) - 1)
+        return self.multipliers[idx]
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="💰 Cash Out (1.00x)", style=discord.ButtonStyle.success, row=4)
+    async def cashout_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.game_over:
+            return
+        if self.revealed_count == 0:
+            await interaction.response.send_message("⚠️ Khassek t uncoveri minimum 1 Gem 9bel ma dir Cash Out!", ephemeral=True)
+            return
+
+        mult = self.get_current_multiplier()
+        self.game_over = True
+        self._reveal_all_bombs()
+        for item in self.children:
+            item.disabled = True
+
+        if self.message and self.message.guild:
+            await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines")
+
+        embed = discord.Embed(
+            title="💰 CASHED OUT!",
+            description=f"🎉 **{self.author.mention}** rbe7ti b multiplier **{mult:.2f}x**!\nGems uncovered: **{self.revealed_count}** 💎",
+            color=0x000000
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+        self.stop()
+
+    def _reveal_all_bombs(self):
+        for (x, y), btn in self.buttons_map.items():
+            if (x, y) in self.bombs:
+                btn.emoji = "💣"
+                btn.label = None
+                btn.style = discord.ButtonStyle.danger
+            elif btn.style != discord.ButtonStyle.success:
+                btn.emoji = "💎"
+                btn.label = None
+                btn.style = discord.ButtonStyle.secondary
+
+    async def process_click(self, interaction: discord.Interaction, x: int, y: int, button: MinesGambleButton):
+        if self.game_over:
+            return
+
+        if (x, y) in self.bombs:
+            self.game_over = True
+            button.emoji = "💥"
+            button.label = None
+            button.style = discord.ButtonStyle.danger
+            self._reveal_all_bombs()
+            for item in self.children:
+                item.disabled = True
+
+            embed = discord.Embed(
+                title="💥 BOOM! Game Over",
+                description=f"💣 Tferg3at 3lik bomb f tile `({x+1}, {y+1})`! Khesrti.",
+                color=0x000000
+            )
+            await interaction.response.edit_message(embed=embed, view=self)
+            self.stop()
+            return
+
+        button.emoji = "💎"
+        button.label = None
+        button.style = discord.ButtonStyle.success
+        button.disabled = True
+        self.revealed_count += 1
+
+        mult = self.get_current_multiplier()
+        next_mult = self.get_next_multiplier()
+        self.cashout_button.label = f"💰 Cash Out ({mult:.2f}x)"
+
+        total_gems = (self.width * self.height) - self.bomb_count
+        if self.revealed_count >= total_gems:
+            self.game_over = True
+            self._reveal_all_bombs()
+            for item in self.children:
+                item.disabled = True
+            if self.message and self.message.guild:
+                await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines")
+            embed = discord.Embed(
+                title="🏆 FULL CLEAR! JACKPOT!",
+                description=f"👑 **{self.author.mention}** uncoveriti ga3 gems (**{total_gems}/{total_gems}**)! Multiplier: **{mult:.2f}x**!",
+                color=0x000000
+            )
+            await interaction.response.edit_message(embed=embed, view=self)
+            self.stop()
+            return
+
+        embed = discord.Embed(
+            title="💣 Mines Table",
+            description=(
+                f"💎 Gems: **{self.revealed_count}/{total_gems}**\n"
+                f"📈 Multiplier: **{mult:.2f}x** (Next: **{next_mult:.2f}x**)\n"
+                f"💣 Bombs: **{self.bomb_count}**"
+            ),
+            color=0x000000
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+
+
+# ============ HIGHER LOWER VIEW ============
+
+def draw_hl_card():
+    rank = random.choice(RANKS)
+    suit = random.choice(SUITS)
+    return {"rank": rank, "suit": suit, "value": RANK_VALUES[rank]}
+
+def get_hl_card_file(card) -> Optional[discord.File]:
+    r = RANK_NAME_MAP.get(card['rank'], card['rank'].lower())
+    s = SUIT_NAME_MAP.get(card['suit'], 'spades')
+    path = os.path.join('assets', 'playing_cards', f'{r}_of_{s}.png')
+    if os.path.exists(path):
+        return discord.File(path, filename="card.png")
+    return None
+
+
+class HigherLowerView(discord.ui.View):
+    def __init__(self, author: discord.Member, cog):
+        super().__init__(timeout=60)
+        self.author = author
+        self.cog = cog
+        self.current_card = draw_hl_card()
+        self.streak = 0
+        self.game_over = False
+        self.message: Optional[discord.Message] = None
+
+    def get_multiplier(self) -> float:
+        if self.streak == 0:
+            return 1.00
+        return round(1.0 + (self.streak * 0.45) + (self.streak ** 1.3) * 0.15, 2)
+
+    def get_embed(self, outcome_msg=""):
+        embed = discord.Embed(
+            title="🃏 Higher or Lower",
+            description=(
+                f"Lwr9a l7alia: **{self.current_card['rank']}{self.current_card['suit']}**\n\n"
+                f"🔥 Streak: **{self.streak}**\n"
+                f"📈 Multiplier: **{self.get_multiplier():.2f}x**"
+            ),
+            color=0x000000
+        )
+        embed.set_thumbnail(url="attachment://card.png")
+        if outcome_msg:
+            embed.add_field(name="Result", value=outcome_msg, inline=False)
+        return embed
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            return False
+        return True
+
+    async def process_guess(self, interaction: discord.Interaction, is_higher: bool):
+        if self.game_over:
+            return
+
+        next_card = draw_hl_card()
+        c_val = self.current_card["value"]
+        n_val = next_card["value"]
+
+        card_reveal_str = f"Jat: `{next_card['rank']}{next_card['suit']}` (Kant: `{self.current_card['rank']}{self.current_card['suit']}`)"
+
+        if n_val == c_val:
+            self.current_card = next_card
+            embed = self.get_embed(f"🤝 **Same Rank!** {card_reveal_str}. Streak b9a howa howa!")
+            file = get_hl_card_file(self.current_card)
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[file] if file else [])
+            return
+
+        won = (n_val > c_val) if is_higher else (n_val < c_val)
+
+        if won:
+            self.streak += 1
+            self.current_card = next_card
+            embed = self.get_embed(f"✅ **S7i7!** {card_reveal_str}!")
+            file = get_hl_card_file(self.current_card)
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[file] if file else [])
+        else:
+            self.game_over = True
+            for item in self.children:
+                item.disabled = True
+            embed = discord.Embed(
+                title="💥 Ghalat! Game Over",
+                description=f"❌ {card_reveal_str}.\nKhesrti! Final Streak: **{self.streak}**.",
+                color=0x000000
+            )
+            file = get_hl_card_file(next_card)
+            if file:
+                embed.set_thumbnail(url="attachment://card.png")
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[file] if file else [])
+            self.stop()
+
+    @discord.ui.button(label="Higher", style=discord.ButtonStyle.success, emoji="⬆️")
+    async def higher_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_guess(interaction, is_higher=True)
+
+    @discord.ui.button(label="Lower", style=discord.ButtonStyle.danger, emoji="⬇️")
+    async def lower_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_guess(interaction, is_higher=False)
+
+    @discord.ui.button(label="Cash Out", style=discord.ButtonStyle.primary, emoji="💰")
+    async def cashout(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.game_over:
+            return
+        if self.streak == 0:
+            await interaction.response.send_message("⚠️ Khassek tjawb minimum mra w7da s7i7a 9bel madir Cash Out!", ephemeral=True)
+            return
+
+        self.game_over = True
+        for item in self.children:
+            item.disabled = True
+        mult = self.get_multiplier()
+        if self.message and self.message.guild:
+            await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "higherlower")
+        embed = discord.Embed(
+            title="💰 CASHED OUT!",
+            description=f"🎉 **{self.author.mention}** rbe7ti b streak **{self.streak}** (Multiplier: **{mult:.2f}x**)!",
+            color=0x000000
+        )
+        file = get_hl_card_file(self.current_card)
+        if file:
+            embed.set_thumbnail(url="attachment://card.png")
+        await interaction.response.edit_message(embed=embed, view=self, attachments=[file] if file else [])
+        self.stop()
+
+
+# ============ COINFLIP & DICE VIEWS ============
+
+class CoinflipView(discord.ui.View):
+    def __init__(self, author: discord.Member, cog):
+        super().__init__(timeout=45)
+        self.author = author
+        self.cog = cog
+        self.message: Optional[discord.Message] = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            return False
+        return True
+
+    async def _flip(self, interaction: discord.Interaction, user_choice: str):
+        for item in self.children:
+            item.disabled = True
+
+        result = random.choice(["ras", "njma"])
+        result_label = "🪙 Ras (Heads)" if result == "ras" else "🪙 Njma (Tails)"
+        user_choice_label = "Ras (Heads)" if user_choice == "ras" else "Njma (Tails)"
+
+        won = (user_choice == result)
+        if won and self.message and self.message.guild:
+            await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "coinflip")
+
+        outcome_title = "🏆 Rbe7ti!" if won else "💥 Khesrti!"
+        embed = discord.Embed(
+            title=f"{outcome_title} — {result_label}",
+            description=f"Lkhtiyar dialek: **{user_choice_label}**\nNatija: **{result_label}**",
+            color=0x000000
+        )
+        coin_path = os.path.join("assets", "coin", "Heads.png" if result == "ras" else "Tails.png")
+        if os.path.exists(coin_path):
+            file = discord.File(coin_path, filename="coin.png")
+            embed.set_thumbnail(url="attachment://coin.png")
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[file])
+        else:
+            await interaction.response.edit_message(embed=embed, view=self)
+        self.stop()
+
+    @discord.ui.button(label="Ras (Heads)", style=discord.ButtonStyle.primary, emoji="🪙")
+    async def heads_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._flip(interaction, "ras")
+
+    @discord.ui.button(label="Njma (Tails)", style=discord.ButtonStyle.secondary, emoji="⭐")
+    async def tails_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._flip(interaction, "njma")
+
+
+def render_dice_composite(rolls) -> Optional[io.BytesIO]:
+    imgs = []
+    for r in rolls:
+        p = os.path.join('assets', 'dice', f'{r}.png')
+        if os.path.exists(p):
+            imgs.append(Image.open(p).convert('RGBA'))
+    if not imgs:
+        return None
+    if len(imgs) == 1:
+        buf = io.BytesIO()
+        imgs[0].save(buf, format='PNG')
+        buf.seek(0)
+        return buf
+
+    spacing = 15
+    w, h = imgs[0].size
+    total_w = len(imgs) * w + (len(imgs) - 1) * spacing
+    canvas = Image.new('RGBA', (total_w, h), (0, 0, 0, 0))
+    for i, im in enumerate(imgs):
+        canvas.paste(im, (i * (w + spacing), 0), im)
+    buf = io.BytesIO()
+    canvas.save(buf, format='PNG')
+    buf.seek(0)
+    return buf
+
+
+class DiceRollView(discord.ui.View):
+    def __init__(self, author: discord.Member, cog, num_dice: int = 1, num_sides: int = 6):
+        super().__init__(timeout=60)
+        self.author = author
+        self.cog = cog
+        self.num_dice = num_dice
+        self.num_sides = num_sides
+        self.message: Optional[discord.Message] = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Roll Again", style=discord.ButtonStyle.primary, emoji="🎲")
+    async def roll_again(self, interaction: discord.Interaction, button: discord.ui.Button):
+        rolls = [random.randint(1, self.num_sides) for _ in range(self.num_dice)]
+        total = sum(rolls)
+        rolls_str = " ".join(f"`{r}`" for r in rolls)
+
+        embed = discord.Embed(
+            title=f"🎲 Dice Roll ({self.num_dice}d{self.num_sides})",
+            description=f"**Rolls:** {rolls_str}\n**Total Sum:** `{total}`",
+            color=0x000000
+        )
+        if self.num_sides == 6:
+            buf = render_dice_composite(rolls)
+            if buf:
+                file = discord.File(buf, filename="dice.png")
+                if len(rolls) == 1:
+                    embed.set_thumbnail(url="attachment://dice.png")
+                else:
+                    embed.set_image(url="attachment://dice.png")
+                await interaction.response.edit_message(embed=embed, view=self, attachments=[file])
+                return
+
+        await interaction.response.edit_message(embed=embed, view=self, attachments=[])
+
+
 # ============ MAIN COG ============
 
 class Fun(commands.Cog):
@@ -4462,6 +5057,12 @@ class Fun(commands.Cog):
             "flags": ("🚩 Flags", ["flags", "flag", "rayat"]),
             "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
             "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
+            "blackjack": ("🃏 Blackjack", ["blackjack", "bj", "21"]),
+            "slots": ("🎰 Casino Slots", ["slots", "slot"]),
+            "mines": ("💣 Mines", ["mines", "gemhunt"]),
+            "roulette": ("🎡 Roulette", ["roulette", "roul", "wheel"]),
+            "higherlower": ("🃏 HigherLower", ["higherlower", "hl", "cardduel"]),
+            "coinflip": ("🪙 Coinflip", ["coinflip", "cf", "drhm", "drhem", "flip"]),
             "tictactoe": ("❌ TicTacToe", ["tictactoe", "ttt", "morpion"]),
             "connectfour": ("🔴 ConnectFour", ["connectfour", "c4", "connect4"]),
             "chess": ("♟️ Chess", ["chess", "playchess", "shitranj"]),
@@ -4551,6 +5152,306 @@ class Fun(commands.Cog):
             initial_embed = view.get_page()
             msg = await ctx.send(embed=initial_embed, view=view)
             view.message = msg
+
+    @commands.command(aliases=['cf', 'drhm'], help="Nlou7 derhem o chouf wach jak ras wla njma.")
+    async def coinflip(self, ctx, choice: Optional[str] = None):
+        if choice is None:
+            view = CoinflipView(ctx.author, self)
+            embed = discord.Embed(
+                title="🪙 Coinflip Table",
+                description="Khtar chno ghadi yji: **Ras (Heads)** wla **Njma (Tails)**?",
+                color=0x000000
+            )
+            msg = await ctx.send(embed=embed, view=view)
+            view.message = msg
+            return
+
+        c = choice.strip().lower()
+        if c in ["ras", "head", "heads", "h"]:
+            user_choice = "ras"
+        elif c in ["njma", "nejma", "tail", "tails", "t"]:
+            user_choice = "njma"
+        else:
+            await ctx.send("❌ Khtar `ras` (heads) wla `njma` (tails). Mital: `sat coinflip ras`")
+            return
+
+        flip_msg = await ctx.send("🪙 *Kanlou7 derhem f sma...*")
+        await asyncio.sleep(1.2)
+
+        result = random.choice(["ras", "njma"])
+        result_label = "🪙 Ras (Heads)" if result == "ras" else "🪙 Njma (Tails)"
+        user_choice_label = "Ras (Heads)" if user_choice == "ras" else "Njma (Tails)"
+
+        won = (user_choice == result)
+        if won and ctx.guild:
+            await self.record_minigame_win(ctx.guild.id, ctx.author.id, "coinflip")
+
+        outcome_title = "🏆 Rbe7ti!" if won else "💥 Khesrti!"
+        embed = discord.Embed(
+            title=f"{outcome_title} — {result_label}",
+            description=f"Lkhtiyar dialek: **{user_choice_label}**\nNatija: **{result_label}**",
+            color=0x000000
+        )
+        coin_path = os.path.join("assets", "coin", "Heads.png" if result == "ras" else "Tails.png")
+        if os.path.exists(coin_path):
+            file = discord.File(coin_path, filename="coin.png")
+            embed.set_thumbnail(url="attachment://coin.png")
+            await flip_msg.delete()
+            await ctx.send(embed=embed, file=file)
+        else:
+            await flip_msg.edit(content=None, embed=embed)
+
+    @commands.command(aliases=["nrd", "roll", "diceroll"], help="Lo7 dice o chouf ch7al jak (e.g. sat dice, sat dice 2, sat dice 20).")
+    async def dice(self, ctx, query: Optional[str] = "1"):
+        query = query.strip().lower()
+        num_dice = 1
+        num_sides = 6
+
+        try:
+            if "d" in query:
+                parts = query.split("d")
+                num_dice = int(parts[0]) if parts[0] else 1
+                num_sides = int(parts[1])
+            elif query.isdigit():
+                val = int(query)
+                if val <= 10:
+                    num_dice = val
+                    num_sides = 6
+                else:
+                    num_dice = 1
+                    num_sides = val
+        except Exception:
+            num_dice = 1
+            num_sides = 6
+
+        num_dice = max(1, min(num_dice, 6))
+        num_sides = max(2, min(num_sides, 100))
+
+        rolls = [random.randint(1, num_sides) for _ in range(num_dice)]
+        total = sum(rolls)
+        rolls_str = " ".join(f"`{r}`" for r in rolls)
+
+        embed = discord.Embed(
+            title=f"🎲 Dice Roll ({num_dice}d{num_sides})",
+            description=f"**Rolls:** {rolls_str}\n**Total Sum:** `{total}`",
+            color=0x000000
+        )
+        view = DiceRollView(ctx.author, self, num_dice=num_dice, num_sides=num_sides)
+
+        if num_sides == 6:
+            buf = render_dice_composite(rolls)
+            if buf:
+                file = discord.File(buf, filename="dice.png")
+                if len(rolls) == 1:
+                    embed.set_thumbnail(url="attachment://dice.png")
+                else:
+                    embed.set_image(url="attachment://dice.png")
+                msg = await ctx.send(embed=embed, view=view, file=file)
+                view.message = msg
+                return
+
+        msg = await ctx.send(embed=embed, view=view)
+        view.message = msg
+
+    @commands.command(aliases=["bj", "21"], help="Fout dealer blama tfout 21.")
+    async def blackjack(self, ctx):
+        view = BlackjackView(ctx.author, self)
+        initial_embed = view.get_embed()
+        initial_file = view.get_render_file()
+
+        p_score = calculate_bj_score(view.player_hand)
+        if p_score == 21:
+            d_score = calculate_bj_score(view.dealer_hand)
+            if d_score == 21:
+                initial_embed = view.get_embed(dealer_reveal=True, outcome_text="🤝 **Double Blackjack!** Ta3adol (Push)!")
+            else:
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, ctx.author.id, "blackjack")
+                initial_embed = view.get_embed(dealer_reveal=True, outcome_text="🏆 **NATURAL 21 BLACKJACK!** Rbe7ti l game!")
+            view.game_over = True
+            for item in view.children:
+                item.disabled = True
+            initial_file = view.get_render_file(dealer_reveal=True)
+
+        msg = await ctx.send(embed=initial_embed, view=view, file=initial_file)
+        view.message = msg
+
+    @commands.command(aliases=["slot", "machine"], help="L3eb casino slot machine.")
+    async def slots(self, ctx):
+        slot_items = ["💎", "7️⃣", "🔔", "🍇", "🍒", "🍋", "🍊"]
+        weights = [5, 10, 15, 20, 25, 30, 35]
+
+        spin_msg = await ctx.send(embed=discord.Embed(
+            title="🎰 Casino Slot Machine",
+            description="**[ 🔄 | 🔄 | 🔄 ]**\n*Spinning the reels...*",
+            color=0x000000
+        ))
+        await asyncio.sleep(1.2)
+
+        r1 = random.choices(slot_items, weights=weights, k=1)[0]
+        r2 = random.choices(slot_items, weights=weights, k=1)[0]
+        r3 = random.choices(slot_items, weights=weights, k=1)[0]
+
+        payout_mult = 0.0
+        outcome_title = "💥 Khesrti!"
+        if r1 == r2 == r3:
+            if r1 == "💎":
+                payout_mult = 15.0
+                outcome_title = "💎 JACKPOT! TRIPLE DIAMONDS! 💎"
+            elif r1 == "7️⃣":
+                payout_mult = 10.0
+                outcome_title = "🔥 MEGA WIN! TRIPLE SEVENS! 🔥"
+            elif r1 == "🔔":
+                payout_mult = 6.0
+                outcome_title = "🔔 SUPER WIN! TRIPLE BELLS! 🔔"
+            elif r1 == "🍇":
+                payout_mult = 5.0
+                outcome_title = "🍇 BIG WIN! TRIPLE GRAPES! 🍇"
+            elif r1 == "🍒":
+                payout_mult = 4.0
+                outcome_title = "🍒 WIN! TRIPLE CHERRIES! 🍒"
+            else:
+                payout_mult = 3.0
+                outcome_title = f"🏆 WIN! Triple {r1}!"
+        elif r1 == r2 or r2 == r3 or r1 == r3:
+            payout_mult = 1.5
+            outcome_title = "✨ Small Win! Double Match!"
+
+        if payout_mult > 0 and ctx.guild:
+            await self.record_minigame_win(ctx.guild.id, ctx.author.id, "slots")
+
+        embed = discord.Embed(
+            title="🎰 Casino Slot Machine",
+            description=(
+                f"**[ {r1} | {r2} | {r3} ]**\n\n"
+                f"**{outcome_title}**\n"
+                f"📈 Multiplier: **{payout_mult:.1f}x**"
+            ),
+            color=0x000000
+        )
+        await spin_msg.edit(embed=embed)
+
+    @commands.command(aliases=["gemhunt"], help="L9a gems o hreb 9bl matfrge3.")
+    async def mines(self, ctx, bombs: Optional[int] = 3):
+        bombs = max(1, min(bombs, 8))
+        view = MinesGambleView(ctx.author, self, bomb_count=bombs)
+        total_gems = (view.width * view.height) - bombs
+        embed = discord.Embed(
+            title="💣 Mines Table",
+            description=(
+                f"💎 Gems: **0/{total_gems}**\n"
+                f"📈 Multiplier: **1.00x** (Next: **1.15x**)\n"
+                f"💣 Bombs: **{bombs}**\n\n"
+                f"Click 3la ay tile bach t-uncoveriha!"
+            ),
+            color=0x000000
+        )
+        msg = await ctx.send(embed=embed, view=view)
+        view.message = msg
+
+    @commands.command(aliases=["roul", "wheel"], help="9emmer 3la loun wla ra9m.")
+    async def roulette(self, ctx, choice: Optional[str] = None):
+        red_nums = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
+        black_nums = {2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35}
+
+        if choice is None:
+            embed = discord.Embed(
+                title="🎡 European Roulette Table",
+                description=(
+                    "Khtar 3layach baghi t9emmer:\n"
+                    "• `red` / `black` (2x payout)\n"
+                    "• `even` / `odd` (2x payout)\n"
+                    "• `1-18` (Low) / `19-36` (High) (2x payout)\n"
+                    "• `green` / `0` (14x payout)\n"
+                    "• Number direct `0` - `36` (36x payout)\n\n"
+                    f"Mital: `{ctx.clean_prefix}roulette red` wla `{ctx.clean_prefix}roulette 7`"
+                ),
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
+        choice = choice.strip().lower()
+        spin_embed = discord.Embed(
+            title="🎡 European Roulette",
+            description="🔄 *Kandwwr roulette wheel...*",
+            color=0x000000
+        )
+        gif_path = os.path.join("assets", "roulette.gif")
+        if os.path.exists(gif_path):
+            file = discord.File(gif_path, filename="roulette.gif")
+            spin_embed.set_image(url="attachment://roulette.gif")
+            spin_msg = await ctx.send(embed=spin_embed, file=file)
+        else:
+            spin_embed.set_image(url="https://media.giphy.com/media/26uf2JHNV0Tq3NPYs/giphy.gif")
+            spin_msg = await ctx.send(embed=spin_embed)
+
+        await asyncio.sleep(7.0)
+
+        landed_num = random.randint(0, 36)
+        if landed_num == 0:
+            color_emoji = "🟢"
+            color_name = "green"
+        elif landed_num in red_nums:
+            color_emoji = "🔴"
+            color_name = "red"
+        else:
+            color_emoji = "⚫"
+            color_name = "black"
+
+        won = False
+        mult = 0.0
+
+        if choice in ["red", "r", "7mer", "7mr"] and color_name == "red":
+            won = True
+            mult = 2.0
+        elif choice in ["black", "b", "k7el", "k7l", "k7al"] and color_name == "black":
+            won = True
+            mult = 2.0
+        elif choice in ["green", "g", "khder", "0", "zero"] and color_name == "green":
+            won = True
+            mult = 14.0
+        elif choice in ["even", "zawji"] and landed_num > 0 and landed_num % 2 == 0:
+            won = True
+            mult = 2.0
+        elif choice in ["odd", "fardi"] and landed_num % 2 != 0:
+            won = True
+            mult = 2.0
+        elif choice in ["1-18", "low", "fo9"] and 1 <= landed_num <= 18:
+            won = True
+            mult = 2.0
+        elif choice in ["19-36", "high", "ta7t", "t7t"] and 19 <= landed_num <= 36:
+            won = True
+            mult = 2.0
+        elif choice.isdigit() and int(choice) == landed_num:
+            won = True
+            mult = 36.0
+
+        if won and ctx.guild:
+            await self.record_minigame_win(ctx.guild.id, ctx.author.id, "roulette")
+
+        outcome_title = f"🏆 Rbe7ti! ({mult:.0f}x)" if won else "💥 Khesrti!"
+        embed = discord.Embed(
+            title=f"🎡 Roulette: {color_emoji} **{landed_num} ({color_name.upper()})**",
+            description=(
+                f"Lkhtiyar dialek: `{choice}`\n"
+                f"Landed on: {color_emoji} `{landed_num}`\n\n"
+                f"**{outcome_title}**"
+            ),
+            color=0x000000
+        )
+        await spin_msg.edit(embed=embed, attachments=[])
+
+    @commands.command(aliases=["hl"], help="9emmer wach lwr9a jaya ghadi tkoun Higher wla Lower.")
+    async def higherlower(self, ctx):
+        view = HigherLowerView(ctx.author, self)
+        embed = view.get_embed("9emmer lwr9a jaya wach **Higher ⬆️** wla **Lower ⬇️**!")
+        file = get_hl_card_file(view.current_card)
+        if file:
+            msg = await ctx.send(embed=embed, view=view, file=file)
+        else:
+            msg = await ctx.send(embed=embed, view=view)
+        view.message = msg
 
 
 async def setup(bot):

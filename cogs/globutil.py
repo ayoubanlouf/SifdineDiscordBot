@@ -570,22 +570,12 @@ class GlobUtil(commands.Cog):
         except Exception as e:
             await ctx.send(f"Mochkil: {e}")
 
-    @commands.command(aliases=['cf', 'drhm', 'drhem'], help="Nlou7 derhem o nchouf wach jat ras wla njema.")
-    async def coinflip(self, ctx):
-        choices = [':coin: njma (tails)', ':coin: ras (heads)']
-        await ctx.send(random.choice(choices))
-
     @commands.command(aliases=["ye", "kanye", "quote"], help="Quotes ta3 Kanye West.")
     async def kanyequote(self, ctx):
         async with self.bot.session.get("https://api.kanye.rest/") as resp:
             quote_data = await resp.json()
         quote = quote_data["quote"]
         await ctx.send(f'"{quote}" -Kanye West')
-
-    @commands.command(aliases=["nrd"], help="Lo7 dice o chouf ch7al jak.")
-    async def dice(self, ctx):
-        dice = [1, 2, 3, 4, 5 , 6]
-        await ctx.send(f"🎲 {random.choice(dice)}")
 
     @commands.command(help="N3tik informations 3la ay anime.")
     async def anime(self, ctx, *, anime: str):
