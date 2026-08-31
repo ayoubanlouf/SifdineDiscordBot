@@ -3971,7 +3971,7 @@ class MinesGambleView(discord.ui.View):
         self.cog = cog
         self.bet = bet
         self.width = 4
-        self.height = 5  # 5 rows x 4 columns = 20 tiles + Cashout on row 4
+        self.height = 4  # 4 rows x 4 columns = 16 tiles on rows 0-3, Row 4 dedicated to Cash Out
         self.bomb_count = bomb_count
         self.revealed_count = 0
         self.game_over = False
@@ -3988,8 +3988,8 @@ class MinesGambleView(discord.ui.View):
                 self.buttons_map[(x, y)] = btn
 
         self.multipliers = [
-            1.00, 1.08, 1.18, 1.30, 1.45, 1.65, 1.90, 2.25, 2.70, 3.30,
-            4.10, 5.20, 6.80, 9.20, 13.00, 19.50, 32.00, 60.00
+            1.00, 1.15, 1.35, 1.62, 1.98, 2.45, 3.10, 4.00, 5.30, 7.20,
+            10.10, 14.80, 22.50, 36.00
         ]
 
     def get_current_multiplier(self) -> float:
@@ -6191,7 +6191,7 @@ class Fun(commands.Cog):
         view = MinesGambleView(ctx.author, self, bomb_count=bombs, bet=bet)
         total_gems = (view.width * view.height) - bombs
         embed = discord.Embed(
-            title="💣 Mines Table (4x5)",
+            title="💣 Mines Table",
             description=(
                 f"💎 Gems: **0/{total_gems}**\n"
                 f"📈 Multiplier: **1.00x** (Next: **{view.get_next_multiplier():.2f}x**)\n"

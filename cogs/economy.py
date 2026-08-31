@@ -348,7 +348,7 @@ class Economy(commands.Cog):
         msg = await ctx.send(embed=embed, view=view)
         view.message = msg
 
-    @commands.command(name="wallets", aliases=["bstams", "topwallets", "richest", "baltop"], help="Chouf top 50 richest members f had server.")
+    @commands.command(name="wallets", aliases=["bsatm", "bzatm", "rich", "richest"], help="Chouf top 50 richest members f had server.")
     @not_fraud()
     async def wallets(self, ctx: commands.Context):
         if not ctx.guild:
