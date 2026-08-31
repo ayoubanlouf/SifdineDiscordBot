@@ -312,8 +312,8 @@ bot = commands.Bot(
     intents=intents,
     help_command=ModernHelpCommand(),
     case_insensitive=True,
-    chunk_guilds_at_startup=False,
-    member_cache_flags=discord.MemberCacheFlags(voice=True, joined=False),
+    chunk_guilds_at_startup=True,
+    member_cache_flags=discord.MemberCacheFlags.all(),
     max_messages=15
 )
 bot.Paginator = Paginator

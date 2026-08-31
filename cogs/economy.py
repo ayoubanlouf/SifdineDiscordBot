@@ -13,28 +13,51 @@ def format_tad(amount: int) -> str:
     return f"**{amount:,}** {TAD_EMOJI} TAD"
 
 
-def parse_bet_argument(*args) -> Tuple[Optional[int], list]:
+def parse_bet_argument(*args, user_balance: Optional[int] = None) -> Tuple[Optional[int], list]:
     """
-    Intelligently parses explicit bet setters (e.g. bet:500, b:250, 100tad, 500t, bet=300, 500drhm)
-    out of variable command arguments so betting never conflicts with other integer inputs.
+    Intelligently parses explicit or natural bet inputs:
+    - Keywords: 'all', 'max', 'half', '50%'
+    - Magnitudes: '5k' (5000), '2.5k' (2500), '1m' (1000000)
+    - Prefixes/Suffixes: 'bet:500', 'b:250', '500tad', '500drhm'
+    - Plain numbers: 500
     """
     remaining = []
     found_bet = None
+    max_cap = 50000  # Safe cap for 'all' / 'max'
 
-    pattern = re.compile(r"^(?:bet:|b:|bet=)?([0-9]+)(?:tad|t|drhm|drhem)?$", re.IGNORECASE)
+    pattern = re.compile(r"^(?:bet:|b:|bet=)?([0-9]+(?:\.[0-9]+)?)(k|m|mil|kilo|tad|t|drhm|drhem)?$", re.IGNORECASE)
 
     for arg in args:
         if arg is None:
             continue
-        s_arg = str(arg).strip()
-        
-        # Check explicit prefixes/suffixes or standalone positive int if startswith prefix
-        if (s_arg.lower().startswith(("bet:", "b:", "bet=")) or 
-            s_arg.lower().endswith(("tad", "t", "drhm", "drhem"))):
+        s_arg = str(arg).strip().lower()
+
+        if found_bet is None:
+            # Check keywords
+            if s_arg in ("all", "max", "kolchi"):
+                if user_balance is not None and user_balance > 0:
+                    found_bet = min(user_balance, max_cap)
+                else:
+                    found_bet = max_cap
+                continue
+            elif s_arg in ("half", "ness", "50%"):
+                if user_balance is not None and user_balance > 0:
+                    found_bet = max(1, user_balance // 2)
+                continue
+
             m = pattern.match(s_arg)
-            if m and found_bet is None:
+            if m:
+                num_str, suffix = m.group(1), m.group(2)
                 try:
-                    val = int(m.group(1))
+                    num_val = float(num_str)
+                    if suffix:
+                        suffix = suffix.lower()
+                        if suffix in ("k", "kilo"):
+                            num_val *= 1000
+                        elif suffix in ("m", "mil"):
+                            num_val *= 1000000
+                    
+                    val = int(round(num_val))
                     if val > 0:
                         found_bet = val
                         continue
@@ -83,6 +106,49 @@ def not_fraud():
     return commands.check(predicate)
 
 
+class WalletsPaginationView(discord.ui.View):
+    def __init__(self, author: discord.Member, pages: list):
+        super().__init__(timeout=90)
+        self.author = author
+        self.pages = pages
+        self.current_page = 0
+        self.message: Optional[discord.Message] = None
+        self._update_buttons()
+
+    def _update_buttons(self):
+        self.prev_button.disabled = (self.current_page == 0)
+        self.next_button.disabled = (self.current_page >= len(self.pages) - 1)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l menu machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="◀️", style=discord.ButtonStyle.primary)
+    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._update_buttons()
+            await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+    @discord.ui.button(label="▶️", style=discord.ButtonStyle.primary)
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self._update_buttons()
+            await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+
+
 class WalletView(discord.ui.View):
     def __init__(self, target_user: discord.Member, author: discord.Member, cog):
         super().__init__(timeout=90)
@@ -119,7 +185,14 @@ class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    def is_bot_user(self, user_id: int) -> bool:
+        u = self.bot.get_user(user_id)
+        return bool(u and u.bot)
+
     async def get_wallet(self, user_id: int) -> dict:
+        if self.is_bot_user(user_id):
+            return {"balance": 0, "total_activity_rewards": 0, "is_fraud": 1}
+
         async with self.bot.db.execute(
             "SELECT balance, total_activity_rewards, is_fraud FROM user_wallets WHERE user_id = ?",
             (user_id,)
@@ -129,7 +202,8 @@ class Economy(commands.Cog):
         if row is None:
             # Default starting balance = 100 TAD
             await self.bot.db.execute(
-                "INSERT INTO user_wallets (user_id, balance, total_activity_rewards, is_fraud) VALUES (?, 100, 0, 0)",
+                "INSERT INTO user_wallets (user_id, balance, total_activity_rewards, is_fraud) VALUES (?, 100, 0, 0) "
+                "ON CONFLICT(user_id) DO NOTHING",
                 (user_id,)
             )
             await self.bot.db.commit()
@@ -142,20 +216,22 @@ class Economy(commands.Cog):
         }
 
     async def add_balance(self, user_id: int, amount: int, context: str = "") -> int:
-        if amount <= 0:
-            return 0
-        w = await self.get_wallet(user_id)
-        new_bal = w["balance"] + amount
+        if amount <= 0 or self.is_bot_user(user_id):
+            w = await self.get_wallet(user_id)
+            return w["balance"]
+
+        # Ensure user wallet exists
+        await self.get_wallet(user_id)
 
         if context == "chat_activity":
             await self.bot.db.execute(
-                "UPDATE user_wallets SET balance = ?, total_activity_rewards = total_activity_rewards + ? WHERE user_id = ?",
-                (new_bal, amount, user_id)
+                "UPDATE user_wallets SET balance = balance + ?, total_activity_rewards = total_activity_rewards + ? WHERE user_id = ?",
+                (amount, amount, user_id)
             )
         else:
             await self.bot.db.execute(
-                "UPDATE user_wallets SET balance = ? WHERE user_id = ?",
-                (new_bal, user_id)
+                "UPDATE user_wallets SET balance = balance + ? WHERE user_id = ?",
+                (amount, user_id)
             )
 
         if context and context != "chat_activity":
@@ -166,20 +242,42 @@ class Economy(commands.Cog):
             )
 
         await self.bot.db.commit()
-        return new_bal
+        w = await self.get_wallet(user_id)
+        return w["balance"]
+
+    async def apply_tax_and_add_balance(self, user_id: int, gross_payout: int, context: str = "") -> Tuple[int, int]:
+        """
+        Applies 5% anti-inflation tax burn on gross payout, adds after-tax balance, and logs transaction.
+        Returns: (net_payout, tax_burned)
+        """
+        if gross_payout <= 0 or self.is_bot_user(user_id):
+            return 0, 0
+
+        tax = round(gross_payout * TAX_RATE)
+        net_payout = gross_payout - tax
+        if net_payout <= 0 and gross_payout > 0:
+            net_payout = 1
+            tax = gross_payout - 1
+
+        ctx_desc = f"{context} (Tax: {tax} TAD)" if context else f"Payout (Tax: {tax} TAD)"
+        await self.add_balance(user_id, net_payout, context=ctx_desc)
+        return net_payout, tax
 
     async def deduct_balance(self, user_id: int, amount: int, context: str = "") -> bool:
         if amount <= 0:
             return True
-        w = await self.get_wallet(user_id)
-        if w["balance"] < amount:
+        if self.is_bot_user(user_id):
             return False
 
-        new_bal = w["balance"] - amount
-        await self.bot.db.execute(
-            "UPDATE user_wallets SET balance = ? WHERE user_id = ?",
-            (new_bal, user_id)
+        # Ensure user wallet exists
+        await self.get_wallet(user_id)
+
+        cursor = await self.bot.db.execute(
+            "UPDATE user_wallets SET balance = balance - ? WHERE user_id = ? AND balance >= ? AND is_fraud = 0",
+            (amount, user_id, amount)
         )
+        if not cursor or (hasattr(cursor, "rowcount") and cursor.rowcount <= 0):
+            return False
 
         if context:
             now_ts = int(time.time())
@@ -250,6 +348,62 @@ class Economy(commands.Cog):
         msg = await ctx.send(embed=embed, view=view)
         view.message = msg
 
+    @commands.command(name="wallets", aliases=["bstams", "topwallets", "richest", "baltop"], help="Chouf top 50 richest members f had server.")
+    @not_fraud()
+    async def wallets(self, ctx: commands.Context):
+        if not ctx.guild:
+            await ctx.send("❌ Had l command khedama ghir f servers.")
+            return
+
+        guild_member_ids = [m.id for m in ctx.guild.members if not m.bot]
+        if not guild_member_ids:
+            await ctx.send("❌ Ta wa7d ma l9inah f server.")
+            return
+
+        placeholders = ",".join("?" for _ in guild_member_ids)
+        query = f"""
+            SELECT user_id, balance FROM user_wallets 
+            WHERE user_id IN ({placeholders}) AND is_fraud = 0 
+            ORDER BY balance DESC LIMIT 50
+        """
+        async with self.bot.db.execute(query, tuple(guild_member_ids)) as cursor:
+            rows = await cursor.fetchall()
+
+        if not rows:
+            await ctx.send("❌ Ba9i ta 7sab ma mssjl f l'economy.")
+            return
+
+        chunk_size = 10
+        chunks = [rows[i:i + chunk_size] for i in range(0, len(rows), chunk_size)]
+        total_pages = len(chunks)
+
+        embeds = []
+        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+
+        for page_idx, chunk in enumerate(chunks):
+            embed = discord.Embed(
+                title=f"💰 Richest Wallets — {ctx.guild.name}",
+                color=0x000000
+            )
+            if ctx.guild.icon:
+                embed.set_thumbnail(url=ctx.guild.icon.url)
+
+            lines = []
+            for rank_offset, (u_id, bal) in enumerate(chunk):
+                overall_rank = page_idx * chunk_size + rank_offset + 1
+                rank_badge = medals.get(overall_rank, f"`#{overall_rank}`")
+                member = ctx.guild.get_member(u_id)
+                member_str = member.mention if member else f"<@{u_id}>"
+                lines.append(f"{rank_badge} {member_str} • {format_tad(bal)}")
+
+            embed.description = "\n".join(lines)
+            embed.set_footer(text=f"Page {page_idx + 1}/{total_pages} • Top {len(rows)} members")
+            embeds.append(embed)
+
+        view = WalletsPaginationView(ctx.author, embeds)
+        msg = await ctx.send(embed=embeds[0], view=view)
+        view.message = msg
+
     @commands.command(name="daily", aliases=["day"], help="Ched chy baraka tlflous kola nhar.")
     @not_fraud()
     async def daily(self, ctx: commands.Context):
@@ -272,7 +426,7 @@ class Economy(commands.Cog):
             hours = remaining // 3600
             mins = (remaining % 3600) // 60
             await ctx.send(embed=discord.Embed(
-                description=f"⏳ Mazal ma wsslat 24h 3la daily ta3k!\nRje3 mn hna **{hours}h {mins}m**.",
+                description=f"⏳ Mazal ma dazt 24h 3la daily ta3k!\nRje3 mn hna **{hours}h {mins}m**.",
                 color=0x000000
             ))
             return

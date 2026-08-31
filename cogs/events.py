@@ -43,7 +43,16 @@ class Events(commands.Cog):
             return
         channel_id = self.log_channels.get(guild.id)
         if not channel_id:
-            return
+            try:
+                async with self.bot.db.execute("SELECT channel_id FROM guild_logs WHERE guild_id = ?", (guild.id,)) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        channel_id = row[0]
+                        self.log_channels[guild.id] = channel_id
+                    else:
+                        return
+            except Exception:
+                return
 
         channel = guild.get_channel(channel_id) or self.bot.get_channel(channel_id)
         if not channel:
@@ -73,21 +82,21 @@ class Events(commands.Cog):
                 await self.bot.db.commit()
             except Exception:
                 pass
-        except (discord.Forbidden, discord.HTTPException, Exception):
-            pass
+        except (discord.Forbidden, discord.HTTPException, Exception) as e:
+            print(f"[send_log error in guild {guild.id}]: {e}")
 
     async def get_audit_entry(self, guild: Optional[discord.Guild], action: discord.AuditLogAction, target_id: Optional[int] = None):
         if not guild or not guild.me.guild_permissions.view_audit_log:
             return None
         try:
-            await asyncio.sleep(0.6)
-            async for entry in guild.audit_logs(limit=6, action=action):
-                if (datetime.now(timezone.utc) - entry.created_at).total_seconds() <= 15:
+            await asyncio.sleep(0.5)
+            async for entry in guild.audit_logs(limit=8, action=action):
+                if abs((datetime.now(timezone.utc) - entry.created_at).total_seconds()) <= 60:
                     entry_target_id = getattr(entry.target, "id", None)
                     if target_id is None or entry_target_id == target_id:
                         return entry
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[get_audit_entry error]: {e}")
         return None
 
     @commands.Cog.listener()
@@ -470,7 +479,6 @@ class Events(commands.Cog):
         else:
             return
 
-    # ============ LOGGING EVENT LISTENERS ============
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
@@ -519,28 +527,36 @@ class Events(commands.Cog):
         embed.set_author(name=member.name, icon_url=member.display_avatar.url)
         await self.send_log(member.guild, embed)
 
-    @commands.Cog.listener()
-    async def on_member_remove(self, member: discord.Member):
+    async def _handle_member_removal(self, guild: discord.Guild, user: discord.User | discord.Member, joined_at=None, roles=None):
+        remove_key = (guild.id, user.id, int(time.time() // 6))
+        if hasattr(self, "_recent_removes") and remove_key in self._recent_removes:
+            return
+        if not hasattr(self, "_recent_removes"):
+            self._recent_removes = set()
+        self._recent_removes.add(remove_key)
+        if len(self._recent_removes) > 100:
+            self._recent_removes.clear()
+
         # If member was banned, on_member_ban will handle the log cleanly
-        ban_entry = await self.get_audit_entry(member.guild, discord.AuditLogAction.ban, target_id=member.id)
+        ban_entry = await self.get_audit_entry(guild, discord.AuditLogAction.ban, target_id=user.id)
         if ban_entry:
             return
 
-        joined_ts = int(member.joined_at.timestamp()) if member.joined_at else None
+        joined_ts = int(joined_at.timestamp()) if joined_at else None
         joined_str = f"<t:{joined_ts}:R>" if joined_ts else "Unknown"
-        roles_list = [r.mention for r in member.roles if r.name != "@everyone"]
+        roles_list = [r.mention for r in roles if r.name != "@everyone"] if roles else []
         roles_str = ", ".join(roles_list) if roles_list else "None"
 
         # Check if member was kicked by a moderator
-        audit_entry = await self.get_audit_entry(member.guild, discord.AuditLogAction.kick, target_id=member.id)
+        audit_entry = await self.get_audit_entry(guild, discord.AuditLogAction.kick, target_id=user.id)
         if audit_entry:
             mod_str = f"\n**Kicked By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)"
             reason_str = f"\n**Reason:** `{audit_entry.reason}`" if audit_entry.reason else ""
             title = "👢 Member Kicked"
-            desc = f"**User:** `{member.name}` ({member.mention})\n**ID:** `{member.id}`{mod_str}{reason_str}\n**Roles:** {roles_str}\n**Member Count:** `{member.guild.member_count}`"
+            desc = f"**User:** `{user.name}` ({user.mention})\n**ID:** `{user.id}`{mod_str}{reason_str}\n**Roles:** {roles_str}\n**Member Count:** `{guild.member_count}`"
         else:
             title = "📤 Member Left"
-            desc = f"**User:** `{member.name}` ({member.mention})\n**ID:** `{member.id}`\n**Joined:** {joined_str}\n**Roles:** {roles_str}\n**Member Count:** `{member.guild.member_count}`"
+            desc = f"**User:** `{user.name}` ({user.mention})\n**ID:** `{user.id}`\n**Joined:** {joined_str}\n**Roles:** {roles_str}\n**Member Count:** `{guild.member_count}`"
 
         embed = discord.Embed(
             title=title,
@@ -548,9 +564,20 @@ class Events(commands.Cog):
             color=0x000000,
             timestamp=datetime.now(timezone.utc)
         )
-        embed.set_thumbnail(url=member.display_avatar.url)
-        embed.set_author(name=member.name, icon_url=member.display_avatar.url)
-        await self.send_log(member.guild, embed)
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.set_author(name=user.name, icon_url=user.display_avatar.url)
+        await self.send_log(guild, embed)
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member):
+        await self._handle_member_removal(member.guild, member, joined_at=member.joined_at, roles=member.roles)
+
+    @commands.Cog.listener()
+    async def on_raw_member_remove(self, payload: discord.RawMemberRemoveEvent):
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+        await self._handle_member_removal(guild, payload.user)
 
     @commands.Cog.listener()
     async def on_member_ban(self, guild: discord.Guild, user: discord.User | discord.Member):
@@ -584,23 +611,23 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
-        # Server Avatar Update
-        if before.guild_avatar != after.guild_avatar:
+        # Server Avatar or Display Avatar Update
+        if before.guild_avatar != after.guild_avatar or before.avatar != after.avatar:
             embed = discord.Embed(
-                title="🖼️ Server Avatar Updated",
-                description=f"{after.mention} (`{after.id}`) bedel server avatar dialo.",
+                title="🖼️ Member Avatar Updated",
+                description=f"{after.mention} (`{after.id}`) bedel avatar dialo.",
                 color=0x000000,
                 timestamp=datetime.now(timezone.utc)
             )
-            old_url = before.guild_avatar.url if before.guild_avatar else before.display_avatar.url
-            new_url = after.guild_avatar.url if after.guild_avatar else after.display_avatar.url
+            old_url = before.display_avatar.url
+            new_url = after.display_avatar.url
             embed.add_field(name="Links", value=f"[Old Avatar]({old_url}) ➔ [New Avatar]({new_url})", inline=False)
             embed.set_thumbnail(url=old_url)
             embed.set_image(url=new_url)
             embed.set_author(name=after.name, icon_url=new_url)
             await self.send_log(after.guild, embed)
 
-        # Nickname update
+        # Global Name / Username / Nickname Update
         if before.nick != after.nick:
             audit_entry = await self.get_audit_entry(after.guild, discord.AuditLogAction.member_update, target_id=after.id)
             mod_str = f"\n**Changed By:** {audit_entry.user.mention}" if audit_entry and audit_entry.user and audit_entry.user.id != after.id else ""
@@ -610,6 +637,16 @@ class Events(commands.Cog):
                 color=0x000000,
                 timestamp=datetime.now(timezone.utc)
             )
+            embed.set_author(name=after.name, icon_url=after.display_avatar.url)
+            await self.send_log(after.guild, embed)
+        elif before.name != after.name or before.global_name != after.global_name:
+            embed = discord.Embed(
+                title="👤 User Profile Updated",
+                description=f"{after.mention} (`{after.id}`)\n**Old Username:** `{before.name}` ({before.global_name or 'None'})\n**New Username:** `{after.name}` ({after.global_name or 'None'})",
+                color=0x000000,
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.set_thumbnail(url=after.display_avatar.url)
             embed.set_author(name=after.name, icon_url=after.display_avatar.url)
             await self.send_log(after.guild, embed)
 
