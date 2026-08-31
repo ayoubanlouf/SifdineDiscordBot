@@ -2091,11 +2091,13 @@ class MinesweeperSoloView(View):
 
 
 class MinesweeperMultiplayerView(View):
-    def __init__(self, p1: discord.Member, p2: discord.Member, cog: Optional["Fun"] = None):
+    def __init__(self, p1: discord.Member, p2: discord.Member, cog: Optional["Fun"] = None, bet: int = 0):
         super().__init__(timeout=180)
         self.p1 = p1
         self.p2 = p2
         self.cog = cog
+        self.bet = bet
+        self.payout_handled = False
         self.scores = {p1.id: 0, p2.id: 0}
         self.current_turn = p1
         self.game_over = False
@@ -2143,19 +2145,42 @@ class MinesweeperMultiplayerView(View):
                     count += 1
         return count
 
-    def get_content(self) -> str:
+    async def handle_economy_payout(self, winner: Optional[Union[discord.Member, discord.User]] = None, is_draw: bool = False) -> str:
+        if self.payout_handled or self.bet <= 0:
+            return ""
+        self.payout_handled = True
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+        if not economy_cog:
+            return ""
+
+        winner_payout, tax_burned, draw_split = calculate_pvp_payout(self.bet)
+        if is_draw or winner is None:
+            await economy_cog.add_balance(self.p1.id, draw_split, context="Minesweeper Draw Refund")
+            await economy_cog.add_balance(self.p2.id, draw_split, context="Minesweeper Draw Refund")
+            return f"\n\n🤝 **Draw Refund:** {format_tad(draw_split)} returned to each player."
+        else:
+            loser = self.p2 if winner.id == self.p1.id else self.p1
+            await economy_cog.add_balance(winner.id, winner_payout, context=f"Minesweeper Wager Win vs {loser.name}")
+            net_profit = winner_payout - self.bet
+            if self.message and self.message.guild:
+                await self.cog.record_minigame_win(self.message.guild.id, winner.id, "minesweeper", earnings=net_profit)
+            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 5% tax burned)!"
+
+    def get_content(self, extra: str = "") -> str:
         if self.game_over:
             p1_score = self.scores[self.p1.id]
             p2_score = self.scores[self.p2.id]
             if p1_score > p2_score:
-                return f"🏆 **{self.p1.mention} rbe7!**\nNatija: 🔴 **{self.p1.display_name}** ({p1_score}) vs 🔵 **{self.p2.display_name}** ({p2_score})"
+                res = f"🏆 **{self.p1.mention} rbe7!**\nNatija: 🔴 **{self.p1.display_name}** ({p1_score}) vs 🔵 **{self.p2.display_name}** ({p2_score})"
             elif p2_score > p1_score:
-                return f"🏆 **{self.p2.mention} rbe7!**\nNatija: 🔵 **{self.p2.display_name}** ({p2_score}) vs 🔴 **{self.p1.display_name}** ({p1_score})"
+                res = f"🏆 **{self.p2.mention} rbe7!**\nNatija: 🔵 **{self.p2.display_name}** ({p2_score}) vs 🔴 **{self.p1.display_name}** ({p1_score})"
             else:
-                return f"🤝 **Ta3adol!**\nNatija: **{p1_score}-{p2_score}**"
+                res = f"🤝 **Ta3adol!**\nNatija: **{p1_score}-{p2_score}**"
+            return res + extra
         else:
+            wager_str = f" | 💰 Pot: {format_tad(self.bet*2)}" if self.bet > 0 else ""
             return (
-                f"💣 **Minesweeper (Hunt the Mines)** — 9leb 3la l mines bach tjib points!\n"
+                f"💣 **Minesweeper (Hunt the Mines)** — 9leb 3la l mines bach tjib points!{wager_str}\n"
                 f"🔴 **{self.p1.display_name}**: {self.scores[self.p1.id]} pts | 🔵 **{self.p2.display_name}**: {self.scores[self.p2.id]} pts\n\n"
                 f"⚡ Dor dial: {self.current_turn.mention}"
             )
@@ -2177,8 +2202,7 @@ class MinesweeperMultiplayerView(View):
         self.game_over = True
         self.stop()
 
-        if self.cog and interaction.guild:
-            asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winner.id, "minesweeper"))
+        eco_msg = await self.handle_economy_payout(winner=winner)
 
         for item in self.children:
             item.disabled = True
@@ -2188,7 +2212,7 @@ class MinesweeperMultiplayerView(View):
 
         content = (
             f"🚪 **{quitter.mention}** khrej mn lgame (Forfeit).\n"
-            f"🏆 **{winner.mention}** rbe7 lmatch!"
+            f"🏆 **{winner.mention}** rbe7 lmatch!{eco_msg}"
         )
         await interaction.response.edit_message(content=content, view=self)
 
@@ -2227,17 +2251,17 @@ class MinesweeperMultiplayerView(View):
             if p1_score >= 3 or p2_score >= 3 or self.found_mines == self.mine_count:
                 self.game_over = True
                 self.stop()
-                if self.cog and interaction.guild:
-                    if p1_score > p2_score:
-                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.p1.id, "minesweeper"))
-                    elif p2_score > p1_score:
-                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.p2.id, "minesweeper"))
+                winner = self.p1 if p1_score > p2_score else (self.p2 if p2_score > p1_score else None)
+                is_draw = p1_score == p2_score
+                eco_msg = await self.handle_economy_payout(winner=winner, is_draw=is_draw)
                 # Disable all other buttons and show remaining mines
                 for item in self.children:
                     item.disabled = True
                     if isinstance(item, MinesweeperButton) and (item.x, item.y) in self.mines and not item.disabled:
                         item.label = "💣"
                         item.style = discord.ButtonStyle.secondary
+                await interaction.response.edit_message(content=self.get_content(extra=eco_msg), view=self)
+                return
             else:
                 # Bonus turn, so turn does not change!
                 pass
@@ -2260,21 +2284,23 @@ class MinesweeperMultiplayerView(View):
     async def on_timeout(self):
         if not self.game_over:
             self.game_over = True
+            eco_msg = await self.handle_economy_payout(is_draw=True)
             for item in self.children:
                 item.disabled = True
             if self.message:
                 try:
-                    await self.message.edit(content="⏰ **Sala lwe9t!** Match sala bsbab inactivity.", view=self)
+                    await self.message.edit(content=f"⏰ **Sala lwe9t!** Match sala bsbab inactivity.{eco_msg}", view=self)
                 except Exception:
                     pass
 
 
 class MinesweeperChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun"):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
+        self.bet = bet
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -2284,10 +2310,24 @@ class MinesweeperChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if self.bet > 0:
+            economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+            if economy_cog:
+                w1 = await economy_cog.get_wallet(self.challenger.id)
+                w2 = await economy_cog.get_wallet(self.challenged.id)
+                if w1["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ {self.challenger.mention} ma b9ach 3ndo kafi dial flous!", ephemeral=True)
+                    return
+                if w2["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ Flousk makafyinch ({format_tad(w2['balance'])} / {format_tad(self.bet)})!", ephemeral=True)
+                    return
+                await economy_cog.deduct_balance(self.challenger.id, self.bet, context=f"Minesweeper Wager Stake ({self.bet} TAD)")
+                await economy_cog.deduct_balance(self.challenged.id, self.bet, context=f"Minesweeper Wager Stake ({self.bet} TAD)")
+
         self.accepted = True
         self.stop()
 
-        game_view = MinesweeperMultiplayerView(self.challenger, self.challenged, cog=self.cog)
+        game_view = MinesweeperMultiplayerView(self.challenger, self.challenged, cog=self.cog, bet=self.bet)
         await interaction.response.edit_message(content=game_view.get_content(), view=game_view)
         game_view.message = interaction.message
 
@@ -2512,12 +2552,14 @@ class WordleDMView(View):
 
 
 class WordleMultiplayerMatch:
-    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Fun"):
+    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Fun", bet: int = 0):
         self.p1 = p1
         self.p2 = p2
         self.channel_msg = channel_msg
         self.secret = secret.lower()
         self.cog = cog
+        self.bet = bet
+        self.payout_handled = False
         
         self.guesses = {p1.id: [], p2.id: []}
         self.finished = {p1.id: False, p2.id: False}
@@ -2527,11 +2569,32 @@ class WordleMultiplayerMatch:
         self.dm_views: dict[int, WordleDMView] = {}
         self.game_over = False
 
+    async def handle_economy_payout(self, winner: Optional[Union[discord.Member, discord.User]] = None, is_draw: bool = False) -> str:
+        if self.payout_handled or self.bet <= 0:
+            return ""
+        self.payout_handled = True
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+        if not economy_cog:
+            return ""
+
+        winner_payout, tax_burned, draw_split = calculate_pvp_payout(self.bet)
+        if is_draw or winner is None:
+            await economy_cog.add_balance(self.p1.id, draw_split, context="Wordle Draw Refund")
+            await economy_cog.add_balance(self.p2.id, draw_split, context="Wordle Draw Refund")
+            return f"\n\n🤝 **Draw Refund:** {format_tad(draw_split)} returned to each player."
+        else:
+            loser = self.p2 if winner.id == self.p1.id else self.p1
+            await economy_cog.add_balance(winner.id, winner_payout, context=f"Wordle Wager Win vs {loser.name}")
+            net_profit = winner_payout - self.bet
+            if self.channel_msg and self.channel_msg.guild:
+                await self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "wordle", earnings=net_profit)
+            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 5% tax burned)!"
+
     def get_player_dm_content(self, player: discord.Member) -> str:
         opponent = self.p2 if player == self.p1 else self.p1
         p_guesses = self.guesses[player.id]
         lines = [
-            f"🟩 **Wordle 1v1 Match** vs **{opponent.display_name}**",
+            f"🟩 **Wordle 1v1 Match** vs **{opponent.display_name}**" + (f" (💰 Pot: {format_tad(self.bet*2)})" if self.bet > 0 else ""),
             f"Attempts: **{len(p_guesses)}/6**\n"
         ]
 
@@ -2560,14 +2623,15 @@ class WordleMultiplayerMatch:
 
         return "\n".join(lines)
 
-    def get_spectator_content(self) -> str:
+    def get_spectator_content(self, eco_msg: str = "") -> str:
         p1_guesses = self.guesses[self.p1.id]
         p2_guesses = self.guesses[self.p2.id]
 
         if not self.game_over:
             # Spoiler Protected View (Only squares, no letters!)
+            wager_str = f" | 💰 Pot: {format_tad(self.bet*2)}" if self.bet > 0 else ""
             lines = [
-                "🟩 **Wordle 1v1 Match (Live Spectator)**",
+                f"🟩 **Wordle 1v1 Match (Live Spectator)**{wager_str}",
                 f"⚔️ **{self.p1.display_name}** vs **{self.p2.display_name}**\n"
             ]
 
@@ -2619,7 +2683,7 @@ class WordleMultiplayerMatch:
             else:
                 winner_text = "🤝 **Ta3adol!** Ta wa7d ma l9a lkelma."
 
-            lines.append(f"{winner_text}\nLkelma kant: **{self.secret.upper()}**\n")
+            lines.append(f"{winner_text}\nLkelma kant: **{self.secret.upper()}**{eco_msg}\n")
 
             # Reveal P1
             lines.append(f"🔴 **{self.p1.display_name}** ({p1_count}/6)" + (" (🚪 Khrej)" if p1_quit else "") + ":")
@@ -2672,29 +2736,28 @@ class WordleMultiplayerMatch:
                     item.disabled = True
         await interaction.response.edit_message(content=self.get_player_dm_content(player), view=view)
 
-        try:
-            await self.channel_msg.edit(content=self.get_spectator_content())
-        except Exception as e:
-            print(f"[spectator update error]: {e}")
-
+        eco_msg = ""
         if self.game_over:
-            if self.cog and self.channel_msg and self.channel_msg.guild:
-                winner = None
-                if p1_quit and not p2_quit:
-                    winner = self.p2
-                elif p2_quit and not p1_quit:
+            winner = None
+            is_draw = False
+            if p1_quit and not p2_quit:
+                winner = self.p2
+            elif p2_quit and not p1_quit:
+                winner = self.p1
+            elif p1_won and not p2_won:
+                winner = self.p1
+            elif p2_won and not p1_won:
+                winner = self.p2
+            elif p1_won and p2_won:
+                if p1_guesses_len < p2_guesses_len:
                     winner = self.p1
-                elif p1_won and not p2_won:
-                    winner = self.p1
-                elif p2_won and not p1_won:
+                elif p2_guesses_len < p1_guesses_len:
                     winner = self.p2
-                elif p1_won and p2_won:
-                    if p1_guesses_len < p2_guesses_len:
-                        winner = self.p1
-                    elif p2_guesses_len < p1_guesses_len:
-                        winner = self.p2
-                if winner:
-                    asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "wordle"))
+                else:
+                    is_draw = True
+            else:
+                is_draw = True
+            eco_msg = await self.handle_economy_payout(winner=winner, is_draw=is_draw)
 
             for p in (self.p1, self.p2):
                 dm_msg = self.dm_messages.get(p.id)
@@ -2706,6 +2769,11 @@ class WordleMultiplayerMatch:
                         await dm_msg.edit(content=self.get_player_dm_content(p), view=dm_v)
                     except Exception:
                         pass
+
+        try:
+            await self.channel_msg.edit(content=self.get_spectator_content(eco_msg=eco_msg))
+        except Exception as e:
+            print(f"[spectator update error]: {e}")
 
     async def player_quit(self, interaction: discord.Interaction, player: discord.Member):
         if self.game_over or self.quit[player.id]:
@@ -2727,8 +2795,20 @@ class WordleMultiplayerMatch:
 
         await interaction.response.edit_message(content=self.get_player_dm_content(player), view=view)
 
+        eco_msg = ""
+        if self.game_over:
+            winner = None
+            is_draw = False
+            if self.quit[self.p1.id] and self.quit[self.p2.id]:
+                is_draw = True
+            elif self.quit[self.p1.id]:
+                winner = self.p2
+            elif self.quit[self.p2.id]:
+                winner = self.p1
+            eco_msg = await self.handle_economy_payout(winner=winner, is_draw=is_draw)
+
         try:
-            await self.channel_msg.edit(content=self.get_spectator_content())
+            await self.channel_msg.edit(content=self.get_spectator_content(eco_msg=eco_msg))
         except Exception as e:
             print(f"[spectator update on quit error]: {e}")
 
@@ -2743,19 +2823,14 @@ class WordleMultiplayerMatch:
             except Exception:
                 pass
 
-        if self.game_over and self.cog and self.channel_msg and self.channel_msg.guild:
-            if self.quit[self.p1.id] and not self.quit[self.p2.id]:
-                asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, self.p2.id, "wordle"))
-            elif self.quit[self.p2.id] and not self.quit[self.p1.id]:
-                asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, self.p1.id, "wordle"))
-
 
 class WordleChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun"):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
+        self.bet = bet
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -2765,11 +2840,25 @@ class WordleChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if self.bet > 0:
+            economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+            if economy_cog:
+                w1 = await economy_cog.get_wallet(self.challenger.id)
+                w2 = await economy_cog.get_wallet(self.challenged.id)
+                if w1["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ {self.challenger.mention} ma b9ach 3ndo kafi dial flous!", ephemeral=True)
+                    return
+                if w2["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ Flousk makafyinch ({format_tad(w2['balance'])} / {format_tad(self.bet)})!", ephemeral=True)
+                    return
+                await economy_cog.deduct_balance(self.challenger.id, self.bet, context=f"Wordle Wager Stake ({self.bet} TAD)")
+                await economy_cog.deduct_balance(self.challenged.id, self.bet, context=f"Wordle Wager Stake ({self.bet} TAD)")
+
         self.accepted = True
         self.stop()
 
         secret = self.cog.get_wordle_secret()
-        match = WordleMultiplayerMatch(self.challenger, self.challenged, interaction.message, secret, self.cog)
+        match = WordleMultiplayerMatch(self.challenger, self.challenged, interaction.message, secret, self.cog, bet=self.bet)
 
         try:
             p1_view = WordleDMView(match, self.challenger)
@@ -2777,6 +2866,11 @@ class WordleChallengeView(View):
             match.dm_messages[self.challenger.id] = p1_msg
             match.dm_views[self.challenger.id] = p1_view
         except discord.Forbidden:
+            if self.bet > 0:
+                economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+                if economy_cog:
+                    await economy_cog.add_balance(self.challenger.id, self.bet, context="Wordle Refund (DM Closed)")
+                    await economy_cog.add_balance(self.challenged.id, self.bet, context="Wordle Refund (DM Closed)")
             await interaction.response.edit_message(
                 content=f"❌ Man9edch nsift DM l **{self.challenger.display_name}**. Khasso i7el DMs.",
                 view=None
@@ -2789,6 +2883,11 @@ class WordleChallengeView(View):
             match.dm_messages[self.challenged.id] = p2_msg
             match.dm_views[self.challenged.id] = p2_view
         except discord.Forbidden:
+            if self.bet > 0:
+                economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+                if economy_cog:
+                    await economy_cog.add_balance(self.challenger.id, self.bet, context="Wordle Refund (DM Closed)")
+                    await economy_cog.add_balance(self.challenged.id, self.bet, context="Wordle Refund (DM Closed)")
             await interaction.response.edit_message(
                 content=f"❌ Man9edch nsift DM l **{self.challenged.display_name}**. Khasso i7el DMs.",
                 view=None
@@ -3070,12 +3169,14 @@ class HangmanDMView(View):
 
 
 class HangmanMultiplayerMatch:
-    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Fun"):
+    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Fun", bet: int = 0):
         self.p1 = p1
         self.p2 = p2
         self.channel_msg = channel_msg
         self.secret = secret.lower()
         self.cog = cog
+        self.bet = bet
+        self.payout_handled = False
 
         self.guessed_letters = {p1.id: set(), p2.id: set()}
         self.wrong_guesses = {p1.id: [], p2.id: []}
@@ -3085,6 +3186,27 @@ class HangmanMultiplayerMatch:
         self.dm_messages: dict[int, discord.Message] = {}
         self.dm_views: dict[int, HangmanDMView] = {}
         self.game_over = False
+
+    async def handle_economy_payout(self, winner: Optional[Union[discord.Member, discord.User]] = None, is_draw: bool = False) -> str:
+        if self.payout_handled or self.bet <= 0:
+            return ""
+        self.payout_handled = True
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+        if not economy_cog:
+            return ""
+
+        winner_payout, tax_burned, draw_split = calculate_pvp_payout(self.bet)
+        if is_draw or winner is None:
+            await economy_cog.add_balance(self.p1.id, draw_split, context="Hangman Draw Refund")
+            await economy_cog.add_balance(self.p2.id, draw_split, context="Hangman Draw Refund")
+            return f"\n\n🤝 **Draw Refund:** {format_tad(draw_split)} returned to each player."
+        else:
+            loser = self.p2 if winner.id == self.p1.id else self.p1
+            await economy_cog.add_balance(winner.id, winner_payout, context=f"Hangman Wager Win vs {loser.name}")
+            net_profit = winner_payout - self.bet
+            if self.channel_msg and self.channel_msg.guild:
+                await self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "hangman", earnings=net_profit)
+            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 5% tax burned)!"
 
     def get_player_dm_content(self, player: discord.Member) -> str:
         opponent = self.p2 if player == self.p1 else self.p1
@@ -3098,7 +3220,7 @@ class HangmanMultiplayerMatch:
         wrong_str = ", ".join(w.upper() for w in p_wrong) if p_wrong else "None"
 
         lines = [
-            f"🪢 **Hangman 1v1 Match** vs **{opponent.display_name}**",
+            f"🪢 **Hangman 1v1 Match** vs **{opponent.display_name}**" + (f" (💰 Pot: {format_tad(self.bet*2)})" if self.bet > 0 else ""),
             f"Lives: **{lives}/6** ❤️ | Length: **{len(self.secret)} letters**",
             f"```{stage_ascii}```",
             f"Word: `{masked}`",
@@ -3121,7 +3243,7 @@ class HangmanMultiplayerMatch:
 
         return "\n".join(lines)
 
-    def get_spectator_content(self) -> str:
+    def get_spectator_content(self, eco_msg: str = "") -> str:
         p1_wrong = self.wrong_guesses[self.p1.id]
         p2_wrong = self.wrong_guesses[self.p2.id]
         p1_guessed = self.guessed_letters[self.p1.id]
@@ -3132,8 +3254,9 @@ class HangmanMultiplayerMatch:
 
         if not self.game_over:
             # Spoiler Protected View
+            wager_str = f" | 💰 Pot: {format_tad(self.bet*2)}" if self.bet > 0 else ""
             lines = [
-                "🪢 **Hangman 1v1 Match (Live Spectator)**",
+                f"🪢 **Hangman 1v1 Match (Live Spectator)**{wager_str}",
                 f"⚔️ **{self.p1.display_name}** vs **{self.p2.display_name}**\n"
             ]
 
@@ -3181,7 +3304,7 @@ class HangmanMultiplayerMatch:
             else:
                 winner_text = "💀 **Ta3adol!** Bjoj tchn9to."
 
-            lines.append(f"{winner_text}\nLkelma kant: **{self.secret.upper()}**\n")
+            lines.append(f"{winner_text}\nLkelma kant: **{self.secret.upper()}**{eco_msg}\n")
 
             # Reveal P1
             p1_masked = " ".join(ch.upper() if ch in p1_guessed else "\\_" for ch in self.secret)
@@ -3243,31 +3366,30 @@ class HangmanMultiplayerMatch:
                     item.disabled = True
         await interaction.response.edit_message(content=self.get_player_dm_content(player), view=view)
 
-        try:
-            await self.channel_msg.edit(content=self.get_spectator_content())
-        except Exception as e:
-            print(f"[hangman spectator update error]: {e}")
-
+        eco_msg = ""
         if self.game_over:
-            if self.cog and self.channel_msg and self.channel_msg.guild:
-                winner = None
-                p1_mistakes = len(self.wrong_guesses[self.p1.id])
-                p2_mistakes = len(self.wrong_guesses[self.p2.id])
-                if p1_quit and not p2_quit:
-                    winner = self.p2
-                elif p2_quit and not p1_quit:
+            winner = None
+            is_draw = False
+            p1_mistakes = len(self.wrong_guesses[self.p1.id])
+            p2_mistakes = len(self.wrong_guesses[self.p2.id])
+            if p1_quit and not p2_quit:
+                winner = self.p2
+            elif p2_quit and not p1_quit:
+                winner = self.p1
+            elif p1_won and not p2_won:
+                winner = self.p1
+            elif p2_won and not p1_won:
+                winner = self.p2
+            elif p1_won and p2_won:
+                if p1_mistakes < p2_mistakes:
                     winner = self.p1
-                elif p1_won and not p2_won:
-                    winner = self.p1
-                elif p2_won and not p1_won:
+                elif p2_mistakes < p1_mistakes:
                     winner = self.p2
-                elif p1_won and p2_won:
-                    if p1_mistakes < p2_mistakes:
-                        winner = self.p1
-                    elif p2_mistakes < p1_mistakes:
-                        winner = self.p2
-                if winner:
-                    asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "hangman"))
+                else:
+                    is_draw = True
+            else:
+                is_draw = True
+            eco_msg = await self.handle_economy_payout(winner=winner, is_draw=is_draw)
 
             for p in (self.p1, self.p2):
                 dm_msg = self.dm_messages.get(p.id)
@@ -3279,6 +3401,11 @@ class HangmanMultiplayerMatch:
                         await dm_msg.edit(content=self.get_player_dm_content(p), view=dm_v)
                     except Exception:
                         pass
+
+        try:
+            await self.channel_msg.edit(content=self.get_spectator_content(eco_msg=eco_msg))
+        except Exception as e:
+            print(f"[hangman spectator update error]: {e}")
 
     async def player_quit(self, interaction: discord.Interaction, player: discord.Member):
         if self.game_over or self.quit[player.id]:
@@ -3300,8 +3427,20 @@ class HangmanMultiplayerMatch:
 
         await interaction.response.edit_message(content=self.get_player_dm_content(player), view=view)
 
+        eco_msg = ""
+        if self.game_over:
+            winner = None
+            is_draw = False
+            if self.quit[self.p1.id] and self.quit[self.p2.id]:
+                is_draw = True
+            elif self.quit[self.p1.id]:
+                winner = self.p2
+            elif self.quit[self.p2.id]:
+                winner = self.p1
+            eco_msg = await self.handle_economy_payout(winner=winner, is_draw=is_draw)
+
         try:
-            await self.channel_msg.edit(content=self.get_spectator_content())
+            await self.channel_msg.edit(content=self.get_spectator_content(eco_msg=eco_msg))
         except Exception as e:
             print(f"[hangman spectator update on quit error]: {e}")
 
@@ -3316,19 +3455,14 @@ class HangmanMultiplayerMatch:
             except Exception:
                 pass
 
-        if self.game_over and self.cog and self.channel_msg and self.channel_msg.guild:
-            if self.quit[self.p1.id] and not self.quit[self.p2.id]:
-                asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, self.p2.id, "hangman"))
-            elif self.quit[self.p2.id] and not self.quit[self.p1.id]:
-                asyncio.create_task(self.cog.record_minigame_win(self.channel_msg.guild.id, self.p1.id, "hangman"))
-
 
 class HangmanChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun"):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
+        self.bet = bet
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -3338,11 +3472,25 @@ class HangmanChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if self.bet > 0:
+            economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+            if economy_cog:
+                w1 = await economy_cog.get_wallet(self.challenger.id)
+                w2 = await economy_cog.get_wallet(self.challenged.id)
+                if w1["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ {self.challenger.mention} ma b9ach 3ndo kafi dial flous!", ephemeral=True)
+                    return
+                if w2["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ Flousk makafyinch ({format_tad(w2['balance'])} / {format_tad(self.bet)})!", ephemeral=True)
+                    return
+                await economy_cog.deduct_balance(self.challenger.id, self.bet, context=f"Hangman Wager Stake ({self.bet} TAD)")
+                await economy_cog.deduct_balance(self.challenged.id, self.bet, context=f"Hangman Wager Stake ({self.bet} TAD)")
+
         self.accepted = True
         self.stop()
 
         secret = self.cog.get_hangman_secret()
-        match = HangmanMultiplayerMatch(self.challenger, self.challenged, interaction.message, secret, self.cog)
+        match = HangmanMultiplayerMatch(self.challenger, self.challenged, interaction.message, secret, self.cog, bet=self.bet)
 
         try:
             p1_view = HangmanDMView(match, self.challenger)
@@ -3350,6 +3498,11 @@ class HangmanChallengeView(View):
             match.dm_messages[self.challenger.id] = p1_msg
             match.dm_views[self.challenger.id] = p1_view
         except discord.Forbidden:
+            if self.bet > 0:
+                economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+                if economy_cog:
+                    await economy_cog.add_balance(self.challenger.id, self.bet, context="Hangman Refund (DM Closed)")
+                    await economy_cog.add_balance(self.challenged.id, self.bet, context="Hangman Refund (DM Closed)")
             await interaction.response.edit_message(
                 content=f"❌ Man9edch nsift DM l **{self.challenger.display_name}**. Khasso i7el DMs.",
                 view=None
@@ -3362,6 +3515,11 @@ class HangmanChallengeView(View):
             match.dm_messages[self.challenged.id] = p2_msg
             match.dm_views[self.challenged.id] = p2_view
         except discord.Forbidden:
+            if self.bet > 0:
+                economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+                if economy_cog:
+                    await economy_cog.add_balance(self.challenger.id, self.bet, context="Hangman Refund (DM Closed)")
+                    await economy_cog.add_balance(self.challenged.id, self.bet, context="Hangman Refund (DM Closed)")
             await interaction.response.edit_message(
                 content=f"❌ Man9edch nsift DM l **{self.challenged.display_name}**. Khasso i7el DMs.",
                 view=None
@@ -5435,9 +5593,10 @@ class Fun(commands.Cog):
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="minesweeper", aliases=["ms", "demineur"], help="Hreb mn l9nabl (solo) wla l9a l9nabl (1v1).")
+    @commands.command(name="minesweeper", aliases=["ms", "demineur"], help="Hreb mn l9nabl (solo) wla l9a l9nabl (1v1) (sat ms @user [bet:500]).")
     @not_fraud()
-    async def minesweeper(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+    async def minesweeper(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        bet, _ = parse_bet_argument(*args)
         if member is None:
             view = MinesweeperSoloView(ctx.author, cog=self)
             content = "💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **0/16**"
@@ -5453,18 +5612,41 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
-        challenge_view = MinesweeperChallengeView(ctx.author, member, self)
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w_author = await economy_cog.get_wallet(ctx.author.id)
+            w_target = await economy_cog.get_wallet(member.id)
+            if w_author["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w_author['balance'])}.")
+                return
+            if w_target["balance"] < bet:
+                await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
+                return
+
+        challenge_view = MinesweeperChallengeView(ctx.author, member, self, bet=bet or 0)
+        wager_str = ""
+        if bet and bet > 0:
+            w_payout, burned, d_split = calculate_pvp_payout(bet)
+            wager_str = (
+                f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
+                f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
+                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🤝 **Draw Split:** {format_tad(d_split)} each"
+            )
+
         content = (
             f"⚔️ **Challenge dial Minesweeper!**\n"
-            f"**{ctx.author.display_name}** vs {member.mention}\n\n"
+            f"**{ctx.author.display_name}** vs {member.mention}"
+            f"{wager_str}\n\n"
             f"{member.mention}, t accepti?"
         )
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="wordle", aliases=["klma", "kelma"], help="9edder kelmat bach tl9a lkelma fach kanfkr.")
+    @commands.command(name="wordle", aliases=["klma", "kelma"], help="9edder kelmat bach tl9a lkelma fach kanfkr (sat wordle @user [bet:500]).")
     @not_fraud()
-    async def wordle(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+    async def wordle(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        bet, _ = parse_bet_argument(*args)
         if member is None:
             secret = self.get_wordle_secret()
             view = WordleSoloView(ctx.author, secret, self)
@@ -5480,18 +5662,41 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
-        challenge_view = WordleChallengeView(ctx.author, member, self)
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w_author = await economy_cog.get_wallet(ctx.author.id)
+            w_target = await economy_cog.get_wallet(member.id)
+            if w_author["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w_author['balance'])}.")
+                return
+            if w_target["balance"] < bet:
+                await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
+                return
+
+        challenge_view = WordleChallengeView(ctx.author, member, self, bet=bet or 0)
+        wager_str = ""
+        if bet and bet > 0:
+            w_payout, burned, d_split = calculate_pvp_payout(bet)
+            wager_str = (
+                f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
+                f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
+                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🤝 **Draw Split:** {format_tad(d_split)} each"
+            )
+
         content = (
             f"⚔️ **Challenge dial Wordle 1v1!**\n"
-            f"**{ctx.author.display_name}** vs {member.mention}\n\n"
+            f"**{ctx.author.display_name}** vs {member.mention}"
+            f"{wager_str}\n\n"
             f"{member.mention}, t accepti?"
         )
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="hangman", aliases=["hm", "michna9a"], help="l9a lkelma 9bel matchne9.")
+    @commands.command(name="hangman", aliases=["hm", "michna9a"], help="l9a lkelma 9bel matchne9 (sat hangman @user [bet:500]).")
     @not_fraud()
-    async def hangman(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+    async def hangman(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        bet, _ = parse_bet_argument(*args)
         if member is None:
             secret = self.get_hangman_secret()
             view = HangmanSoloView(ctx.author, secret, self)
@@ -5507,10 +5712,32 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
-        challenge_view = HangmanChallengeView(ctx.author, member, self)
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w_author = await economy_cog.get_wallet(ctx.author.id)
+            w_target = await economy_cog.get_wallet(member.id)
+            if w_author["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w_author['balance'])}.")
+                return
+            if w_target["balance"] < bet:
+                await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
+                return
+
+        challenge_view = HangmanChallengeView(ctx.author, member, self, bet=bet or 0)
+        wager_str = ""
+        if bet and bet > 0:
+            w_payout, burned, d_split = calculate_pvp_payout(bet)
+            wager_str = (
+                f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
+                f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
+                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🤝 **Draw Split:** {format_tad(d_split)} each"
+            )
+
         content = (
             f"⚔️ **Challenge dial Hangman 1v1!**\n"
-            f"**{ctx.author.display_name}** vs {member.mention}\n\n"
+            f"**{ctx.author.display_name}** vs {member.mention}"
+            f"{wager_str}\n\n"
             f"{member.mention}, t accepti?"
         )
         message = await ctx.send(content=content, view=challenge_view)
