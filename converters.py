@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 
 
-class FuzzyMember(commands.Converter):
+class FuzzyMember(commands.Converter[discord.Member]):
     async def convert(self, ctx: commands.Context, argument: str) -> discord.Member:
         # 1. Exact resolution (IDs, @mentions, exact usernames/nicknames)
         try:

@@ -1,5 +1,7 @@
 import os
 import io
+import time
+import random
 import asyncio
 from typing import Optional
 import discord
@@ -14,6 +16,7 @@ class Events(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.log_channels: dict[int, int] = {}
+        self.chat_cooldowns: dict[int, float] = {}
 
         if not hasattr(bot, "snipe_cache"):
             bot.snipe_cache = {}
@@ -171,7 +174,7 @@ class Events(commands.Cog):
             if await cursor.fetchone():
                 async with self.bot.db.execute("DELETE FROM afk WHERE user_id = ?", (message.author.id,)):
                     await self.bot.db.commit()
-                await message.reply(f"3la slamto.", mention_author=False)
+                await message.reply("3la slamto.", mention_author=False)
 
         if message.mentions:
             for mentioned in message.mentions:
@@ -196,6 +199,23 @@ class Events(commands.Cog):
             if cleaned_content == cleaned_prefix:
                 await ctx.send("we")
                 return
+
+        # Passive Chat Activity Mining (Silent)
+        if not message.author.bot and message.guild and len(message.content.strip()) >= 5:
+            if not ctx.valid:
+                now_t = time.time()
+                last_t = self.chat_cooldowns.get(message.author.id, 0.0)
+                if now_t - last_t >= 60.0:
+                    self.chat_cooldowns[message.author.id] = now_t
+                    economy_cog = self.bot.get_cog("Economy")
+                    if economy_cog:
+                        try:
+                            w = await economy_cog.get_wallet(message.author.id)
+                            if w.get("is_fraud", 0) == 0:
+                                reward = random.randint(5, 15)
+                                await economy_cog.add_balance(message.author.id, reward, context="chat_activity")
+                        except Exception:
+                            pass
 
     @commands.Cog.listener()
     async def on_message_delete(self, message):
@@ -409,7 +429,6 @@ class Events(commands.Cog):
             return
 
         message = reaction.message
-        channel = message.channel
         emoji = reaction.emoji
 
         if emoji == "👀":

@@ -3,7 +3,6 @@ import itertools
 import os
 import sys
 import aiohttp
-import aiosqlite
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -344,10 +343,42 @@ async def setup_hook():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_prefixes (guild_id INTEGER PRIMARY KEY, prefix TEXT)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS blacklists (user_id INTEGER PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, earnings INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
+    try:
+        await bot.db.execute("ALTER TABLE minigame_leaderboard ADD COLUMN earnings INTEGER DEFAULT 0")
+    except Exception:
+        pass
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_logs (guild_id INTEGER PRIMARY KEY, channel_id INTEGER)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS reminders (user_id INTEGER, channel_id INTEGER, reminder_text TEXT, end_time INTEGER)")
     await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_reminders_end_time ON reminders (end_time)")
+    
+    # Economy Tables
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS user_wallets (
+            user_id INTEGER PRIMARY KEY,
+            balance INTEGER DEFAULT 100,
+            total_activity_rewards INTEGER DEFAULT 0,
+            is_fraud INTEGER DEFAULT 0
+        )
+    """)
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS economy_cooldowns (
+            user_id INTEGER PRIMARY KEY,
+            last_daily INTEGER DEFAULT 0,
+            daily_streak INTEGER DEFAULT 0,
+            last_weekly INTEGER DEFAULT 0
+        )
+    """)
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS user_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            amount INTEGER,
+            context TEXT,
+            created_at INTEGER
+        )
+    """)
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_transactions_user ON user_transactions (user_id, created_at DESC)")
     await bot.db.commit()
 
     await load_extensions()

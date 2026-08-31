@@ -7,7 +7,7 @@ import html
 import difflib
 import re
 import unicodedata
-from typing import Optional
+from typing import Optional, Union
 import discord
 from discord.ext import commands
 from discord.ui import Button, View, Modal, TextInput
@@ -15,10 +15,10 @@ from PIL import Image, ImageDraw, ImageFont
 import os
 import aiohttp
 import time
-import json
 
 from converters import FuzzyMember
 from assets.wordle_words import WORDLE_TARGETS
+from cogs.economy import parse_bet_argument, format_tad, TAD_EMOJI, calculate_pvp_payout, not_fraud
 
 # Compatibility shim for newer akinator API variations
 import akinator
@@ -30,8 +30,6 @@ if not hasattr(akinator.exceptions, 'CantGoBackAnyFurther'):
 
 from akinator import AsyncAkinator
 from akinator.async_client import AsyncClient
-from typing import Dict, Any
-import asyncio
 
 # Patch the AsyncClient.__handler to handle missing 'akitude' in API response
 _original_handler = AsyncClient._AsyncClient__handler
@@ -153,7 +151,7 @@ def render_chess_board(board: chess.Board) -> io.BytesIO:
 
 class MoveModal(Modal, title="La3eb Chess"):
     move_input = TextInput(
-        label="Dkhel l move dialek (SAN ola UCI)",
+        label="Dkhel l move ta3k (SAN ola UCI)",
         placeholder="mtalan e4, Nf3, Qh5, ola e2e4",
         required=True,
         max_length=10
@@ -167,22 +165,23 @@ class MoveModal(Modal, title="La3eb Chess"):
         await self.game_view.process_move_input(interaction, self.move_input.value.strip())
 
 class ChessView(View):
-    def __init__(self, player_white: FuzzyMember, player_black: FuzzyMember, is_bot_game: bool = False, cog: Optional["Fun"] = None):
+    def __init__(self, player_white: Union[discord.Member, discord.User], player_black: Union[discord.Member, discord.User], is_bot_game: bool = False, cog: Optional["Fun"] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_white = player_white
         self.player_black = player_black
         self.is_bot_game = is_bot_game
         self.cog = cog
+        self.bet = bet
         self.board = chess.Board()
         self.current_turn = player_white
         self.game_over = False
         self.message: Optional[discord.Message] = None
-        self.draw_offered_by: Optional[FuzzyMember] = None
+        self.draw_offered_by: Optional[Union[discord.Member, discord.User]] = None
 
     def get_current_color_symbol(self) -> str:
         return "⚪ (Byed)" if self.board.turn == chess.WHITE else "⚫ (Khel)"
 
-    def is_current_player(self, user: FuzzyMember) -> bool:
+    def is_current_player(self, user: Union[discord.Member, discord.User]) -> bool:
         return user == self.current_turn
 
     async def generate_board_file(self) -> discord.File:
@@ -531,7 +530,7 @@ class ChessView(View):
             self.game_over = True
             self.stop()
             embed = self.build_embed()
-            embed.description = f"🤝 **Match sala b ta3adol btifa9!**"
+            embed.description = "🤝 **Match sala b ta3adol btifa9!**"
             board_file = await self.generate_board_file()
             await interaction.response.edit_message(embed=embed, attachments=[board_file], view=None)
         else:
@@ -555,11 +554,12 @@ class ChessView(View):
         await interaction.response.edit_message(embed=embed, attachments=[board_file], view=None)
 
 class ChessChallengeView(View):
-    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember, cog: "Fun"):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
+        self.bet = bet
 
     @discord.ui.button(label="Qbel", style=discord.ButtonStyle.success, emoji="✅")
     async def accept(self, interaction: discord.Interaction, button: Button):
@@ -567,10 +567,24 @@ class ChessChallengeView(View):
             await interaction.response.send_message("Had l challenge mashi lik!", ephemeral=True)
             return
 
+        if self.bet > 0:
+            economy_cog = self.cog.bot.get_cog("Economy")
+            if economy_cog:
+                w1 = await economy_cog.get_wallet(self.challenger.id)
+                w2 = await economy_cog.get_wallet(self.challenged.id)
+                if w1["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ {self.challenger.mention} ma b9ach 3ndo kafi dial flous!", ephemeral=True)
+                    return
+                if w2["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ Flousk makafyinch ({format_tad(w2['balance'])} / {format_tad(self.bet)})!", ephemeral=True)
+                    return
+                await economy_cog.deduct_balance(self.challenger.id, self.bet, context=f"Chess Wager Stake ({self.bet} TAD)")
+                await economy_cog.deduct_balance(self.challenged.id, self.bet, context=f"Chess Wager Stake ({self.bet} TAD)")
+
         players = [self.challenger, self.challenged]
         random.shuffle(players)
         
-        game_view = ChessView(players[0], players[1], is_bot_game=False, cog=self.cog)
+        game_view = ChessView(players[0], players[1], is_bot_game=False, cog=self.cog, bet=self.bet)
         board_file = await game_view.generate_board_file()
         
         await interaction.response.edit_message(content=None, embed=game_view.build_embed(), attachments=[board_file], view=game_view)
@@ -614,12 +628,13 @@ class TicTacToeView(View):
         [(2, 0), (1, 1), (0, 2)],
     ]
 
-    def __init__(self, player_x: FuzzyMember, player_o: FuzzyMember, is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Fun"] = None):
+    def __init__(self, player_x: Union[discord.Member, discord.User], player_o: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Fun"] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_x = player_x
         self.player_o = player_o
         self.is_bot_game = is_bot_game
         self.cog = cog
+        self.bet = bet
         self.current_turn = player_x  # X always goes first
         self.turn_timeout = turn_timeout
         self.turn_start = time.time()
@@ -673,13 +688,24 @@ class TicTacToeView(View):
         if self.game_over:
             winner = self.check_winner()
             if winner == "draw":
+                if self.bet > 0:
+                    _, burned, d_split = calculate_pvp_payout(self.bet)
+                    return f"🤝 **Ta3adol!**\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)."
                 return "🤝 **Ta3adol!**"
             elif winner == "X":
+                if self.bet > 0:
+                    w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                elif self.is_bot_game:
+                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **80** {TAD_EMOJI} TAD!"
                 return f"🏆 **{self.player_x.mention} (X) rbe7!**"
             elif winner == "O":
                 if self.is_bot_game:
                     return "🤖 **Rb7tk!**"
                 else:
+                    if self.bet > 0:
+                        w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                        return f"🏆 **{self.player_o.mention} (O) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
                     return f"🏆 **{self.player_o.mention} (O) rbe7!**"
         else:
             current_player = "X" if self.current_turn == self.player_x else "O"
@@ -703,8 +729,16 @@ class TicTacToeView(View):
                     content = f"⏰ **{current_player.mention} sala lik lwe9t!** Rb7tk!"
                 else:
                     content = f"⏰ **{current_player.mention} sala lih lwe9t!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
-                    if self.cog and self.message and self.message.guild:
-                        asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, winner.id, "tictactoe"))
+                    if self.bet > 0 and self.cog:
+                        w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                        economy_cog = self.cog.bot.get_cog("Economy")
+                        if economy_cog:
+                            await economy_cog.add_balance(winner.id, w_payout, context="TTT Wager Win (Timeout)")
+                        if self.message and self.message.guild:
+                            await self.cog.record_minigame_win(self.message.guild.id, winner.id, "tictactoe", earnings=w_payout - self.bet)
+                        content += f"\n💰 Rbe7ti {format_tad(w_payout)}!"
+                    elif self.cog and self.message and self.message.guild:
+                        await self.cog.record_minigame_win(self.message.guild.id, winner.id, "tictactoe")
 
                 if self.message:
                     await self.message.edit(content=content, view=self)
@@ -768,22 +802,16 @@ class TicTacToeView(View):
             return best_score
 
     async def button_callback(self, interaction: discord.Interaction):
-        button_id = interaction.data.get("custom_id", "")
-        if not button_id.startswith("ttt_"):
-            return
+        custom_id = interaction.data.get("custom_id", "")
+        parts = custom_id.split("_")
+        x, y = int(parts[1]), int(parts[2])
 
-        try:
-            _, x_str, y_str = button_id.split("_")
-            x, y = int(x_str), int(y_str)
-        except (ValueError, IndexError):
+        if self.board[y][x] != " ":
+            await interaction.response.send_message("Dak lmorba3 3amr ._.", ephemeral=True)
             return
 
         if self.game_over:
             await interaction.response.send_message("Had lmatch deja sala..", ephemeral=True)
-            return
-
-        if self.board[y][x] != " ":
-            await interaction.response.send_message("Dak lmorba3 3amr ._.", ephemeral=True)
             return
 
         if interaction.user != self.current_turn:
@@ -807,9 +835,26 @@ class TicTacToeView(View):
         if winner:
             self.game_over = True
             self.disable_all_buttons()
-            if winner in ("X", "O") and not self.is_bot_game and self.cog and interaction.guild:
+            economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+
+            if winner == "draw" and self.bet > 0 and economy_cog:
+                _, burned, d_split = calculate_pvp_payout(self.bet)
+                asyncio.create_task(economy_cog.add_balance(self.player_x.id, d_split, context="TTT Draw Split"))
+                asyncio.create_task(economy_cog.add_balance(self.player_o.id, d_split, context="TTT Draw Split"))
+            elif winner in ("X", "O"):
                 winning_user = self.player_x if winner == "X" else self.player_o
-                asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe"))
+                if self.bet > 0 and economy_cog:
+                    w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                    asyncio.create_task(economy_cog.add_balance(winning_user.id, w_payout, context="TTT Wager Win"))
+                    if self.cog and interaction.guild:
+                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe", earnings=w_payout - self.bet))
+                elif self.is_bot_game and winner == "X" and economy_cog:
+                    asyncio.create_task(economy_cog.add_balance(self.player_x.id, 80, context="TTT Bot Win"))
+                    if self.cog and interaction.guild:
+                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.player_x.id, "tictactoe", earnings=80))
+                elif not self.is_bot_game and self.cog and interaction.guild:
+                    asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe"))
+
             await interaction.response.edit_message(content=self.get_status_content(), view=self)
             self.stop()
             return
@@ -839,11 +884,12 @@ class TicTacToeView(View):
 
 class ChallengeView(View):
     """View for the challenge acceptance phase."""
-    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember, cog: "Fun"):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
+        self.bet = bet
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -853,6 +899,20 @@ class ChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if self.bet > 0:
+            economy_cog = self.cog.bot.get_cog("Economy")
+            if economy_cog:
+                w1 = await economy_cog.get_wallet(self.challenger.id)
+                w2 = await economy_cog.get_wallet(self.challenged.id)
+                if w1["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ {self.challenger.mention} ma b9ach 3ndo kafi dial flous!", ephemeral=True)
+                    return
+                if w2["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ Flousk makafyinch ({format_tad(w2['balance'])} / {format_tad(self.bet)})!", ephemeral=True)
+                    return
+                await economy_cog.deduct_balance(self.challenger.id, self.bet, context=f"TTT Wager Stake ({self.bet} TAD)")
+                await economy_cog.deduct_balance(self.challenged.id, self.bet, context=f"TTT Wager Stake ({self.bet} TAD)")
+
         self.accepted = True
         self.stop()
 
@@ -860,7 +920,7 @@ class ChallengeView(View):
         random.shuffle(players)
         player_x, player_o = players[0], players[1]
 
-        game_view = TicTacToeView(player_x, player_o, is_bot_game=False, cog=self.cog)
+        game_view = TicTacToeView(player_x, player_o, is_bot_game=False, cog=self.cog, bet=self.bet)
         content = f"❌ **{player_x.mention}'s turn (X)**"
         await interaction.response.edit_message(content=content, view=game_view)
         game_view.message = interaction.message
@@ -910,12 +970,13 @@ class ConnectFourButton(Button):
 
 class ConnectFourView(View):
     """The main Connect Four game view."""
-    def __init__(self, player_red: FuzzyMember, player_yellow: FuzzyMember, is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Fun"] = None):
+    def __init__(self, player_red: Union[discord.Member, discord.User], player_yellow: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Fun"] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_red = player_red
         self.player_yellow = player_yellow
         self.is_bot_game = is_bot_game
         self.cog = cog
+        self.bet = bet
         self.current_turn = player_red  # Red (🔴) goes first
         self.turn_timeout = turn_timeout
         self.turn_start = time.time()
@@ -944,13 +1005,24 @@ class ConnectFourView(View):
         if self.game_over:
             winner = self.check_winner()
             if winner == "draw":
+                if self.bet > 0:
+                    _, burned, d_split = calculate_pvp_payout(self.bet)
+                    return f"{board_text}\n\n🤝 **Ta3adol!**\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)."
                 return f"{board_text}\n\n🤝 **Ta3adol!**"
             elif winner == "🔴":
+                if self.bet > 0:
+                    w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                elif self.is_bot_game:
+                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **100** {TAD_EMOJI} TAD!"
                 return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**"
             elif winner == "🟡":
                 if self.is_bot_game:
                     return f"{board_text}\n\n🤖 **Rb7tk!**"
                 else:
+                    if self.bet > 0:
+                        w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                        return f"{board_text}\n\n🏆 **{self.player_yellow.mention} (🟡) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
                     return f"{board_text}\n\n🏆 **{self.player_yellow.mention} (🟡) rbe7!**"
 
         current_symbol = "🔴" if self.current_turn == self.player_red else "🟡"
@@ -1140,8 +1212,16 @@ class ConnectFourView(View):
                     content = f"{self.render_board()}\n\n⏰ **{current_player.mention} sala lik lwe9t!** Rb7tk!"
                 else:
                     content = f"{self.render_board()}\n\n⏰ **{current_player.mention} sala lih lwe9t!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
-                    if self.cog and self.message and self.message.guild:
-                        asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, winner.id, "connectfour"))
+                    if self.bet > 0 and self.cog:
+                        w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                        economy_cog = self.cog.bot.get_cog("Economy")
+                        if economy_cog:
+                            await economy_cog.add_balance(winner.id, w_payout, context="ConnectFour Win (Timeout)")
+                        if self.message and self.message.guild:
+                            await self.cog.record_minigame_win(self.message.guild.id, winner.id, "connectfour", earnings=w_payout - self.bet)
+                        content += f"\n💰 Rbe7ti {format_tad(w_payout)}!"
+                    elif self.cog and self.message and self.message.guild:
+                        await self.cog.record_minigame_win(self.message.guild.id, winner.id, "connectfour")
 
                 if self.message:
                     await self.message.edit(content=content, view=self)
@@ -1182,9 +1262,26 @@ class ConnectFourView(View):
         if winner:
             self.game_over = True
             self.disable_all_buttons()
-            if winner in ("🔴", "🟡") and not self.is_bot_game and self.cog and interaction.guild:
+            economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+
+            if winner == "draw" and self.bet > 0 and economy_cog:
+                _, burned, d_split = calculate_pvp_payout(self.bet)
+                asyncio.create_task(economy_cog.add_balance(self.player_red.id, d_split, context="ConnectFour Draw Split"))
+                asyncio.create_task(economy_cog.add_balance(self.player_yellow.id, d_split, context="ConnectFour Draw Split"))
+            elif winner in ("🔴", "🟡"):
                 winning_user = self.player_red if winner == "🔴" else self.player_yellow
-                asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour"))
+                if self.bet > 0 and economy_cog:
+                    w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                    asyncio.create_task(economy_cog.add_balance(winning_user.id, w_payout, context="ConnectFour Wager Win"))
+                    if self.cog and interaction.guild:
+                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour", earnings=w_payout - self.bet))
+                elif self.is_bot_game and winner == "🔴" and economy_cog:
+                    asyncio.create_task(economy_cog.add_balance(self.player_red.id, 100, context="ConnectFour Bot Win"))
+                    if self.cog and interaction.guild:
+                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, self.player_red.id, "connectfour", earnings=100))
+                elif not self.is_bot_game and self.cog and interaction.guild:
+                    asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour"))
+
             await interaction.response.edit_message(content=self.get_status_content(), view=self)
             self.stop()
             return
@@ -1215,11 +1312,12 @@ class ConnectFourView(View):
 
 class ConnectFourChallengeView(View):
     """View for the Connect Four multiplayer challenge acceptance phase."""
-    def __init__(self, challenger: FuzzyMember, challenged: FuzzyMember, cog: "Fun"):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
+        self.bet = bet
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -1229,6 +1327,20 @@ class ConnectFourChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if self.bet > 0:
+            economy_cog = self.cog.bot.get_cog("Economy")
+            if economy_cog:
+                w1 = await economy_cog.get_wallet(self.challenger.id)
+                w2 = await economy_cog.get_wallet(self.challenged.id)
+                if w1["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ {self.challenger.mention} ma b9ach 3ndo kafi dial flous!", ephemeral=True)
+                    return
+                if w2["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ Flousk makafyinch ({format_tad(w2['balance'])} / {format_tad(self.bet)})!", ephemeral=True)
+                    return
+                await economy_cog.deduct_balance(self.challenger.id, self.bet, context=f"C4 Wager Stake ({self.bet} TAD)")
+                await economy_cog.deduct_balance(self.challenged.id, self.bet, context=f"C4 Wager Stake ({self.bet} TAD)")
+
         self.accepted = True
         self.stop()
 
@@ -1236,7 +1348,7 @@ class ConnectFourChallengeView(View):
         random.shuffle(players)
         player_red, player_yellow = players[0], players[1]
 
-        game_view = ConnectFourView(player_red, player_yellow, is_bot_game=False, cog=self.cog)
+        game_view = ConnectFourView(player_red, player_yellow, is_bot_game=False, cog=self.cog, bet=self.bet)
         content = game_view.get_status_content()
         await interaction.response.edit_message(content=content, view=game_view)
         game_view.message = interaction.message
@@ -1265,17 +1377,13 @@ class ConnectFourChallengeView(View):
                     await self.message.edit(content="⏰ Challenge ma t acceptach.", view=self)
                 except discord.NotFound:
                     pass
-
-
-# ============ AKINATOR UI CLASSES (Module Level) ============
-
 class AkinatorButton(Button):
     def __init__(self, label: str, custom_id: str, style: discord.ButtonStyle, emoji: str, row: int):
         super().__init__(label=label, custom_id=custom_id, style=style, emoji=emoji, row=row)
 
 
 class AkinatorView(View):
-    def __init__(self, player: FuzzyMember, timeout: float = 60.0):
+    def __init__(self, player: Union[discord.Member, discord.User], timeout: float = 60.0):
         super().__init__(timeout=timeout)
         self.player = player
         self.aki = AsyncAkinator()
@@ -1535,11 +1643,12 @@ class RPSBotView(View):
 
 
 class RPSMultiplayerView(View):
-    def __init__(self, player1: discord.Member, player2: discord.Member, cog: Optional["Fun"] = None):
+    def __init__(self, player1: discord.Member, player2: discord.Member, cog: Optional["Fun"] = None, bet: int = 0):
         super().__init__(timeout=60)
         self.player1 = player1
         self.player2 = player2
         self.cog = cog
+        self.bet = bet
         self.choices = {player1.id: None, player2.id: None}
         self.message: Optional[discord.Message] = None
 
@@ -1587,6 +1696,13 @@ class RPSMultiplayerView(View):
             if p1_choice == p2_choice:
                 title = "🤝 Ta3adol!"
                 outcome = f"{self.player1.mention} khtar **{emoji_map[p1_choice]}** o {self.player2.mention} khtar **{emoji_map[p2_choice]}**."
+                if self.bet > 0:
+                    _, burned, d_split = calculate_pvp_payout(self.bet)
+                    economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+                    if economy_cog:
+                        asyncio.create_task(economy_cog.add_balance(self.player1.id, d_split, context="RPS Draw Split"))
+                        asyncio.create_task(economy_cog.add_balance(self.player2.id, d_split, context="RPS Draw Split"))
+                    outcome += f"\n\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)."
             elif (p1_choice == "rock" and p2_choice == "scissors") or \
                  (p1_choice == "paper" and p2_choice == "rock") or \
                  (p1_choice == "scissors" and p2_choice == "paper"):
@@ -1598,8 +1714,17 @@ class RPSMultiplayerView(View):
                 outcome = f"{self.player1.mention} khtar **{emoji_map[p1_choice]}** o {self.player2.mention} khtar **{emoji_map[p2_choice]}**."
                 winning_user = self.player2
 
-            if winning_user and self.cog and interaction.guild:
-                asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors"))
+            if winning_user:
+                if self.bet > 0:
+                    w_payout, burned, _ = calculate_pvp_payout(self.bet)
+                    economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+                    if economy_cog:
+                        asyncio.create_task(economy_cog.add_balance(winning_user.id, w_payout, context="RPS Wager Win"))
+                    if self.cog and interaction.guild:
+                        asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors", earnings=w_payout - self.bet))
+                    outcome += f"\n\n💰 **{winning_user.mention}** rbe7 {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                elif self.cog and interaction.guild:
+                    asyncio.create_task(self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors"))
 
             embed = discord.Embed(
                 title=title,
@@ -1638,11 +1763,12 @@ class RPSMultiplayerView(View):
 
 
 class RPSChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun"):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
+        self.bet = bet
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -1652,10 +1778,24 @@ class RPSChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if self.bet > 0:
+            economy_cog = self.cog.bot.get_cog("Economy")
+            if economy_cog:
+                w1 = await economy_cog.get_wallet(self.challenger.id)
+                w2 = await economy_cog.get_wallet(self.challenged.id)
+                if w1["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ {self.challenger.mention} ma b9ach 3ndo kafi dial flous!", ephemeral=True)
+                    return
+                if w2["balance"] < self.bet:
+                    await interaction.response.send_message(f"❌ Flousk makafyinch ({format_tad(w2['balance'])} / {format_tad(self.bet)})!", ephemeral=True)
+                    return
+                await economy_cog.deduct_balance(self.challenger.id, self.bet, context=f"RPS Wager Stake ({self.bet} TAD)")
+                await economy_cog.deduct_balance(self.challenged.id, self.bet, context=f"RPS Wager Stake ({self.bet} TAD)")
+
         self.accepted = True
         self.stop()
 
-        game_view = RPSMultiplayerView(self.challenger, self.challenged, cog=self.cog)
+        game_view = RPSMultiplayerView(self.challenger, self.challenged, cog=self.cog, bet=self.bet)
         embed = discord.Embed(
             title="🪨 Rock Paper Scissors",
             description=f"⚔️ {self.challenger.mention} vs {self.challenged.mention}\n\nKola wa7d ikhtar choice dialo b tkhbia!",
@@ -2309,7 +2449,7 @@ class WordleMultiplayerMatch:
             if self.won[player.id]:
                 lines.append(f"\n🎉 L9iti lkelma f **{len(p_guesses)}/6**! Kattsna opponent isali.")
             else:
-                lines.append(f"\n💥 Saliti attempts (6/6). Kattsna opponent isali.")
+                lines.append("\n💥 Saliti attempts (6/6). Kattsna opponent isali.")
 
         if self.quit[opponent.id] and not self.game_over:
             lines.append(f"\nℹ️ **{opponent.display_name} khrej mn lmatch**, t9der attempts dialk!")
@@ -3525,10 +3665,11 @@ def render_bj_table(dealer_hand, player_hand, hide_dealer=True) -> io.BytesIO:
 
 
 class BlackjackView(discord.ui.View):
-    def __init__(self, author: discord.Member, cog):
+    def __init__(self, author: discord.Member, cog, bet: int = 0):
         super().__init__(timeout=90)
         self.author = author
         self.cog = cog
+        self.bet = bet
         self.deck = create_bj_deck()
         self.player_hand = [self.deck.pop(), self.deck.pop()]
         self.dealer_hand = [self.deck.pop(), self.deck.pop()]
@@ -3549,6 +3690,8 @@ class BlackjackView(discord.ui.View):
         )
         embed.add_field(name="🤖 Dealer", value=f"Score: {d_score_str}", inline=True)
         embed.add_field(name=f"👤 {self.author.display_name}", value=f"Score: **{p_score}**", inline=True)
+        if self.bet > 0:
+            embed.add_field(name="💰 Stake", value=format_tad(self.bet), inline=True)
         embed.set_image(url="attachment://blackjack_table.png")
 
         if outcome_text:
@@ -3558,16 +3701,40 @@ class BlackjackView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            await interaction.response.send_message("❌ Had lgame machi ta3k!", ephemeral=True)
             return False
         return True
 
-    async def end_game(self, outcome_text: str, is_win: bool = False, interaction: Optional[discord.Interaction] = None):
+    async def end_game(self, outcome_text: str, is_win: bool = False, is_push: bool = False, is_blackjack: bool = False, interaction: Optional[discord.Interaction] = None):
         self.game_over = True
         for item in self.children:
             item.disabled = True
-        if is_win and self.message and self.message.guild:
-            await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "blackjack")
+
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+
+        if self.bet > 0 and economy_cog:
+            if is_blackjack:
+                payout = int(round(self.bet * 2.5))
+                net_profit = payout - self.bet
+                asyncio.create_task(economy_cog.add_balance(self.author.id, payout, context="Blackjack Natural 21"))
+                if self.message and self.message.guild:
+                    asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "blackjack", earnings=net_profit))
+                outcome_text += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Payout: {format_tad(payout)})!"
+            elif is_win:
+                payout = self.bet * 2
+                net_profit = self.bet
+                asyncio.create_task(economy_cog.add_balance(self.author.id, payout, context="Blackjack Win"))
+                if self.message and self.message.guild:
+                    asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "blackjack", earnings=net_profit))
+                outcome_text += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Payout: {format_tad(payout)})!"
+            elif is_push:
+                asyncio.create_task(economy_cog.add_balance(self.author.id, self.bet, context="Blackjack Push Refund"))
+                outcome_text += f"\n\n🤝 Rje3 lik l bet ta3k: {format_tad(self.bet)}."
+            else:
+                outcome_text += f"\n\n💥 Khesrti l bet: -{format_tad(self.bet)}."
+        elif is_win and self.message and self.message.guild:
+            asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "blackjack"))
+
         embed = self.get_embed(dealer_reveal=True, outcome_text=outcome_text)
         file = self.get_render_file(dealer_reveal=True)
         if interaction and not interaction.response.is_done():
@@ -3616,6 +3783,9 @@ class BlackjackView(discord.ui.View):
 
         d_score = calculate_bj_score(self.dealer_hand)
 
+        is_win = False
+        is_push = False
+
         if d_score > 21:
             outcome = f"🏆 **Dealer BUSTED ({d_score})!** Rbe7ti l game!"
             is_win = True
@@ -3627,12 +3797,12 @@ class BlackjackView(discord.ui.View):
             is_win = False
         else:
             outcome = f"🤝 **Ta3adol (Push)!** (**{p_score}** vs **{d_score}**)"
-            is_win = False
+            is_push = True
 
         if status_msg:
             outcome = f"{status_msg}\n\n{outcome}"
 
-        await self.end_game(outcome, is_win=is_win, interaction=interaction)
+        await self.end_game(outcome, is_win=is_win, is_push=is_push, interaction=interaction)
 
 
 # ============ MINES GAMBLE VIEW ============
@@ -3649,10 +3819,11 @@ class MinesGambleButton(discord.ui.Button):
 
 
 class MinesGambleView(discord.ui.View):
-    def __init__(self, author: discord.Member, cog, bomb_count: int = 3):
+    def __init__(self, author: discord.Member, cog, bomb_count: int = 3, bet: int = 0):
         super().__init__(timeout=120)
         self.author = author
         self.cog = cog
+        self.bet = bet
         self.width = 5
         self.height = 4  # 4 rows x 5 columns = 20 tiles + Cashout on row 4
         self.bomb_count = bomb_count
@@ -3687,7 +3858,7 @@ class MinesGambleView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            await interaction.response.send_message("❌ Had lgame machi ta3k!", ephemeral=True)
             return False
         return True
 
@@ -3705,14 +3876,23 @@ class MinesGambleView(discord.ui.View):
         for item in self.children:
             item.disabled = True
 
-        if self.message and self.message.guild:
-            await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines")
-
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
         embed = discord.Embed(
             title="💰 CASHED OUT!",
             description=f"🎉 **{self.author.mention}** rbe7ti b multiplier **{mult:.2f}x**!\nGems uncovered: **{self.revealed_count}** 💎",
             color=0x000000
         )
+
+        if self.bet > 0 and economy_cog:
+            payout = int(round(self.bet * mult))
+            net_profit = payout - self.bet
+            asyncio.create_task(economy_cog.add_balance(self.author.id, payout, context=f"Mines Win ({mult:.2f}x)"))
+            if self.message and self.message.guild:
+                asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines", earnings=net_profit))
+            embed.add_field(name="💵 Payout", value=f"🟢 **+{format_tad(net_profit)}** (Total: {format_tad(payout)})", inline=False)
+        elif self.message and self.message.guild:
+            asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines"))
+
         await interaction.response.edit_message(embed=embed, view=self)
         self.stop()
 
@@ -3745,6 +3925,8 @@ class MinesGambleView(discord.ui.View):
                 description=f"💣 Tferg3at 3lik bomb f tile `({x+1}, {y+1})`! Khesrti.",
                 color=0x000000
             )
+            if self.bet > 0:
+                embed.add_field(name="💰 Net Outcome", value=f"🔴 -{format_tad(self.bet)}", inline=False)
             await interaction.response.edit_message(embed=embed, view=self)
             self.stop()
             return
@@ -3765,13 +3947,23 @@ class MinesGambleView(discord.ui.View):
             self._reveal_all_bombs()
             for item in self.children:
                 item.disabled = True
-            if self.message and self.message.guild:
-                await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines")
+            
+            economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             embed = discord.Embed(
                 title="🏆 FULL CLEAR! JACKPOT!",
                 description=f"👑 **{self.author.mention}** uncoveriti ga3 gems (**{total_gems}/{total_gems}**)! Multiplier: **{mult:.2f}x**!",
                 color=0x000000
             )
+            if self.bet > 0 and economy_cog:
+                payout = int(round(self.bet * mult))
+                net_profit = payout - self.bet
+                asyncio.create_task(economy_cog.add_balance(self.author.id, payout, context=f"Mines Jackpot ({mult:.2f}x)"))
+                if self.message and self.message.guild:
+                    asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines", earnings=net_profit))
+                embed.add_field(name="💵 Payout", value=f"👑 **+{format_tad(net_profit)}** (Total: {format_tad(payout)})", inline=False)
+            elif self.message and self.message.guild:
+                asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines"))
+            
             await interaction.response.edit_message(embed=embed, view=self)
             self.stop()
             return
@@ -3781,7 +3973,8 @@ class MinesGambleView(discord.ui.View):
             description=(
                 f"💎 Gems: **{self.revealed_count}/{total_gems}**\n"
                 f"📈 Multiplier: **{mult:.2f}x** (Next: **{next_mult:.2f}x**)\n"
-                f"💣 Bombs: **{self.bomb_count}**"
+                f"💣 Bombs: **{self.bomb_count}**\n"
+                + (f"💰 Stake: {format_tad(self.bet)}" if self.bet > 0 else "")
             ),
             color=0x000000
         )
@@ -3805,10 +3998,11 @@ def get_hl_card_file(card) -> Optional[discord.File]:
 
 
 class HigherLowerView(discord.ui.View):
-    def __init__(self, author: discord.Member, cog):
+    def __init__(self, author: discord.Member, cog, bet: int = 0):
         super().__init__(timeout=60)
         self.author = author
         self.cog = cog
+        self.bet = bet
         self.current_card = draw_hl_card()
         self.streak = 0
         self.game_over = False
@@ -3825,7 +4019,8 @@ class HigherLowerView(discord.ui.View):
             description=(
                 f"Lwr9a l7alia: **{self.current_card['rank']}{self.current_card['suit']}**\n\n"
                 f"🔥 Streak: **{self.streak}**\n"
-                f"📈 Multiplier: **{self.get_multiplier():.2f}x**"
+                f"📈 Multiplier: **{self.get_multiplier():.2f}x**\n"
+                + (f"💰 Stake: {format_tad(self.bet)}" if self.bet > 0 else "")
             ),
             color=0x000000
         )
@@ -3836,7 +4031,7 @@ class HigherLowerView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            await interaction.response.send_message("❌ Had lgame machi ta3k!", ephemeral=True)
             return False
         return True
 
@@ -3874,6 +4069,8 @@ class HigherLowerView(discord.ui.View):
                 description=f"❌ {card_reveal_str}.\nKhesrti! Final Streak: **{self.streak}**.",
                 color=0x000000
             )
+            if self.bet > 0:
+                embed.add_field(name="💰 Net Outcome", value=f"🔴 -{format_tad(self.bet)}", inline=False)
             file = get_hl_card_file(next_card)
             if file:
                 embed.set_thumbnail(url="attachment://card.png")
@@ -3900,13 +4097,23 @@ class HigherLowerView(discord.ui.View):
         for item in self.children:
             item.disabled = True
         mult = self.get_multiplier()
-        if self.message and self.message.guild:
-            await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "higherlower")
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+
         embed = discord.Embed(
             title="💰 CASHED OUT!",
             description=f"🎉 **{self.author.mention}** rbe7ti b streak **{self.streak}** (Multiplier: **{mult:.2f}x**)!",
             color=0x000000
         )
+        if self.bet > 0 and economy_cog:
+            payout = int(round(self.bet * mult))
+            net_profit = payout - self.bet
+            asyncio.create_task(economy_cog.add_balance(self.author.id, payout, context=f"HigherLower Win ({mult:.2f}x)"))
+            if self.message and self.message.guild:
+                asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "higherlower", earnings=net_profit))
+            embed.add_field(name="💵 Payout", value=f"🟢 **+{format_tad(net_profit)}** (Total: {format_tad(payout)})", inline=False)
+        elif self.message and self.message.guild:
+            asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "higherlower"))
+
         file = get_hl_card_file(self.current_card)
         if file:
             embed.set_thumbnail(url="attachment://card.png")
@@ -3917,15 +4124,16 @@ class HigherLowerView(discord.ui.View):
 # ============ COINFLIP & DICE VIEWS ============
 
 class CoinflipView(discord.ui.View):
-    def __init__(self, author: discord.Member, cog):
+    def __init__(self, author: discord.Member, cog, bet: int = 0):
         super().__init__(timeout=45)
         self.author = author
         self.cog = cog
+        self.bet = bet
         self.message: Optional[discord.Message] = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            await interaction.response.send_message("❌ Had lgame machi ta3k!", ephemeral=True)
             return False
         return True
 
@@ -3938,15 +4146,27 @@ class CoinflipView(discord.ui.View):
         user_choice_label = "Ras (Heads)" if user_choice == "ras" else "Njma (Tails)"
 
         won = (user_choice == result)
-        if won and self.message and self.message.guild:
-            await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "coinflip")
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
 
         outcome_title = "🏆 Rbe7ti!" if won else "💥 Khesrti!"
         embed = discord.Embed(
             title=f"{outcome_title} — {result_label}",
-            description=f"Lkhtiyar dialek: **{user_choice_label}**\nNatija: **{result_label}**",
+            description=f"Lkhtiyar ta3k: **{user_choice_label}**\nNatija: **{result_label}**",
             color=0x000000
         )
+
+        if self.bet > 0 and economy_cog:
+            if won:
+                payout = self.bet * 2
+                asyncio.create_task(economy_cog.add_balance(self.author.id, payout, context="Coinflip Win"))
+                if self.message and self.message.guild:
+                    asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "coinflip", earnings=self.bet))
+                embed.add_field(name="💰 Net Outcome", value=f"🟢 **+{format_tad(self.bet)}** (Payout: {format_tad(payout)})", inline=False)
+            else:
+                embed.add_field(name="💰 Net Outcome", value=f"🔴 -{format_tad(self.bet)}", inline=False)
+        elif won and self.message and self.message.guild:
+            asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "coinflip"))
+
         coin_path = os.path.join("assets", "coin", "Heads.png" if result == "ras" else "Tails.png")
         if os.path.exists(coin_path):
             file = discord.File(coin_path, filename="coin.png")
@@ -4002,7 +4222,7 @@ class DiceRollView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had lgame machi dialek!", ephemeral=True)
+            await interaction.response.send_message("❌ Had lgame machi ta3k!", ephemeral=True)
             return False
         return True
 
@@ -4054,15 +4274,15 @@ class Fun(commands.Cog):
                 pass
             return self.dict_conn.cursor()
 
-    async def record_minigame_win(self, guild_id: Optional[int], user_id: int, game: str):
+    async def record_minigame_win(self, guild_id: Optional[int], user_id: int, game: str, earnings: int = 0):
         if not guild_id:
             return
         try:
             await self.bot.db.execute("""
-                INSERT INTO minigame_leaderboard (guild_id, user_id, game, wins)
-                VALUES (?, ?, ?, 1)
-                ON CONFLICT(guild_id, user_id, game) DO UPDATE SET wins = wins + 1
-            """, (guild_id, user_id, game.lower()))
+                INSERT INTO minigame_leaderboard (guild_id, user_id, game, wins, earnings)
+                VALUES (?, ?, ?, 1, ?)
+                ON CONFLICT(guild_id, user_id, game) DO UPDATE SET wins = wins + 1, earnings = earnings + ?
+            """, (guild_id, user_id, game.lower(), max(0, earnings), max(0, earnings)))
             await self.bot.db.commit()
         except Exception as e:
             print(f"[record_minigame_win error]: {e}")
@@ -4227,7 +4447,7 @@ class Fun(commands.Cog):
         random.shuffle(match_pool)
 
         start_embed = discord.Embed(
-            description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.",
+            description="▶️ Bdina! Kola wa7d 3ndo **3 HP**.",
             color=0x000000
         )
         await signup_msg.edit(embed=start_embed)
@@ -4237,9 +4457,12 @@ class Fun(commands.Cog):
             if not single_player and len(active_players) == 1:
                 winner = active_players[0]
                 if ctx.guild:
-                    await self.record_minigame_win(ctx.guild.id, winner.id, "flags")
+                    await self.record_minigame_win(ctx.guild.id, winner.id, "flags", earnings=40)
+                    economy_cog = self.bot.get_cog("Economy")
+                    if economy_cog:
+                        asyncio.create_task(economy_cog.add_balance(winner.id, 40, context="Flags Win"))
                 win_embed = discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame!",
+                    description=f"🏆 {winner.mention} rbe7 lgame!\n💰 Rbe7ti **40** {TAD_EMOJI} TAD!",
                     color=0x000000
                 )
                 await ctx.send(embed=win_embed)
@@ -4431,9 +4654,12 @@ class Fun(commands.Cog):
 
                 if active_players:
                     if not single_player and ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, active_players[0].id, "blacktea")
+                        await self.record_minigame_win(ctx.guild.id, active_players[0].id, "blacktea", earnings=40)
+                        economy_cog = self.bot.get_cog("Economy")
+                        if economy_cog:
+                            asyncio.create_task(economy_cog.add_balance(active_players[0].id, 40, context="BlackTea Win"))
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {active_players[0].mention} rbe7 lgame!",
+                        description=f"🏆 {active_players[0].mention} rbe7 lgame!\n💰 Rbe7ti **40** {TAD_EMOJI} TAD!",
                         color=0x000000
                     ))
         except Exception as e:
@@ -4540,9 +4766,12 @@ class Fun(commands.Cog):
                     winner = self.bot.get_user(winners[0])
                     winner_str = winner.mention if winner else f"<@{winners[0]}>"
                     if maxpoints > 0 and ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, winners[0], "greentea")
+                        await self.record_minigame_win(ctx.guild.id, winners[0], "greentea", earnings=40)
+                        economy_cog = self.bot.get_cog("Economy")
+                        if economy_cog:
+                            asyncio.create_task(economy_cog.add_balance(winners[0], 40, context="GreenTea Win"))
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner_str} rbe7 lgame b **{maxpoints} pts**!",
+                        description=f"🏆 {winner_str} rbe7 lgame b **{maxpoints} pts**!\n💰 Rbe7ti **40** {TAD_EMOJI} TAD!",
                         color=0x000000
                     ))
                 else:
@@ -4554,10 +4783,12 @@ class Fun(commands.Cog):
         except Exception as e:
             print(f"[greentea error]: {e}")
 
-    @commands.command(name="tictactoe", aliases=["ttt"], help="X/O las9 3 bach trbe7.")
-    async def tictactoe(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+    @commands.command(name="tictactoe", aliases=["ttt"], help="X/O las9 3 bach trbe7 (sat ttt @user [bet:500]).")
+    @not_fraud()
+    async def tictactoe(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        bet, _ = parse_bet_argument(*args)
         if member is None:
-            view = TicTacToeView(ctx.author, ctx.bot.user, is_bot_game=True)
+            view = TicTacToeView(ctx.author, ctx.bot.user, is_bot_game=True, cog=self)
             content = f"❌ **{ctx.author.mention}'s turn (X)**"
             message = await ctx.send(content=content, view=view)
             view.message = message
@@ -4571,6 +4802,17 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w_author = await economy_cog.get_wallet(ctx.author.id)
+            w_target = await economy_cog.get_wallet(member.id)
+            if w_author["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w_author['balance'])}.")
+                return
+            if w_target["balance"] < bet:
+                await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
+                return
+
         players = [ctx.author, member]
         random.shuffle(players)
         player_x, player_o = players[0], players[1]
@@ -4578,19 +4820,32 @@ class Fun(commands.Cog):
         p_x_str = player_x.mention if player_x == member else player_x.display_name
         p_o_str = player_o.mention if player_o == member else player_o.display_name
 
-        challenge_view = ChallengeView(ctx.author, member, self)
+        challenge_view = ChallengeView(ctx.author, member, self, bet=bet or 0)
+        wager_str = ""
+        if bet and bet > 0:
+            w_payout, burned, d_split = calculate_pvp_payout(bet)
+            wager_str = (
+                f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
+                f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
+                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🤝 **Draw Split:** {format_tad(d_split)} each"
+            )
+
         content = (
             f"⚔️ **Tic-Tac-Toe Challenge!**\n"
-            f"**{p_x_str}** (❌ X) vs **{p_o_str}** (⭕ O)\n\n"
+            f"**{p_x_str}** (❌ X) vs **{p_o_str}** (⭕ O)"
+            f"{wager_str}\n\n"
             f"{member.mention}, t accepti?"
         )
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="connectfour", aliases=["c4", "connect4"], help="Las9 4 bach trbe7.")
-    async def connectfour(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+    @commands.command(name="connectfour", aliases=["c4", "connect4"], help="Las9 4 bach trbe7 (sat c4 @user [bet:500]).")
+    @not_fraud()
+    async def connectfour(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        bet, _ = parse_bet_argument(*args)
         if member is None:
-            view = ConnectFourView(ctx.author, ctx.bot.user, is_bot_game=True)
+            view = ConnectFourView(ctx.author, ctx.bot.user, is_bot_game=True, cog=self)
             content = view.get_status_content()
             message = await ctx.send(content=content, view=view)
             view.message = message
@@ -4604,10 +4859,32 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
-        challenge_view = ConnectFourChallengeView(ctx.author, member, self)
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w_author = await economy_cog.get_wallet(ctx.author.id)
+            w_target = await economy_cog.get_wallet(member.id)
+            if w_author["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w_author['balance'])}.")
+                return
+            if w_target["balance"] < bet:
+                await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
+                return
+
+        challenge_view = ConnectFourChallengeView(ctx.author, member, self, bet=bet or 0)
+        wager_str = ""
+        if bet and bet > 0:
+            w_payout, burned, d_split = calculate_pvp_payout(bet)
+            wager_str = (
+                f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
+                f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
+                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🤝 **Draw Split:** {format_tad(d_split)} each"
+            )
+
         content = (
             f"⚔️ **Connect Four Challenge!**\n"
-            f"**{ctx.author.display_name}** vs {member.mention}\n\n"
+            f"**{ctx.author.display_name}** vs {member.mention}"
+            f"{wager_str}\n\n"
             f"{member.mention}, t accepti?"
         )
         message = await ctx.send(content=content, view=challenge_view)
@@ -4631,11 +4908,13 @@ class Fun(commands.Cog):
                 print(f"[Akinator Command Error]: {e}")
                 await ctx.send("❌ Makhdamach Akinator daba, 7awel mn be3d.")
 
-    @commands.command(name="playchess", help="l3eb shitranj hh")
-    async def playchess(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+    @commands.command(name="playchess", aliases=["shitranj", "chessgame"], help="L3eb chess (sat playchess @user [bet:500]).")
+    @not_fraud()
+    async def playchess(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        bet, _ = parse_bet_argument(*args)
         # Single Player vs Bot
         if member is None:
-            game_view = ChessView(ctx.author, ctx.bot.user, is_bot_game=True)
+            game_view = ChessView(ctx.author, ctx.bot.user, is_bot_game=True, cog=self)
             board_file = await game_view.generate_board_file()
             msg = await ctx.send(embed=game_view.build_embed(), file=board_file, view=game_view)
             game_view.message = msg
@@ -4649,13 +4928,41 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9derch tl3eb Chess ded rask..")
             return
 
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w_author = await economy_cog.get_wallet(ctx.author.id)
+            w_target = await economy_cog.get_wallet(member.id)
+            if w_author["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w_author['balance'])}.")
+                return
+            if w_target["balance"] < bet:
+                await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
+                return
+
         # Multiplayer Challenge
-        challenge_view = ChessChallengeView(ctx.author, member, self)
-        content = f"⚔️ **Challenge dial Chess!**\n**{ctx.author.display_name}** challenga {member.mention} f match dial Chess!\n\n{member.mention}, t accepti?"
+        challenge_view = ChessChallengeView(ctx.author, member, self, bet=bet or 0)
+        wager_str = ""
+        if bet and bet > 0:
+            w_payout, burned, d_split = calculate_pvp_payout(bet)
+            wager_str = (
+                f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
+                f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
+                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🤝 **Draw Split:** {format_tad(d_split)} each"
+            )
+
+        content = (
+            f"⚔️ **Challenge dial Chess!**\n"
+            f"**{ctx.author.display_name}** challenga {member.mention} f match dial Chess!"
+            f"{wager_str}\n\n"
+            f"{member.mention}, t accepti?"
+        )
         await ctx.send(content=content, view=challenge_view)
 
-    @commands.command(name="rockpaperscissors", aliases=["rps", "zdimbomba7", "zba7"], help="7ajar wara9 mi9as okda.")
-    async def rps(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
+    @commands.command(name="rockpaperscissors", aliases=["rps", "zdimbomba7", "zba7"], help="7ajar wara9 mi9as (sat rps @user [bet:500]).")
+    @not_fraud()
+    async def rps(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        bet, _ = parse_bet_argument(*args)
         if member is None:
             view = RPSBotView(ctx.author)
             embed = discord.Embed(
@@ -4675,16 +4982,39 @@ class Fun(commands.Cog):
             await ctx.send("❌ Mat9edch tchallengi rask..")
             return
 
-        challenge_view = RPSChallengeView(ctx.author, member, self)
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w_author = await economy_cog.get_wallet(ctx.author.id)
+            w_target = await economy_cog.get_wallet(member.id)
+            if w_author["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w_author['balance'])}.")
+                return
+            if w_target["balance"] < bet:
+                await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
+                return
+
+        challenge_view = RPSChallengeView(ctx.author, member, self, bet=bet or 0)
+        wager_str = ""
+        if bet and bet > 0:
+            w_payout, burned, d_split = calculate_pvp_payout(bet)
+            wager_str = (
+                f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
+                f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
+                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🤝 **Draw Split:** {format_tad(d_split)} each"
+            )
+
         content = (
             f"⚔️ **Challenge dial Rock Paper Scissors!**\n"
-            f"**{ctx.author.display_name}** vs {member.mention}\n\n"
+            f"**{ctx.author.display_name}** vs {member.mention}"
+            f"{wager_str}\n\n"
             f"{member.mention}, t accepti?"
         )
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
     @commands.command(name="minesweeper", aliases=["ms", "demineur"], help="Hreb mn l9nabl (solo) wla l9a l9nabl (1v1).")
+    @not_fraud()
     async def minesweeper(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         if member is None:
             view = MinesweeperSoloView(ctx.author)
@@ -4711,6 +5041,7 @@ class Fun(commands.Cog):
         challenge_view.message = message
 
     @commands.command(name="wordle", aliases=["klma", "kelma"], help="9edder kelmat bach tl9a lkelma fach kanfkr.")
+    @not_fraud()
     async def wordle(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         if member is None:
             secret = self.get_wordle_secret()
@@ -4737,6 +5068,7 @@ class Fun(commands.Cog):
         challenge_view.message = message
 
     @commands.command(name="hangman", aliases=["hm", "michna9a"], help="l9a lkelma 9bel matchne9.")
+    @not_fraud()
     async def hangman(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         if member is None:
             secret = self.get_hangman_secret()
@@ -4763,6 +5095,7 @@ class Fun(commands.Cog):
         challenge_view.message = message
 
     @commands.command(name="trivia", aliases=["quiz", "as2ila"], help="Man sayarba7 2 drahm.")
+    @not_fraud()
     async def trivia(self, ctx, round_duration: int = 20):
         if round_duration < 5:
             round_duration = 5
@@ -4819,9 +5152,12 @@ class Fun(commands.Cog):
             if not single_player and len(active_players) == 1:
                 winner = active_players[0]
                 if ctx.guild:
-                    await self.record_minigame_win(ctx.guild.id, winner.id, "trivia")
+                    await self.record_minigame_win(ctx.guild.id, winner.id, "trivia", earnings=40)
+                    economy_cog = self.bot.get_cog("Economy")
+                    if economy_cog:
+                        asyncio.create_task(economy_cog.add_balance(winner.id, 40, context="Trivia Win"))
                 await ctx.send(embed=discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame b **{scores[winner.id]} answers correct**!",
+                    description=f"🏆 {winner.mention} rbe7 lgame b **{scores[winner.id]} answers correct**!\n💰 Rbe7ti **40** {TAD_EMOJI} TAD!",
                     color=0x000000
                 ))
                 return
@@ -4897,6 +5233,7 @@ class Fun(commands.Cog):
             ))
 
     @commands.command(name="typeracer", aliases=["tr", "type", "monkeytype"], help="Kteb text li ghan3tik bzerba bach trb7.")
+    @not_fraud()
     async def typeracer(self, ctx, rounds: int = 3):
         rounds = max(1, min(10, rounds))
         join_emoji = "✅"
@@ -5044,122 +5381,283 @@ class Fun(commands.Cog):
         if ranked:
             leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 🎉")
             if scores.get(ranked[0].id, 0) > 0 and ctx.guild:
-                await self.record_minigame_win(ctx.guild.id, ranked[0].id, "typeracer")
+                await self.record_minigame_win(ctx.guild.id, ranked[0].id, "typeracer", earnings=40)
+                economy_cog = self.bot.get_cog("Economy")
+                if economy_cog:
+                    asyncio.create_task(economy_cog.add_balance(ranked[0].id, 40, context="TypeRacer Win"))
         await ctx.send(embed=leaderboard_embed)
 
-    @commands.command(name="leaderboard", aliases=["lb", "top"], help="Leaderboard ta3 lminigames.")
-    async def leaderboard(self, ctx: commands.Context, game: Optional[str] = None):
+
+# ============ INTERACTIVE 2-TIER LEADERBOARD UI ============
+
+MINIGAME_DISPLAY_MAP = {
+    "flags": ("🚩 Flags", ["flags", "flag", "rayat", "gtf"]),
+    "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
+    "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
+    "blackjack": ("🃏 Blackjack", ["blackjack", "bj", "21"]),
+    "slots": ("🎰 Casino Slots", ["slots", "slot", "machine"]),
+    "mines": ("💣 Mines", ["mines", "gems", "gemhunt"]),
+    "roulette": ("🎡 Roulette", ["roulette", "wheel", "roul"]),
+    "higherlower": ("🃏 HigherLower", ["higherlower", "hl", "cardduel"]),
+    "coinflip": ("🪙 Coinflip", ["coinflip", "cf", "drhm", "drhem", "flip"]),
+    "dice": ("🎲 Dice Multiplier", ["dice", "nrd", "roll", "diceroll"]),
+    "tictactoe": ("❌ TicTacToe", ["tictactoe", "ttt", "morpion"]),
+    "connectfour": ("🔴 ConnectFour", ["connectfour", "c4", "connect4"]),
+    "chess": ("♟️ Chess", ["chess", "playchess", "shitranj", "chessgame"]),
+    "rockpaperscissors": ("✂️ RockPaperScissors", ["rockpaperscissors", "rps", "zdimbomba7", "zba7"]),
+    "minesweeper": ("💣 Minesweeper", ["minesweeper", "ms", "demineur"]),
+    "wordle": ("🟩 Wordle", ["wordle", "wdl", "klma", "kelma"]),
+    "hangman": ("🪢 Hangman", ["hangman", "hm", "michna9a"]),
+    "trivia": ("🧠 Trivia", ["trivia", "quiz", "as2ila"]),
+    "typeracer": ("🏎️ TypeRacer", ["typeracer", "tr", "type", "monkeytype"]),
+}
+
+class LeaderboardSelect(discord.ui.Select):
+    def __init__(self, minigame_map: dict):
+        options = []
+        for game_key, (display_name, _) in minigame_map.items():
+            parts = display_name.split(" ", 1)
+            emoji_part = parts[0] if len(parts) > 1 else None
+            label_part = parts[1] if len(parts) > 1 else display_name
+            options.append(discord.SelectOption(
+                label=label_part[:100],
+                value=game_key,
+                emoji=emoji_part
+            ))
+        super().__init__(placeholder="🎯 Khtar minigame bach tchouf ranking dialha...", min_values=1, max_values=1, options=options, row=0)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: LeaderboardInteractiveView = self.view
+        selected_game = self.values[0]
+        await view.show_game_page(interaction, selected_game, sort_by="wins", page=0)
+
+
+class LeaderboardInteractiveView(discord.ui.View):
+    def __init__(self, ctx, cog, minigame_map: dict):
+        super().__init__(timeout=120)
+        self.ctx = ctx
+        self.cog = cog
+        self.minigame_map = minigame_map
+        self.current_game: Optional[str] = None
+        self.sort_by: str = "wins"  # "wins" or "earnings"
+        self.current_page: int = 0
+        self.per_page: int = 10
+        self.rows_cache = []
+        self.message: Optional[discord.Message] = None
+
+        self.setup_overview()
+
+    def setup_overview(self):
+        self.clear_items()
+        self.current_game = None
+        self.add_item(LeaderboardSelect(self.minigame_map))
+
+    async def show_overview(self, interaction: Optional[discord.Interaction] = None):
+        self.setup_overview()
+        embed = await self.cog.get_main_leaderboard_embed(self.ctx.guild)
+        if interaction:
+            await interaction.response.edit_message(embed=embed, view=self)
+        else:
+            self.message = await self.ctx.send(embed=embed, view=self)
+
+    async def show_game_page(self, interaction: Optional[discord.Interaction] = None, game_key: Optional[str] = None, sort_by: str = "wins", page: int = 0):
+        if game_key:
+            self.current_game = game_key
+        self.sort_by = sort_by
+        self.current_page = page
+
+        order_col = "earnings" if sort_by == "earnings" else "wins"
+        async with self.cog.bot.db.execute(f"""
+            SELECT user_id, wins, earnings FROM minigame_leaderboard
+            WHERE guild_id = ? AND game = ?
+            ORDER BY {order_col} DESC
+        """, (self.ctx.guild.id, self.current_game)) as cursor:
+            self.rows_cache = await cursor.fetchall()
+
+        self.clear_items()
+
+        total_pages = max(1, (len(self.rows_cache) + self.per_page - 1) // self.per_page)
+        self.current_page = max(0, min(self.current_page, total_pages - 1))
+
+        # Pagination & Switch Buttons
+        prev_btn = discord.ui.Button(label="◀️", style=discord.ButtonStyle.secondary, disabled=(self.current_page == 0), row=0)
+        async def prev_callback(i: discord.Interaction):
+            await self.show_game_page(i, self.current_game, self.sort_by, self.current_page - 1)
+        prev_btn.callback = prev_callback
+        self.add_item(prev_btn)
+
+        page_btn = discord.ui.Button(label=f"Page {self.current_page + 1}/{total_pages}", style=discord.ButtonStyle.secondary, disabled=True, row=0)
+        self.add_item(page_btn)
+
+        next_btn = discord.ui.Button(label="▶️", style=discord.ButtonStyle.secondary, disabled=(self.current_page >= total_pages - 1), row=0)
+        async def next_callback(i: discord.Interaction):
+            await self.show_game_page(i, self.current_game, self.sort_by, self.current_page + 1)
+        next_btn.callback = next_callback
+        self.add_item(next_btn)
+
+        # Sort Switcher Button
+        if sort_by == "wins":
+            sort_btn = discord.ui.Button(label="Sort by Money 💰", style=discord.ButtonStyle.success, emoji="💰", row=1)
+            async def sort_callback(i: discord.Interaction):
+                await self.show_game_page(i, self.current_game, "earnings", 0)
+            sort_btn.callback = sort_callback
+        else:
+            sort_btn = discord.ui.Button(label="Sort by Wins 🏆", style=discord.ButtonStyle.primary, emoji="🏆", row=1)
+            async def sort_callback(i: discord.Interaction):
+                await self.show_game_page(i, self.current_game, "wins", 0)
+            sort_btn.callback = sort_callback
+        self.add_item(sort_btn)
+
+        # Back to Overview Button
+        back_btn = discord.ui.Button(label="Back to Overview", style=discord.ButtonStyle.danger, emoji="🔙", row=1)
+        async def back_callback(i: discord.Interaction):
+            await self.show_overview(i)
+        back_btn.callback = back_callback
+        self.add_item(back_btn)
+
+        embed = self.get_game_embed(total_pages)
+        if interaction:
+            await interaction.response.edit_message(embed=embed, view=self)
+        else:
+            self.message = await self.ctx.send(embed=embed, view=self)
+
+    def get_game_embed(self, total_pages: int) -> discord.Embed:
+        game_display, _ = self.minigame_map.get(self.current_game, (self.current_game.title(), []))
+        sort_title = "💰 Sorted by Gains (TAD)" if self.sort_by == "earnings" else "🏆 Sorted by Wins"
+        embed = discord.Embed(
+            title=f"{game_display} Leaderboard",
+            description=f"*{sort_title}* — **{self.ctx.guild.name}**\n\n",
+            color=0x000000
+        )
+
+        if not self.rows_cache:
+            embed.description += "*Ta wa7d ma 3ndo wins/gains msjlin f had l game ba9i.*"
+            return embed
+
+        start_idx = self.current_page * self.per_page
+        page_rows = self.rows_cache[start_idx : start_idx + self.per_page]
+
+        medals = ["🥇", "🥈", "🥉"]
+        lines = []
+        for i, (uid, wins, earnings) in enumerate(page_rows, start=start_idx):
+            rank_str = medals[i] if i < 3 else f"**#{i+1}**"
+            win_str = f"**{wins}** win" if wins == 1 else f"**{wins}** wins"
+            earn_str = f"**{earnings:,}** {TAD_EMOJI} TAD"
+            if self.sort_by == "earnings":
+                lines.append(f"{rank_str} <@{uid}> — {earn_str} *({win_str})*")
+            else:
+                lines.append(f"{rank_str} <@{uid}> — {win_str} *({earn_str})*")
+
+        embed.description += "\n".join(lines)
+        embed.set_footer(text=f"Page {self.current_page + 1}/{total_pages} • Khtar bouton bach tbdel sort wla trje3.")
+        return embed
+
+
+    # ============ REWORKED LEADERBOARD & CASINO COMMANDS ============
+
+    async def get_main_leaderboard_embed(self, guild: discord.Guild) -> discord.Embed:
+        async with self.bot.db.execute("""
+            SELECT game, user_id, wins FROM minigame_leaderboard
+            WHERE guild_id = ?
+            ORDER BY wins DESC LIMIT 1
+        """, (guild.id,)) as cursor:
+            top_wins_row = await cursor.fetchone()
+
+        async with self.bot.db.execute("""
+            SELECT game, user_id, earnings FROM minigame_leaderboard
+            WHERE guild_id = ?
+            ORDER BY earnings DESC LIMIT 1
+        """, (guild.id,)) as cursor:
+            top_gains_row = await cursor.fetchone()
+
+        embed = discord.Embed(
+            title=f"🏆 Minigame Hall of Fame — {guild.name}",
+            description="Khtar ay minigame mn l dropdown menu lte7t bach tchouf ga3 l rankings dialha!\n\n",
+            color=0x000000
+        )
+
+        if top_wins_row and top_wins_row[2] > 0:
+            g_key, u_id, w_count = top_wins_row
+            d_name = MINIGAME_DISPLAY_MAP.get(g_key, (g_key.title(), []))[0]
+            win_str = f"**{w_count}** win" if w_count == 1 else f"**{w_count}** wins"
+            embed.add_field(
+                name="👑 Most Wins Across All Games",
+                value=f"🎮 **{d_name}**\n👤 Top Player: <@{u_id}>\n🏆 Score: {win_str}",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="👑 Most Wins Across All Games",
+                value="*Ta wa7d ma 3ndo wins msjlin ba9i.*",
+                inline=False
+            )
+
+        if top_gains_row and top_gains_row[2] > 0:
+            g_key, u_id, e_count = top_gains_row
+            d_name = MINIGAME_DISPLAY_MAP.get(g_key, (g_key.title(), []))[0]
+            embed.add_field(
+                name="💰 Most Gains (Money) Across All Games",
+                value=f"🎮 **{d_name}**\n👤 Top Earner: <@{u_id}>\n💵 Total Gains: **{e_count:,}** {TAD_EMOJI} TAD",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="💰 Most Gains (Money) Across All Games",
+                value="*Ta wa7d ma 3ndo gains msjlin ba9i.*",
+                inline=False
+            )
+
+        embed.set_footer(text="Dropdown lte7t kat affichi ga3 l minigames available.")
+        return embed
+
+    @commands.command(name="leaderboard", aliases=["lb", "top"], help="Leaderboard ta3 lminigames (sat lb [game]).")
+    async def leaderboard(self, ctx: commands.Context, *args):
         if not ctx.guild:
             await ctx.send("❌ Had l command khedama ghir f servers.")
             return
 
-        minigame_map = {
-            "flags": ("🚩 Flags", ["flags", "flag", "rayat"]),
-            "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
-            "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
-            "blackjack": ("🃏 Blackjack", ["blackjack", "bj", "21"]),
-            "slots": ("🎰 Casino Slots", ["slots", "slot"]),
-            "mines": ("💣 Mines", ["mines", "gemhunt"]),
-            "roulette": ("🎡 Roulette", ["roulette", "roul", "wheel"]),
-            "higherlower": ("🃏 HigherLower", ["higherlower", "hl", "cardduel"]),
-            "coinflip": ("🪙 Coinflip", ["coinflip", "cf", "drhm", "drhem", "flip"]),
-            "tictactoe": ("❌ TicTacToe", ["tictactoe", "ttt", "morpion"]),
-            "connectfour": ("🔴 ConnectFour", ["connectfour", "c4", "connect4"]),
-            "chess": ("♟️ Chess", ["chess", "playchess", "shitranj"]),
-            "rockpaperscissors": ("✂️ RockPaperScissors", ["rockpaperscissors", "rps", "zdimbomba7", "zba7"]),
-            "minesweeper": ("💣 Minesweeper", ["minesweeper", "ms", "demineur"]),
-            "wordle": ("🟩 Wordle", ["wordle", "wdl", "klma", "kelma"]),
-            "hangman": ("🪢 Hangman", ["hangman", "hm", "michna9a"]),
-            "trivia": ("🧠 Trivia", ["trivia", "quiz", "as2ila"]),
-            "typeracer": ("🏎️ TypeRacer", ["typeracer", "tr", "type", "monkeytype"]),
-        }
+        game = " ".join(args).strip().lower() if args else None
 
-        if game is None:
-            async with self.bot.db.execute("""
-                SELECT game, user_id, wins FROM minigame_leaderboard
-                WHERE guild_id = ?
-                ORDER BY wins DESC
-            """, (ctx.guild.id,)) as cursor:
-                rows = await cursor.fetchall()
+        view = LeaderboardInteractiveView(ctx, self, MINIGAME_DISPLAY_MAP)
 
-            top_by_game = {}
-            for g, uid, wins in rows:
-                if g not in top_by_game:
-                    top_by_game[g] = (uid, wins)
-
-            lines = []
-            for game_key, (display_name, _) in minigame_map.items():
-                if game_key in top_by_game:
-                    uid, wins = top_by_game[game_key]
-                    win_str = f"**{wins}** win" if wins == 1 else f"**{wins}** wins"
-                    lines.append(f"{display_name}\n└ 👑 <@{uid}> — {win_str}")
-                else:
-                    lines.append(f"{display_name}\n└ *Ta wa7d ma 3ndo wins ba9i*")
-
-            embed = discord.Embed(
-                title=f"🏆 Minigame Leaderboards — {ctx.guild.name}",
-                description="\n\n".join(lines),
-                color=0x000000
-            )
-            embed.set_footer(text=f"Bghiti tchouf ranking dial game specific? Kteb {ctx.clean_prefix}lb <game>")
-            await ctx.send(embed=embed)
+        if not game:
+            await view.show_overview()
         else:
             target_key = None
-            target_name = None
-            clean_game = game.strip().lower()
-            for k, (d_name, aliases) in minigame_map.items():
-                if clean_game == k or clean_game in aliases:
+            for k, (d_name, aliases) in MINIGAME_DISPLAY_MAP.items():
+                if game == k or game in aliases:
                     target_key = k
-                    target_name = d_name
                     break
 
             if not target_key:
-                valid_list = ", ".join(f"`{k}`" for k in minigame_map.keys())
+                valid_list = ", ".join(f"`{k}`" for k in MINIGAME_DISPLAY_MAP.keys())
                 await ctx.send(embed=discord.Embed(
                     description=f"❌ Had l game makynch: `{game}`.\n\nGames li kaynin:\n{valid_list}",
                     color=0x000000
                 ))
                 return
 
-            async with self.bot.db.execute("""
-                SELECT user_id, wins FROM minigame_leaderboard
-                WHERE guild_id = ? AND game = ?
-                ORDER BY wins DESC
-            """, (ctx.guild.id, target_key)) as cursor:
-                rows = await cursor.fetchall()
+            await view.show_game_page(interaction=None, game_key=target_key, sort_by="wins", page=0)
 
-            if not rows:
-                await ctx.send(embed=discord.Embed(
-                    title=f"🏆 {target_name} Leaderboard",
-                    description=f"Walo wins msjlin f **{target_name}** ba9i f had server.",
-                    color=0x000000
-                ))
+    @commands.command(aliases=['cf', 'drhm', 'flip'], help="Nlou7 derhem o chouf wach jak ras wla njma (sat coinflip [ras/njma] [bet:500]).")
+    @not_fraud()
+    async def coinflip(self, ctx: commands.Context, *args):
+        bet, remaining = parse_bet_argument(*args)
+        choice = remaining[0] if remaining else None
+
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w = await economy_cog.get_wallet(ctx.author.id)
+            if w["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
                 return
+            await economy_cog.deduct_balance(ctx.author.id, bet, context="Coinflip Bet")
 
-            medals = ["🥇", "🥈", "🥉"]
-            lines = []
-            for i, (uid, wins) in enumerate(rows):
-                rank_str = medals[i] if i < 3 else f"**#{i+1}**"
-                win_str = f"**{wins}** win" if wins == 1 else f"**{wins}** wins"
-                lines.append(f"{rank_str} <@{uid}> — {win_str}")
-
-            view = self.bot.Paginator(
-                ctx,
-                pages=lines,
-                per_page=10,
-                title=f"🏆 {target_name} Leaderboard"
-            )
-            initial_embed = view.get_page()
-            msg = await ctx.send(embed=initial_embed, view=view)
-            view.message = msg
-
-    @commands.command(aliases=['cf', 'drhm'], help="Nlou7 derhem o chouf wach jak ras wla njma.")
-    async def coinflip(self, ctx, choice: Optional[str] = None):
         if choice is None:
-            view = CoinflipView(ctx.author, self)
+            view = CoinflipView(ctx.author, self, bet=bet or 0)
             embed = discord.Embed(
                 title="🪙 Coinflip Table",
-                description="Khtar chno ghadi yji: **Ras (Heads)** wla **Njma (Tails)**?",
+                description="Khtar chno ghadi yji: **Ras (Heads)** wla **Njma (Tails)**?" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
                 color=0x000000
             )
             msg = await ctx.send(embed=embed, view=view)
@@ -5172,7 +5670,9 @@ class Fun(commands.Cog):
         elif c in ["njma", "nejma", "tail", "tails", "t"]:
             user_choice = "njma"
         else:
-            await ctx.send("❌ Khtar `ras` (heads) wla `njma` (tails). Mital: `sat coinflip ras`")
+            if bet and bet > 0 and economy_cog:
+                await economy_cog.add_balance(ctx.author.id, bet, context="Coinflip Invalid Bet Refund")
+            await ctx.send("❌ Khtar `ras` (heads) wla `njma` (tails). Mital: `sat coinflip ras bet:100`")
             return
 
         flip_msg = await ctx.send("🪙 *Kanlou7 derhem f sma...*")
@@ -5183,15 +5683,25 @@ class Fun(commands.Cog):
         user_choice_label = "Ras (Heads)" if user_choice == "ras" else "Njma (Tails)"
 
         won = (user_choice == result)
-        if won and ctx.guild:
-            await self.record_minigame_win(ctx.guild.id, ctx.author.id, "coinflip")
-
         outcome_title = "🏆 Rbe7ti!" if won else "💥 Khesrti!"
         embed = discord.Embed(
             title=f"{outcome_title} — {result_label}",
             description=f"Lkhtiyar dialek: **{user_choice_label}**\nNatija: **{result_label}**",
             color=0x000000
         )
+
+        if bet and bet > 0 and economy_cog:
+            if won:
+                payout = bet * 2
+                await economy_cog.add_balance(ctx.author.id, payout, context="Coinflip Win")
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, ctx.author.id, "coinflip", earnings=bet)
+                embed.add_field(name="💰 Net Outcome", value=f"🟢 **+{format_tad(bet)}** (Payout: {format_tad(payout)})", inline=False)
+            else:
+                embed.add_field(name="💰 Net Outcome", value=f"🔴 -{format_tad(bet)}", inline=False)
+        elif won and ctx.guild:
+            await self.record_minigame_win(ctx.guild.id, ctx.author.id, "coinflip")
+
         coin_path = os.path.join("assets", "coin", "Heads.png" if result == "ras" else "Tails.png")
         if os.path.exists(coin_path):
             file = discord.File(coin_path, filename="coin.png")
@@ -5201,61 +5711,78 @@ class Fun(commands.Cog):
         else:
             await flip_msg.edit(content=None, embed=embed)
 
-    @commands.command(aliases=["nrd", "roll", "diceroll"], help="Lo7 dice o chouf ch7al jak (e.g. sat dice, sat dice 2, sat dice 20).")
-    async def dice(self, ctx, query: Optional[str] = "1"):
-        query = query.strip().lower()
-        num_dice = 1
-        num_sides = 6
+    @commands.command(aliases=["nrd", "roll", "diceroll"], help="Lo7 dice o rbe7 multiplier (sat dice [bet:100]).")
+    @not_fraud()
+    async def dice(self, ctx: commands.Context, *args):
+        bet, _ = parse_bet_argument(*args)
 
-        try:
-            if "d" in query:
-                parts = query.split("d")
-                num_dice = int(parts[0]) if parts[0] else 1
-                num_sides = int(parts[1])
-            elif query.isdigit():
-                val = int(query)
-                if val <= 10:
-                    num_dice = val
-                    num_sides = 6
-                else:
-                    num_dice = 1
-                    num_sides = val
-        except Exception:
-            num_dice = 1
-            num_sides = 6
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w = await economy_cog.get_wallet(ctx.author.id)
+            if w["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
+                return
+            await economy_cog.deduct_balance(ctx.author.id, bet, context="Dice Bet")
 
-        num_dice = max(1, min(num_dice, 6))
-        num_sides = max(2, min(num_sides, 100))
+        roll = random.randint(1, 6)
+        multipliers = {
+            1: (0.0, "💥 Khesrti ga3 l bet! (0x)"),
+            2: (0.5, "🤏 Rje3 lik ness l bet (0.5x)"),
+            3: (1.0, "🤝 Rje3 lik floussek (1.0x)"),
+            4: (1.2, "✨ Small Win! (1.2x)"),
+            5: (1.5, "🔥 Good Win! (1.5x)"),
+            6: (2.0, "👑 DOUBLE JACKPOT! (2.0x)")
+        }
 
-        rolls = [random.randint(1, num_sides) for _ in range(num_dice)]
-        total = sum(rolls)
-        rolls_str = " ".join(f"`{r}`" for r in rolls)
+        mult, desc = multipliers[roll]
+
+        payout = 0
+        net_profit = 0
+        if bet and bet > 0 and economy_cog:
+            payout = int(round(bet * mult))
+            net_profit = payout - bet
+            if payout > 0:
+                await economy_cog.add_balance(ctx.author.id, payout, context=f"Dice Payout ({mult}x)")
+            if mult >= 1.2 and ctx.guild:
+                await self.record_minigame_win(ctx.guild.id, ctx.author.id, "dice", earnings=max(0, net_profit))
 
         embed = discord.Embed(
-            title=f"🎲 Dice Roll ({num_dice}d{num_sides})",
-            description=f"**Rolls:** {rolls_str}\n**Total Sum:** `{total}`",
+            title=f"🎲 Dice Roll: [ {roll} ]",
+            description=f"### {desc}\n\n"
+                        f"📊 Multiplier: **{mult}x**\n",
             color=0x000000
         )
-        view = DiceRollView(ctx.author, self, num_dice=num_dice, num_sides=num_sides)
 
-        if num_sides == 6:
-            buf = render_dice_composite(rolls)
-            if buf:
-                file = discord.File(buf, filename="dice.png")
-                if len(rolls) == 1:
-                    embed.set_thumbnail(url="attachment://dice.png")
-                else:
-                    embed.set_image(url="attachment://dice.png")
-                msg = await ctx.send(embed=embed, view=view, file=file)
-                view.message = msg
+        if bet and bet > 0:
+            sign = "🟢 +" if net_profit > 0 else ("⚪ " if net_profit == 0 else "🔴 ")
+            embed.add_field(name="💰 Stake / Bet", value=format_tad(bet), inline=True)
+            embed.add_field(name="💵 Payout", value=format_tad(payout), inline=True)
+            embed.add_field(name="📈 Net Outcome", value=f"{sign}{format_tad(net_profit)}", inline=False)
+        else:
+            embed.set_footer(text="Bghiti t9emmer b flous? Kteb sat dice bet:100")
+
+        img_path = os.path.join("assets", "dice", f"{roll}.png")
+        if os.path.exists(img_path):
+            file = discord.File(img_path, filename="dice.png")
+            embed.set_thumbnail(url="attachment://dice.png")
+            await ctx.send(embed=embed, file=file)
+        else:
+            await ctx.send(embed=embed)
+
+    @commands.command(aliases=["bj", "21"], help="Fout dealer blama tfout 21 (sat blackjack [bet:500]).")
+    @not_fraud()
+    async def blackjack(self, ctx: commands.Context, *args):
+        bet, _ = parse_bet_argument(*args)
+
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w = await economy_cog.get_wallet(ctx.author.id)
+            if w["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
                 return
+            await economy_cog.deduct_balance(ctx.author.id, bet, context="Blackjack Bet")
 
-        msg = await ctx.send(embed=embed, view=view)
-        view.message = msg
-
-    @commands.command(aliases=["bj", "21"], help="Fout dealer blama tfout 21.")
-    async def blackjack(self, ctx):
-        view = BlackjackView(ctx.author, self)
+        view = BlackjackView(ctx.author, self, bet=bet or 0)
         initial_embed = view.get_embed()
         initial_file = view.get_render_file()
 
@@ -5264,10 +5791,20 @@ class Fun(commands.Cog):
             d_score = calculate_bj_score(view.dealer_hand)
             if d_score == 21:
                 initial_embed = view.get_embed(dealer_reveal=True, outcome_text="🤝 **Double Blackjack!** Ta3adol (Push)!")
+                if bet and bet > 0 and economy_cog:
+                    await economy_cog.add_balance(ctx.author.id, bet, context="Blackjack Push Refund")
             else:
-                if ctx.guild:
+                outcome_str = "🏆 **NATURAL 21 BLACKJACK!** Rbe7ti l game!"
+                if bet and bet > 0 and economy_cog:
+                    payout = int(round(bet * 2.5))
+                    net_profit = payout - bet
+                    await economy_cog.add_balance(ctx.author.id, payout, context="Blackjack Natural 21")
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, ctx.author.id, "blackjack", earnings=net_profit)
+                    outcome_str += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Payout: {format_tad(payout)})!"
+                elif ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "blackjack")
-                initial_embed = view.get_embed(dealer_reveal=True, outcome_text="🏆 **NATURAL 21 BLACKJACK!** Rbe7ti l game!")
+                initial_embed = view.get_embed(dealer_reveal=True, outcome_text=outcome_str)
             view.game_over = True
             for item in view.children:
                 item.disabled = True
@@ -5276,14 +5813,25 @@ class Fun(commands.Cog):
         msg = await ctx.send(embed=initial_embed, view=view, file=initial_file)
         view.message = msg
 
-    @commands.command(aliases=["slot", "machine"], help="L3eb casino slot machine.")
-    async def slots(self, ctx):
+    @commands.command(aliases=["slot", "machine"], help="L3eb casino slot machine (sat slots [bet:500]).")
+    @not_fraud()
+    async def slots(self, ctx: commands.Context, *args):
+        bet, _ = parse_bet_argument(*args)
+
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w = await economy_cog.get_wallet(ctx.author.id)
+            if w["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
+                return
+            await economy_cog.deduct_balance(ctx.author.id, bet, context="Slots Bet")
+
         slot_items = ["💎", "7️⃣", "🔔", "🍇", "🍒", "🍋", "🍊"]
         weights = [5, 10, 15, 20, 25, 30, 35]
 
         spin_msg = await ctx.send(embed=discord.Embed(
             title="🎰 Casino Slot Machine",
-            description="**[ 🔄 | 🔄 | 🔄 ]**\n*Spinning the reels...*",
+            description="**[ 🔄 | 🔄 | 🔄 ]**\n*Spinning the reels...*" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
             color=0x000000
         ))
         await asyncio.sleep(1.2)
@@ -5317,7 +5865,16 @@ class Fun(commands.Cog):
             payout_mult = 1.5
             outcome_title = "✨ Small Win! Double Match!"
 
-        if payout_mult > 0 and ctx.guild:
+        payout = 0
+        net_profit = 0
+        if bet and bet > 0 and economy_cog:
+            payout = int(round(bet * payout_mult))
+            net_profit = payout - bet
+            if payout > 0:
+                await economy_cog.add_balance(ctx.author.id, payout, context=f"Slots Payout ({payout_mult:.1f}x)")
+            if payout_mult > 0 and ctx.guild:
+                await self.record_minigame_win(ctx.guild.id, ctx.author.id, "slots", earnings=max(0, net_profit))
+        elif payout_mult > 0 and ctx.guild:
             await self.record_minigame_win(ctx.guild.id, ctx.author.id, "slots")
 
         embed = discord.Embed(
@@ -5329,30 +5886,57 @@ class Fun(commands.Cog):
             ),
             color=0x000000
         )
+
+        if bet and bet > 0:
+            sign = "🟢 +" if net_profit > 0 else ("⚪ " if net_profit == 0 else "🔴 ")
+            embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
+            embed.add_field(name="💵 Payout", value=format_tad(payout), inline=True)
+            embed.add_field(name="📈 Net Outcome", value=f"{sign}{format_tad(net_profit)}", inline=False)
+
         await spin_msg.edit(embed=embed)
 
-    @commands.command(aliases=["gemhunt"], help="L9a gems o hreb 9bl matfrge3.")
-    async def mines(self, ctx, bombs: Optional[int] = 3):
+    @commands.command(aliases=["gems"], help="L9a gems o hreb 9bl matfrge3 (sat mines [bombs] [bet:500]).")
+    @not_fraud()
+    async def mines(self, ctx: commands.Context, *args):
+        bet, remaining = parse_bet_argument(*args)
+        bombs = 3
+        if remaining and remaining[0].isdigit():
+            bombs = int(remaining[0])
+
         bombs = max(1, min(bombs, 8))
-        view = MinesGambleView(ctx.author, self, bomb_count=bombs)
+
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w = await economy_cog.get_wallet(ctx.author.id)
+            if w["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
+                return
+            await economy_cog.deduct_balance(ctx.author.id, bet, context="Mines Bet")
+
+        view = MinesGambleView(ctx.author, self, bomb_count=bombs, bet=bet or 0)
         total_gems = (view.width * view.height) - bombs
         embed = discord.Embed(
             title="💣 Mines Table",
             description=(
                 f"💎 Gems: **0/{total_gems}**\n"
                 f"📈 Multiplier: **1.00x** (Next: **1.15x**)\n"
-                f"💣 Bombs: **{bombs}**\n\n"
-                f"Click 3la ay tile bach t-uncoveriha!"
+                f"💣 Bombs: **{bombs}**\n"
+                + (f"💰 Stake: {format_tad(bet)}\n\n" if bet and bet > 0 else "\n")
+                + "Click 3la ay tile bach t uncoveriha!"
             ),
             color=0x000000
         )
         msg = await ctx.send(embed=embed, view=view)
         view.message = msg
 
-    @commands.command(aliases=["roul", "wheel"], help="9emmer 3la loun wla ra9m.")
-    async def roulette(self, ctx, choice: Optional[str] = None):
+    @commands.command(aliases=["wheel"], help="9emmer 3la loun wla ra9m (sat roulette [choice] [bet:500]).")
+    @not_fraud()
+    async def roulette(self, ctx: commands.Context, *args):
         red_nums = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
         black_nums = {2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35}
+
+        bet, remaining = parse_bet_argument(*args)
+        choice = remaining[0] if remaining else None
 
         if choice is None:
             embed = discord.Embed(
@@ -5364,7 +5948,7 @@ class Fun(commands.Cog):
                     "• `1-18` (Low) / `19-36` (High) (2x payout)\n"
                     "• `green` / `0` (14x payout)\n"
                     "• Number direct `0` - `36` (36x payout)\n\n"
-                    f"Mital: `{ctx.clean_prefix}roulette red` wla `{ctx.clean_prefix}roulette 7`"
+                    f"Mital: `{ctx.clean_prefix}roulette red bet:100` wla `{ctx.clean_prefix}roulette 7 bet:500`"
                 ),
                 color=0x000000
             )
@@ -5372,9 +5956,18 @@ class Fun(commands.Cog):
             return
 
         choice = choice.strip().lower()
+
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w = await economy_cog.get_wallet(ctx.author.id)
+            if w["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
+                return
+            await economy_cog.deduct_balance(ctx.author.id, bet, context="Roulette Bet")
+
         spin_embed = discord.Embed(
             title="🎡 European Roulette",
-            description="🔄 *Kandwwr roulette wheel...*",
+            description="🔄 *Kandwwr roulette wheel...*" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
             color=0x000000
         )
         gif_path = os.path.join("assets", "roulette.gif")
@@ -5395,9 +5988,12 @@ class Fun(commands.Cog):
         elif landed_num in red_nums:
             color_emoji = "🔴"
             color_name = "red"
-        else:
+        elif landed_num in black_nums:
             color_emoji = "⚫"
             color_name = "black"
+        else:
+            color_emoji = "🟢"
+            color_name = "green"
 
         won = False
         mult = 0.0
@@ -5427,7 +6023,18 @@ class Fun(commands.Cog):
             won = True
             mult = 36.0
 
-        if won and ctx.guild:
+        payout = 0
+        net_profit = 0
+        if bet and bet > 0 and economy_cog:
+            if won:
+                payout = int(round(bet * mult))
+                net_profit = payout - bet
+                await economy_cog.add_balance(ctx.author.id, payout, context=f"Roulette Win ({mult:.0f}x)")
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, ctx.author.id, "roulette", earnings=net_profit)
+            else:
+                net_profit = -bet
+        elif won and ctx.guild:
             await self.record_minigame_win(ctx.guild.id, ctx.author.id, "roulette")
 
         outcome_title = f"🏆 Rbe7ti! ({mult:.0f}x)" if won else "💥 Khesrti!"
@@ -5440,11 +6047,29 @@ class Fun(commands.Cog):
             ),
             color=0x000000
         )
+
+        if bet and bet > 0:
+            sign = "🟢 +" if net_profit > 0 else "🔴 "
+            embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
+            embed.add_field(name="💵 Payout", value=format_tad(payout), inline=True)
+            embed.add_field(name="📈 Net Outcome", value=f"{sign}{format_tad(abs(net_profit))}", inline=False)
+
         await spin_msg.edit(embed=embed, attachments=[])
 
-    @commands.command(aliases=["hl"], help="9emmer wach lwr9a jaya ghadi tkoun Higher wla Lower.")
-    async def higherlower(self, ctx):
-        view = HigherLowerView(ctx.author, self)
+    @commands.command(aliases=["hl"], help="9emmer wach lwr9a jaya Higher wla Lower (sat higherlower [bet:500]).")
+    @not_fraud()
+    async def higherlower(self, ctx: commands.Context, *args):
+        bet, _ = parse_bet_argument(*args)
+
+        economy_cog = self.bot.get_cog("Economy")
+        if bet and bet > 0 and economy_cog:
+            w = await economy_cog.get_wallet(ctx.author.id)
+            if w["balance"] < bet:
+                await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
+                return
+            await economy_cog.deduct_balance(ctx.author.id, bet, context="HigherLower Bet")
+
+        view = HigherLowerView(ctx.author, self, bet=bet or 0)
         embed = view.get_embed("9emmer lwr9a jaya wach **Higher ⬆️** wla **Lower ⬇️**!")
         file = get_hl_card_file(view.current_card)
         if file:

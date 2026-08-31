@@ -27,6 +27,9 @@ AllBotCommands = {
         "worthless", "drake", "presidentialalert", "spongebobburnpaper", "lisastage", "changemymind", "awkwardmonkey",
         "blur", "circle", "invert", "wide", "uglyupclose", "clown", "restinpeace", "affectbaby", "trash"
     ],
+    "Economy": [
+        "wallet", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit"
+    ],
     "Triggers": [
         "👀", "🧠", "🧽", "👎", "🚨", "🎤"
     ],

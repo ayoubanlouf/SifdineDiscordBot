@@ -3,11 +3,9 @@ import io
 import json
 import psutil
 import time
-import zipfile
-import asyncio
 from datetime import datetime, timezone
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from converters import FuzzyMember
 
 
@@ -229,7 +227,7 @@ class Bot(commands.Cog):
     @host.command(name="restart", aliases=["reboot"], help="Rebooti container f Discloud.")
     @commands.is_owner()
     async def host_restart(self, ctx):
-        confirm_msg = await ctx.send("🔄 Kan-sift reboot request l Discloud container...")
+        confirm_msg = await ctx.send("🔄 Kansift reboot request l Discloud container...")
         app_id = await self.get_discloud_app_id()
         data = await self._discloud_request("PUT", f"/app/{app_id}/restart")
 
@@ -246,7 +244,7 @@ class Bot(commands.Cog):
     @host.command(name="backup", aliases=["snapshot", "cloudbackup"], help="Telechargi backup kamla mn Discloud.")
     @commands.is_owner()
     async def host_backup(self, ctx):
-        wait_msg = await ctx.send("📦 Kan-tlbo backup link mn Discloud...")
+        wait_msg = await ctx.send("📦 Kantlb backup link mn Discloud...")
         app_id = await self.get_discloud_app_id()
         data = await self._discloud_request("GET", f"/app/{app_id}/backup")
 
@@ -270,7 +268,7 @@ class Bot(commands.Cog):
 
             embed = discord.Embed(
                 title="📦 Discloud Cloud Backup",
-                description=f"✅ **Backup URL t9adat:**\n[🔗 Download Full Project Backup Zip]({backup_url})\n\n-# _Link kay-expiri mora chwya dyal lwa9t._",
+                description=f"✅ **Backup URL t9adat:**\n[🔗 Download Full Project Backup Zip]({backup_url})\n\n-# _Link kayt expira mora chwya dyal lwa9t._",
                 color=0x000000,
                 timestamp=ctx.message.created_at
             )
