@@ -240,7 +240,7 @@ class DiscordUtil(commands.Cog):
             username=user.display_name
         )
 
-    @commands.command(aliases=["dm", "prv"], help="Sift message anonyme l chy wa7d mn server.")
+    @commands.command(aliases=["dm", "prv"], help="Sift message anonyme lchy wa7d mn server.")
     async def whisper(self, ctx, user: FuzzyMember = None, *, msg):
         await ctx.message.delete()
         await user.send(f"**Anonymous user:** {msg}")

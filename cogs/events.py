@@ -662,7 +662,7 @@ class Events(commands.Cog):
         if before.premium_since is None and after.premium_since is not None:
             embed = discord.Embed(
                 title="🚀 Server Boosted!",
-                description=f"{after.mention} (`{after.id}`) 3ta boost l server! 🎉",
+                description=f"{after.mention} (`{after.id}`) zad boost l server! 🎉",
                 color=0x000000,
                 timestamp=datetime.now(timezone.utc)
             )

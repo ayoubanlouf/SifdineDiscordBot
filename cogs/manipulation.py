@@ -22,7 +22,7 @@ class Manipulation(commands.Cog):
             member = await FuzzyMember().convert(ctx, target)
             return member.display_avatar.url
         except commands.CommandError:
-            raise commands.BadArgument("Malkitch had l member, t79e9 men l smiya wla dir link direct.")
+            raise commands.BadArgument("Malkitch had l member, 3awd chouf smiya wla dir link direct.")
 
 
     @commands.command(name="worthless", help="Ma hdra ma walo.")

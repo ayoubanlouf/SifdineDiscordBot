@@ -912,7 +912,7 @@ class Moderation(commands.Cog):
         except discord.NotFound:
             await ctx.send("Mal9itch user b had l ID.")
         except Exception as e:
-            await ctx.send(embed=discord.Embed(description=f"Ma9dertch n7yed l ban: `{e}`", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"Ma9dertch n7yed lban: `{e}`", color=0x000000))
 
     @commands.command(name="banlist", aliases=["bl", "bans"], help="Chouf list ta3 bans ta3 server.")
     @commands.has_permissions(ban_members=True)
@@ -967,7 +967,7 @@ class Moderation(commands.Cog):
             await member.edit(mute=False)
             await ctx.send(f"{member.mention} t unmuta fl voice channel.")
         except Exception as e:
-            await ctx.send(embed=discord.Embed(description=f"Ma9dertch n7yed l mute: `{e}`", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"Ma9dertch n7yed lmute: `{e}`", color=0x000000))
 
     @commands.command(name="deafen", help="Deafeni chy wa7d f voice.")
     @commands.has_permissions(moderate_members=True)
@@ -997,7 +997,7 @@ class Moderation(commands.Cog):
             await member.edit(deafen=False)
             await ctx.send(f"{member.mention} t undeafena fl voice channel.")
         except Exception as e:
-            await ctx.send(embed=discord.Embed(description=f"Ma9dertch n7yed l deafen: `{e}`", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"Ma9dertch n7yed deafen: `{e}`", color=0x000000))
     
 
     @commands.command(name="disconnect", aliases=["dc", "kickvc"], help="Disconnect chy wa7d mn voice.")

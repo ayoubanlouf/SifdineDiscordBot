@@ -288,7 +288,7 @@ class Bot(commands.Cog):
     @commands.command(name="servers", aliases=['guilds'], help="Servers li dakhl lihom ana.")
     async def servers(self, ctx):
         if not await self.bot.is_owner(ctx.author):
-            await ctx.send("Ma3endekch l7e9 tsta3ml had l cmd :/")
+            await ctx.send("Ma3endekch l7e9 tsta3ml had lcmd :/")
             return
 
         members = 0
@@ -313,7 +313,7 @@ class Bot(commands.Cog):
 
 
 
-    @commands.command(name="inviter", help="Chkoun dkhelni l server.")
+    @commands.command(name="inviter", help="Chkoun dkhelni lserver.")
     async def inviter(self, ctx, guild_id: int):
         if not await self.bot.is_owner(ctx.author):
             await ctx.send("Ma3nkdch l7e9 tkhdm had l cmd :/")
@@ -413,7 +413,7 @@ class Bot(commands.Cog):
 
 
 
-    @commands.command(name="suggestion",aliases=["zid", "suggest"], help="Seft 9tira7 l admin.")
+    @commands.command(name="suggestion",aliases=["zid", "suggest"], help="Seft 9tira7 ladmin.")
     async def suggestion(self, ctx, *, content: str = None):
         if content is None and not ctx.message.attachments:
             await ctx.send("Khassk tktb chi suggestion wla lo7 chi tswira/file.")
@@ -440,7 +440,7 @@ class Bot(commands.Cog):
         await channel.send(embed=embed, files=files)
         await ctx.send("Safi wslatni suggestion ta3k, an7awlo nzidouha f a9rab wa9t inshaallah!")
 
-    @commands.command(name="bug", aliases=["report", "9ad"],  help="Reporti chi bug l admin.")
+    @commands.command(name="bug", aliases=["report", "9ad"],  help="Reporti chi bug ladmin.")
     async def bug(self, ctx, *, content: str = None):
         if content is None and not ctx.message.attachments:
             await ctx.send("Khassk tktb chi bug wla lo7 chi tsowira/file.")
@@ -465,7 +465,7 @@ class Bot(commands.Cog):
         
         files = [await a.to_file() for a in ctx.message.attachments]
         await channel.send(embed=embed, files=files)
-        await ctx.send("Safi wselni l bug report ta3k, an9adoh f a9rab wa9t inshaallah!")
+        await ctx.send("Safi wselni lbug report ta3k, an9adoh f a9rab wa9t inshaallah!")
 
     @commands.command(name="botinfo", aliases=["info", "nta"])
     async def botinfo(self, ctx):
@@ -510,10 +510,10 @@ class Bot(commands.Cog):
         await ctx.send(embed=embed, view=view)
 
 
-    @commands.command(name="backup", help="Sift cloud backup ta3 database l DMs ta3 l owner.")
+    @commands.command(name="backup", help="Sift cloud backup ta3 database l DMs ta3 lowner.")
     async def backup(self, ctx):
         if not await self.bot.is_owner(ctx.author):
-            await ctx.send("Ma3endekch l7e9 tsta3ml had l cmd :/")
+            await ctx.send("Ma3endekch l7e9 tsta3ml had lcmd :/")
             return
 
         wait_msg = await ctx.send("📦 Kanjbed snapshot mn database...")

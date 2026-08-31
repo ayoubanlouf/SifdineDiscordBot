@@ -193,21 +193,20 @@ class Economy(commands.Cog):
 
     async def get_wallet_embed(self, user: discord.Member) -> discord.Embed:
         w = await self.get_wallet(user.id)
-        status_str = "🔒 **Frozen (Fraud)**" if w["is_fraud"] == 1 else "✅ **Active (Legit)**"
+        status_str = "🔒 **Frozen (Fraud)**" if w["is_fraud"] == 1 else "🟢 **Active**"
 
         embed = discord.Embed(
-            title=f"💼 {user.display_name}'s Wallet",
+            title=f"💼 Bstam ta3 {user.display_name}",
             color=0x000000
         )
         embed.set_thumbnail(url=user.display_avatar.url)
-        embed.add_field(name="💰 Balance", value=format_tad(w['balance']), inline=True)
-        embed.add_field(name="📊 Status", value=status_str, inline=True)
+        embed.add_field(name="Balance", value=format_tad(w['balance']), inline=True)
+        embed.add_field(name="Status", value=status_str, inline=True)
         embed.add_field(
-            name="💬 Chat Activity Rewards",
-            value=f"{format_tad(w['total_activity_rewards'])} *(Lifetime)*",
+            name="Total Activity Rewards",
+            value=f"{format_tad(w['total_activity_rewards'])}",
             inline=False
         )
-        embed.set_footer(text="Click 'Recent Transactions' bach tchouf akher 3amaliyat.")
         return embed
 
     async def get_transactions_embed(self, user: discord.Member) -> discord.Embed:
@@ -225,17 +224,17 @@ class Economy(commands.Cog):
         embed.set_thumbnail(url=user.display_avatar.url)
 
         if not rows:
-            embed.description = "*Walo transactions msjlin 7ta l daba.*"
+            embed.description = "*No Transactions yet.*"
         else:
             lines = []
             for amt, ctx_desc, ts in rows:
-                sign = "🟢 +" if amt > 0 else "🔴 "
-                lines.append(f"{sign}**{abs(amt):,}** {TAD_EMOJI} — *{ctx_desc}* (<t:{ts}:R>)")
+                sign = "🟢 +" if amt > 0 else "🔴 -"
+                lines.append(f"{sign}**{abs(amt):,}** TAD — *{ctx_desc}* (<t:{ts}:R>)")
             embed.description = "\n".join(lines)
 
         embed.add_field(
             name="💬 Passive Chat Mining",
-            value=f"Total rbe7ti mn chat: {format_tad(w['total_activity_rewards'])}",
+            value=f"Total: {format_tad(w['total_activity_rewards'])}",
             inline=False
         )
         return embed
@@ -295,10 +294,10 @@ class Economy(commands.Cog):
         await self.bot.db.commit()
 
         embed = discord.Embed(
-            title="🎁 Daily Reward Claimed!",
+            title="🎁 Daily Reward Claimed",
             description=(
-                f"🎉 Chediti {format_tad(reward)}!\n\n"
-                f"🔥 **Daily Streak:** `{streak}/7` (Bonus: `+{streak*25} TAD`)\n"
+                f"Chediti {format_tad(reward)}!\n\n"
+                f"🔥 **Streak:** `{streak}/7` (+{streak*25} TAD)\n"
                 f"💰 **New Balance:** {format_tad(new_bal)}"
             ),
             color=0x000000
@@ -341,9 +340,9 @@ class Economy(commands.Cog):
         await self.bot.db.commit()
 
         embed = discord.Embed(
-            title="👑 Weekly Reward Claimed!",
+            title="👑 Weekly Reward Claimed",
             description=(
-                f"🎉 Chediti {format_tad(reward)}!\n\n"
+                f"Chediti {format_tad(reward)}!\n\n"
                 f"💰 **New Balance:** {format_tad(new_bal)}"
             ),
             color=0x000000
@@ -383,8 +382,8 @@ class Economy(commands.Cog):
         embed = discord.Embed(
             title="💸 Payment Successful",
             description=(
-                f"✅ **{ctx.author.mention}** sifti {format_tad(received)} l **{target.mention}**!\n\n"
-                f"🔥 **5% Tax Burned:** `{tax:,}` {TAD_EMOJI} TAD"
+                f"Sifti {format_tad(received)} l **{target.mention}**.\n\n"
+                f"🔥 **5% Tax Burned:** `{tax:,}` TAD"
             ),
             color=0x000000
         )
@@ -404,7 +403,7 @@ class Economy(commands.Cog):
 
         embed = discord.Embed(
             title="🏛️ Economy Tax Applied",
-            description=f"📉 N9ssna **{amount:,}** {TAD_EMOJI} TAD mn wallet dial **{target.mention}**.\nNew Balance: {format_tad(w['balance'])}",
+            description=f"N9ssna **{amount:,}** TAD mn wallet dial **{target.mention}**.\n💰 **New Balance:** {format_tad(w['balance'])}",
             color=0x000000
         )
         await ctx.send(embed=embed)
@@ -420,7 +419,7 @@ class Economy(commands.Cog):
 
         embed = discord.Embed(
             title="🎁 Admin Reward Granted",
-            description=f"📈 Zdna {format_tad(amount)} f wallet dial **{target.mention}**!\nNew Balance: {format_tad(new_bal)}",
+            description=f"Zdna {format_tad(amount)} f wallet dial **{target.mention}**!\n💰 **New Balance:** {format_tad(new_bal)}",
             color=0x000000
         )
         await ctx.send(embed=embed)
@@ -448,7 +447,7 @@ class Economy(commands.Cog):
 
         embed = discord.Embed(
             title="✅ Economy Standing Restored",
-            description=f"🔓 **{target.mention}** rje3 **Legit**! Wallet dialo t7llat o progress dialo kaml b9a kifma kan.",
+            description=f"🟢 **{target.mention}** rje3 **Legit**! Wallet dialo t7llat o progress dialo kaml b9a kifma kan.",
             color=0x000000
         )
         await ctx.send(embed=embed)

@@ -3925,8 +3925,6 @@ class MinesGambleView(discord.ui.View):
                 description=f"💣 Tferg3at 3lik bomb f tile `({x+1}, {y+1})`! Khesrti.",
                 color=0x000000
             )
-            if self.bet > 0:
-                embed.add_field(name="💰 Net Outcome", value=f"🔴 -{format_tad(self.bet)}", inline=False)
             await interaction.response.edit_message(embed=embed, view=self)
             self.stop()
             return
@@ -4069,8 +4067,6 @@ class HigherLowerView(discord.ui.View):
                 description=f"❌ {card_reveal_str}.\nKhesrti! Final Streak: **{self.streak}**.",
                 color=0x000000
             )
-            if self.bet > 0:
-                embed.add_field(name="💰 Net Outcome", value=f"🔴 -{format_tad(self.bet)}", inline=False)
             file = get_hl_card_file(next_card)
             if file:
                 embed.set_thumbnail(url="attachment://card.png")
@@ -4161,9 +4157,6 @@ class CoinflipView(discord.ui.View):
                 asyncio.create_task(economy_cog.add_balance(self.author.id, payout, context="Coinflip Win"))
                 if self.message and self.message.guild:
                     asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "coinflip", earnings=self.bet))
-                embed.add_field(name="💰 Net Outcome", value=f"🟢 **+{format_tad(self.bet)}** (Payout: {format_tad(payout)})", inline=False)
-            else:
-                embed.add_field(name="💰 Net Outcome", value=f"🔴 -{format_tad(self.bet)}", inline=False)
         elif won and self.message and self.message.guild:
             asyncio.create_task(self.cog.record_minigame_win(self.message.guild.id, self.author.id, "coinflip"))
 
@@ -4249,6 +4242,171 @@ class DiceRollView(discord.ui.View):
                 return
 
         await interaction.response.edit_message(embed=embed, view=self, attachments=[])
+
+
+# ============ INTERACTIVE 2-TIER LEADERBOARD UI ============
+
+MINIGAME_DISPLAY_MAP = {
+    "flags": ("🚩 Flags", ["flags", "flag", "rayat", "gtf"]),
+    "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
+    "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
+    "blackjack": ("🃏 Blackjack", ["blackjack", "bj", "21"]),
+    "slots": ("🎰 Slots", ["slots", "slot", "machine"]),
+    "mines": ("💣 Mines", ["mines", "gems", "gemhunt"]),
+    "roulette": ("🎡 Roulette", ["roulette", "wheel", "roul"]),
+    "higherlower": ("🃏 HigherLower", ["higherlower", "hl", "cardduel"]),
+    "coinflip": ("🪙 Coinflip", ["coinflip", "cf", "drhm", "drhem", "flip"]),
+    "dice": ("🎲 Dice", ["dice", "nrd", "roll", "diceroll"]),
+    "tictactoe": ("❌ TicTacToe", ["tictactoe", "ttt", "morpion"]),
+    "connectfour": ("🔴 ConnectFour", ["connectfour", "c4", "connect4"]),
+    "chess": ("♟️ Chess", ["chess", "playchess", "shitranj", "chessgame"]),
+    "rockpaperscissors": ("✂️ RockPaperScissors", ["rockpaperscissors", "rps", "zdimbomba7", "zba7"]),
+    "minesweeper": ("💣 Minesweeper", ["minesweeper", "ms", "demineur"]),
+    "wordle": ("🟩 Wordle", ["wordle", "wdl", "klma", "kelma"]),
+    "hangman": ("🪢 Hangman", ["hangman", "hm", "michna9a"]),
+    "trivia": ("🧠 Trivia", ["trivia", "quiz", "as2ila"]),
+    "typeracer": ("🏎️ TypeRacer", ["typeracer", "tr", "type", "monkeytype"]),
+}
+
+class LeaderboardSelect(discord.ui.Select):
+    def __init__(self, minigame_map: dict):
+        options = []
+        for game_key, (display_name, _) in minigame_map.items():
+            parts = display_name.split(" ", 1)
+            emoji_part = parts[0] if len(parts) > 1 else None
+            label_part = parts[1] if len(parts) > 1 else display_name
+            options.append(discord.SelectOption(
+                label=label_part,
+                value=game_key,
+                emoji=emoji_part
+            ))
+        super().__init__(placeholder="🎯 Khtar minigame bach tchouf ranking dialha...", min_values=1, max_values=1, options=options, row=0)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: LeaderboardInteractiveView = self.view
+        selected_game = self.values[0]
+        await view.show_game_page(interaction, selected_game, sort_by="wins", page=0)
+
+
+class LeaderboardInteractiveView(discord.ui.View):
+    def __init__(self, ctx, cog, minigame_map: dict):
+        super().__init__(timeout=120)
+        self.ctx = ctx
+        self.cog = cog
+        self.minigame_map = minigame_map
+        self.current_game: Optional[str] = None
+        self.sort_by: str = "wins"  # "wins" or "earnings"
+        self.current_page: int = 0
+        self.per_page: int = 10
+        self.rows_cache = []
+        self.message: Optional[discord.Message] = None
+
+        self.setup_overview()
+
+    def setup_overview(self):
+        self.clear_items()
+        self.current_game = None
+        self.add_item(LeaderboardSelect(self.minigame_map))
+
+    async def show_overview(self, interaction: Optional[discord.Interaction] = None):
+        self.setup_overview()
+        embed = await self.cog.get_main_leaderboard_embed(self.ctx.guild)
+        if interaction:
+            await interaction.response.edit_message(embed=embed, view=self)
+        else:
+            self.message = await self.ctx.send(embed=embed, view=self)
+
+    async def show_game_page(self, interaction: Optional[discord.Interaction] = None, game_key: Optional[str] = None, sort_by: str = "wins", page: int = 0):
+        if game_key:
+            self.current_game = game_key
+        self.sort_by = sort_by
+        self.current_page = page
+
+        order_col = "earnings" if sort_by == "earnings" else "wins"
+        async with self.cog.bot.db.execute(f"""
+            SELECT user_id, wins, earnings FROM minigame_leaderboard
+            WHERE guild_id = ? AND game = ?
+            ORDER BY {order_col} DESC
+        """, (self.ctx.guild.id, self.current_game)) as cursor:
+            self.rows_cache = await cursor.fetchall()
+
+        self.clear_items()
+
+        total_pages = max(1, (len(self.rows_cache) + self.per_page - 1) // self.per_page)
+        self.current_page = max(0, min(self.current_page, total_pages - 1))
+
+        # Pagination & Switch Buttons
+        prev_btn = discord.ui.Button(label="◀️", style=discord.ButtonStyle.secondary, disabled=(self.current_page == 0), row=0)
+        async def prev_callback(i: discord.Interaction):
+            await self.show_game_page(i, self.current_game, self.sort_by, self.current_page - 1)
+        prev_btn.callback = prev_callback
+        self.add_item(prev_btn)
+
+        page_btn = discord.ui.Button(label=f"Page {self.current_page + 1}/{total_pages}", style=discord.ButtonStyle.secondary, disabled=True, row=0)
+        self.add_item(page_btn)
+
+        next_btn = discord.ui.Button(label="▶️", style=discord.ButtonStyle.secondary, disabled=(self.current_page >= total_pages - 1), row=0)
+        async def next_callback(i: discord.Interaction):
+            await self.show_game_page(i, self.current_game, self.sort_by, self.current_page + 1)
+        next_btn.callback = next_callback
+        self.add_item(next_btn)
+
+        # Sort Switcher Button
+        if sort_by == "wins":
+            sort_btn = discord.ui.Button(label="Sort by Money 💰", style=discord.ButtonStyle.success, emoji="💰", row=1)
+            async def sort_callback(i: discord.Interaction):
+                await self.show_game_page(i, self.current_game, "earnings", 0)
+            sort_btn.callback = sort_callback
+        else:
+            sort_btn = discord.ui.Button(label="Sort by Wins 🏆", style=discord.ButtonStyle.primary, emoji="🏆", row=1)
+            async def sort_callback(i: discord.Interaction):
+                await self.show_game_page(i, self.current_game, "wins", 0)
+            sort_btn.callback = sort_callback
+        self.add_item(sort_btn)
+
+        # Back to Overview Button
+        back_btn = discord.ui.Button(label="Back to Overview", style=discord.ButtonStyle.danger, emoji="🔙", row=1)
+        async def back_callback(i: discord.Interaction):
+            await self.show_overview(i)
+        back_btn.callback = back_callback
+        self.add_item(back_btn)
+
+        embed = self.get_game_embed(total_pages)
+        if interaction:
+            await interaction.response.edit_message(embed=embed, view=self)
+        else:
+            self.message = await self.ctx.send(embed=embed, view=self)
+
+    def get_game_embed(self, total_pages: int) -> discord.Embed:
+        game_display, _ = self.minigame_map.get(self.current_game, (self.current_game.title(), []))
+        sort_title = "💰 Sorted by Gains" if self.sort_by == "earnings" else "🏆 Sorted by Wins"
+        embed = discord.Embed(
+            title=f"{game_display} Leaderboard",
+            description=f"*{sort_title}* — **{self.ctx.guild.name}**\n\n",
+            color=0x000000
+        )
+
+        if not self.rows_cache:
+            embed.description += "*No records yet.*"
+            return embed
+
+        start_idx = self.current_page * self.per_page
+        page_rows = self.rows_cache[start_idx : start_idx + self.per_page]
+
+        medals = ["🥇", "🥈", "🥉"]
+        lines = []
+        for i, (uid, wins, earnings) in enumerate(page_rows, start=start_idx):
+            rank_str = medals[i] if i < 3 else f"**#{i+1}**"
+            win_str = f"**{wins}** win" if wins == 1 else f"**{wins}** wins"
+            earn_str = format_tad(earnings)
+            if self.sort_by == "earnings":
+                lines.append(f"{rank_str} <@{uid}> — {earn_str} *({win_str})*")
+            else:
+                lines.append(f"{rank_str} <@{uid}> — {win_str} *({earn_str})*")
+
+        embed.description += "\n".join(lines)
+        embed.set_footer(text=f"Page {self.current_page + 1}/{total_pages}")
+        return embed
 
 
 # ============ MAIN COG ============
@@ -5388,171 +5546,6 @@ class Fun(commands.Cog):
         await ctx.send(embed=leaderboard_embed)
 
 
-# ============ INTERACTIVE 2-TIER LEADERBOARD UI ============
-
-MINIGAME_DISPLAY_MAP = {
-    "flags": ("🚩 Flags", ["flags", "flag", "rayat", "gtf"]),
-    "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
-    "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
-    "blackjack": ("🃏 Blackjack", ["blackjack", "bj", "21"]),
-    "slots": ("🎰 Casino Slots", ["slots", "slot", "machine"]),
-    "mines": ("💣 Mines", ["mines", "gems", "gemhunt"]),
-    "roulette": ("🎡 Roulette", ["roulette", "wheel", "roul"]),
-    "higherlower": ("🃏 HigherLower", ["higherlower", "hl", "cardduel"]),
-    "coinflip": ("🪙 Coinflip", ["coinflip", "cf", "drhm", "drhem", "flip"]),
-    "dice": ("🎲 Dice Multiplier", ["dice", "nrd", "roll", "diceroll"]),
-    "tictactoe": ("❌ TicTacToe", ["tictactoe", "ttt", "morpion"]),
-    "connectfour": ("🔴 ConnectFour", ["connectfour", "c4", "connect4"]),
-    "chess": ("♟️ Chess", ["chess", "playchess", "shitranj", "chessgame"]),
-    "rockpaperscissors": ("✂️ RockPaperScissors", ["rockpaperscissors", "rps", "zdimbomba7", "zba7"]),
-    "minesweeper": ("💣 Minesweeper", ["minesweeper", "ms", "demineur"]),
-    "wordle": ("🟩 Wordle", ["wordle", "wdl", "klma", "kelma"]),
-    "hangman": ("🪢 Hangman", ["hangman", "hm", "michna9a"]),
-    "trivia": ("🧠 Trivia", ["trivia", "quiz", "as2ila"]),
-    "typeracer": ("🏎️ TypeRacer", ["typeracer", "tr", "type", "monkeytype"]),
-}
-
-class LeaderboardSelect(discord.ui.Select):
-    def __init__(self, minigame_map: dict):
-        options = []
-        for game_key, (display_name, _) in minigame_map.items():
-            parts = display_name.split(" ", 1)
-            emoji_part = parts[0] if len(parts) > 1 else None
-            label_part = parts[1] if len(parts) > 1 else display_name
-            options.append(discord.SelectOption(
-                label=label_part[:100],
-                value=game_key,
-                emoji=emoji_part
-            ))
-        super().__init__(placeholder="🎯 Khtar minigame bach tchouf ranking dialha...", min_values=1, max_values=1, options=options, row=0)
-
-    async def callback(self, interaction: discord.Interaction):
-        view: LeaderboardInteractiveView = self.view
-        selected_game = self.values[0]
-        await view.show_game_page(interaction, selected_game, sort_by="wins", page=0)
-
-
-class LeaderboardInteractiveView(discord.ui.View):
-    def __init__(self, ctx, cog, minigame_map: dict):
-        super().__init__(timeout=120)
-        self.ctx = ctx
-        self.cog = cog
-        self.minigame_map = minigame_map
-        self.current_game: Optional[str] = None
-        self.sort_by: str = "wins"  # "wins" or "earnings"
-        self.current_page: int = 0
-        self.per_page: int = 10
-        self.rows_cache = []
-        self.message: Optional[discord.Message] = None
-
-        self.setup_overview()
-
-    def setup_overview(self):
-        self.clear_items()
-        self.current_game = None
-        self.add_item(LeaderboardSelect(self.minigame_map))
-
-    async def show_overview(self, interaction: Optional[discord.Interaction] = None):
-        self.setup_overview()
-        embed = await self.cog.get_main_leaderboard_embed(self.ctx.guild)
-        if interaction:
-            await interaction.response.edit_message(embed=embed, view=self)
-        else:
-            self.message = await self.ctx.send(embed=embed, view=self)
-
-    async def show_game_page(self, interaction: Optional[discord.Interaction] = None, game_key: Optional[str] = None, sort_by: str = "wins", page: int = 0):
-        if game_key:
-            self.current_game = game_key
-        self.sort_by = sort_by
-        self.current_page = page
-
-        order_col = "earnings" if sort_by == "earnings" else "wins"
-        async with self.cog.bot.db.execute(f"""
-            SELECT user_id, wins, earnings FROM minigame_leaderboard
-            WHERE guild_id = ? AND game = ?
-            ORDER BY {order_col} DESC
-        """, (self.ctx.guild.id, self.current_game)) as cursor:
-            self.rows_cache = await cursor.fetchall()
-
-        self.clear_items()
-
-        total_pages = max(1, (len(self.rows_cache) + self.per_page - 1) // self.per_page)
-        self.current_page = max(0, min(self.current_page, total_pages - 1))
-
-        # Pagination & Switch Buttons
-        prev_btn = discord.ui.Button(label="◀️", style=discord.ButtonStyle.secondary, disabled=(self.current_page == 0), row=0)
-        async def prev_callback(i: discord.Interaction):
-            await self.show_game_page(i, self.current_game, self.sort_by, self.current_page - 1)
-        prev_btn.callback = prev_callback
-        self.add_item(prev_btn)
-
-        page_btn = discord.ui.Button(label=f"Page {self.current_page + 1}/{total_pages}", style=discord.ButtonStyle.secondary, disabled=True, row=0)
-        self.add_item(page_btn)
-
-        next_btn = discord.ui.Button(label="▶️", style=discord.ButtonStyle.secondary, disabled=(self.current_page >= total_pages - 1), row=0)
-        async def next_callback(i: discord.Interaction):
-            await self.show_game_page(i, self.current_game, self.sort_by, self.current_page + 1)
-        next_btn.callback = next_callback
-        self.add_item(next_btn)
-
-        # Sort Switcher Button
-        if sort_by == "wins":
-            sort_btn = discord.ui.Button(label="Sort by Money 💰", style=discord.ButtonStyle.success, emoji="💰", row=1)
-            async def sort_callback(i: discord.Interaction):
-                await self.show_game_page(i, self.current_game, "earnings", 0)
-            sort_btn.callback = sort_callback
-        else:
-            sort_btn = discord.ui.Button(label="Sort by Wins 🏆", style=discord.ButtonStyle.primary, emoji="🏆", row=1)
-            async def sort_callback(i: discord.Interaction):
-                await self.show_game_page(i, self.current_game, "wins", 0)
-            sort_btn.callback = sort_callback
-        self.add_item(sort_btn)
-
-        # Back to Overview Button
-        back_btn = discord.ui.Button(label="Back to Overview", style=discord.ButtonStyle.danger, emoji="🔙", row=1)
-        async def back_callback(i: discord.Interaction):
-            await self.show_overview(i)
-        back_btn.callback = back_callback
-        self.add_item(back_btn)
-
-        embed = self.get_game_embed(total_pages)
-        if interaction:
-            await interaction.response.edit_message(embed=embed, view=self)
-        else:
-            self.message = await self.ctx.send(embed=embed, view=self)
-
-    def get_game_embed(self, total_pages: int) -> discord.Embed:
-        game_display, _ = self.minigame_map.get(self.current_game, (self.current_game.title(), []))
-        sort_title = "💰 Sorted by Gains (TAD)" if self.sort_by == "earnings" else "🏆 Sorted by Wins"
-        embed = discord.Embed(
-            title=f"{game_display} Leaderboard",
-            description=f"*{sort_title}* — **{self.ctx.guild.name}**\n\n",
-            color=0x000000
-        )
-
-        if not self.rows_cache:
-            embed.description += "*Ta wa7d ma 3ndo wins/gains msjlin f had l game ba9i.*"
-            return embed
-
-        start_idx = self.current_page * self.per_page
-        page_rows = self.rows_cache[start_idx : start_idx + self.per_page]
-
-        medals = ["🥇", "🥈", "🥉"]
-        lines = []
-        for i, (uid, wins, earnings) in enumerate(page_rows, start=start_idx):
-            rank_str = medals[i] if i < 3 else f"**#{i+1}**"
-            win_str = f"**{wins}** win" if wins == 1 else f"**{wins}** wins"
-            earn_str = f"**{earnings:,}** {TAD_EMOJI} TAD"
-            if self.sort_by == "earnings":
-                lines.append(f"{rank_str} <@{uid}> — {earn_str} *({win_str})*")
-            else:
-                lines.append(f"{rank_str} <@{uid}> — {win_str} *({earn_str})*")
-
-        embed.description += "\n".join(lines)
-        embed.set_footer(text=f"Page {self.current_page + 1}/{total_pages} • Khtar bouton bach tbdel sort wla trje3.")
-        return embed
-
-
     # ============ REWORKED LEADERBOARD & CASINO COMMANDS ============
 
     async def get_main_leaderboard_embed(self, guild: discord.Guild) -> discord.Embed:
@@ -5572,7 +5565,7 @@ class LeaderboardInteractiveView(discord.ui.View):
 
         embed = discord.Embed(
             title=f"🏆 Minigame Hall of Fame — {guild.name}",
-            description="Khtar ay minigame mn l dropdown menu lte7t bach tchouf ga3 l rankings dialha!\n\n",
+            description="Khtar minigame mn lmenu lte7t bach tchouf rankings dialha.\n",
             color=0x000000
         )
 
@@ -5581,14 +5574,14 @@ class LeaderboardInteractiveView(discord.ui.View):
             d_name = MINIGAME_DISPLAY_MAP.get(g_key, (g_key.title(), []))[0]
             win_str = f"**{w_count}** win" if w_count == 1 else f"**{w_count}** wins"
             embed.add_field(
-                name="👑 Most Wins Across All Games",
-                value=f"🎮 **{d_name}**\n👤 Top Player: <@{u_id}>\n🏆 Score: {win_str}",
+                name="🏆 Most Wins",
+                value=f"**{d_name}** • <@{u_id}> ({win_str})",
                 inline=False
             )
         else:
             embed.add_field(
-                name="👑 Most Wins Across All Games",
-                value="*Ta wa7d ma 3ndo wins msjlin ba9i.*",
+                name="🏆 Most Wins",
+                value="*No wins yet.*",
                 inline=False
             )
 
@@ -5596,14 +5589,14 @@ class LeaderboardInteractiveView(discord.ui.View):
             g_key, u_id, e_count = top_gains_row
             d_name = MINIGAME_DISPLAY_MAP.get(g_key, (g_key.title(), []))[0]
             embed.add_field(
-                name="💰 Most Gains (Money) Across All Games",
-                value=f"🎮 **{d_name}**\n👤 Top Earner: <@{u_id}>\n💵 Total Gains: **{e_count:,}** {TAD_EMOJI} TAD",
+                name="💰 Most Earnings",
+                value=f"**{d_name}** • <@{u_id}> ({format_tad(e_count)})",
                 inline=False
             )
         else:
             embed.add_field(
-                name="💰 Most Gains (Money) Across All Games",
-                value="*Ta wa7d ma 3ndo gains msjlin ba9i.*",
+                name="💰 Most Earnings",
+                value="*No earnings yet.*",
                 inline=False
             )
 
@@ -5656,8 +5649,8 @@ class LeaderboardInteractiveView(discord.ui.View):
         if choice is None:
             view = CoinflipView(ctx.author, self, bet=bet or 0)
             embed = discord.Embed(
-                title="🪙 Coinflip Table",
-                description="Khtar chno ghadi yji: **Ras (Heads)** wla **Njma (Tails)**?" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
+                title="Coinflip Table",
+                description="Khtar chno ghadi yji: **Ras (Heads)** wla **Njma (Tails)**?" + (f"\n\nStake: {format_tad(bet)}" if bet and bet > 0 else ""),
                 color=0x000000
             )
             msg = await ctx.send(embed=embed, view=view)
@@ -5685,8 +5678,8 @@ class LeaderboardInteractiveView(discord.ui.View):
         won = (user_choice == result)
         outcome_title = "🏆 Rbe7ti!" if won else "💥 Khesrti!"
         embed = discord.Embed(
-            title=f"{outcome_title} — {result_label}",
-            description=f"Lkhtiyar dialek: **{user_choice_label}**\nNatija: **{result_label}**",
+            title=f"🪙 Coinflip: {result_label}",
+            description=f"Lkhtiyar: **{user_choice_label}** • Natija: **{result_label}**\n\n**{outcome_title}**",
             color=0x000000
         )
 
@@ -5696,9 +5689,11 @@ class LeaderboardInteractiveView(discord.ui.View):
                 await economy_cog.add_balance(ctx.author.id, payout, context="Coinflip Win")
                 if ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "coinflip", earnings=bet)
-                embed.add_field(name="💰 Net Outcome", value=f"🟢 **+{format_tad(bet)}** (Payout: {format_tad(payout)})", inline=False)
+                embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
+                embed.add_field(name="💵 Payout", value=format_tad(payout), inline=True)
             else:
-                embed.add_field(name="💰 Net Outcome", value=f"🔴 -{format_tad(bet)}", inline=False)
+                embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
+                embed.add_field(name="💵 Payout", value=format_tad(0), inline=True)
         elif won and ctx.guild:
             await self.record_minigame_win(ctx.guild.id, ctx.author.id, "coinflip")
 
@@ -5726,7 +5721,7 @@ class LeaderboardInteractiveView(discord.ui.View):
 
         roll = random.randint(1, 6)
         multipliers = {
-            1: (0.0, "💥 Khesrti ga3 l bet! (0x)"),
+            1: (0.0, "💥 Khesrti l bet! (0x)"),
             2: (0.5, "🤏 Rje3 lik ness l bet (0.5x)"),
             3: (1.0, "🤝 Rje3 lik floussek (1.0x)"),
             4: (1.2, "✨ Small Win! (1.2x)"),
@@ -5747,17 +5742,14 @@ class LeaderboardInteractiveView(discord.ui.View):
                 await self.record_minigame_win(ctx.guild.id, ctx.author.id, "dice", earnings=max(0, net_profit))
 
         embed = discord.Embed(
-            title=f"🎲 Dice Roll: [ {roll} ]",
-            description=f"### {desc}\n\n"
-                        f"📊 Multiplier: **{mult}x**\n",
+            title=f"🎲 Dice: Rolled [ {roll} ]",
+            description=f"{desc}\n\n📊 Multiplier: **{mult}x**",
             color=0x000000
         )
 
         if bet and bet > 0:
-            sign = "🟢 +" if net_profit > 0 else ("⚪ " if net_profit == 0 else "🔴 ")
-            embed.add_field(name="💰 Stake / Bet", value=format_tad(bet), inline=True)
+            embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
             embed.add_field(name="💵 Payout", value=format_tad(payout), inline=True)
-            embed.add_field(name="📈 Net Outcome", value=f"{sign}{format_tad(net_profit)}", inline=False)
         else:
             embed.set_footer(text="Bghiti t9emmer b flous? Kteb sat dice bet:100")
 
@@ -5841,29 +5833,29 @@ class LeaderboardInteractiveView(discord.ui.View):
         r3 = random.choices(slot_items, weights=weights, k=1)[0]
 
         payout_mult = 0.0
-        outcome_title = "💥 Khesrti!"
+        outcome_title = "Khesrti!"
         if r1 == r2 == r3:
             if r1 == "💎":
                 payout_mult = 15.0
-                outcome_title = "💎 JACKPOT! TRIPLE DIAMONDS! 💎"
+                outcome_title = "JACKPOT! Triple Diamonds!"
             elif r1 == "7️⃣":
                 payout_mult = 10.0
-                outcome_title = "🔥 MEGA WIN! TRIPLE SEVENS! 🔥"
+                outcome_title = "MEGA WIN! Triple Sevens!"
             elif r1 == "🔔":
                 payout_mult = 6.0
-                outcome_title = "🔔 SUPER WIN! TRIPLE BELLS! 🔔"
+                outcome_title = "SUPER WIN! Triple Bells!"
             elif r1 == "🍇":
                 payout_mult = 5.0
-                outcome_title = "🍇 BIG WIN! TRIPLE GRAPES! 🍇"
+                outcome_title = "BIG WIN! Triple Grapes!"
             elif r1 == "🍒":
                 payout_mult = 4.0
-                outcome_title = "🍒 WIN! TRIPLE CHERRIES! 🍒"
+                outcome_title = "WIN! Triple Cherries!"
             else:
                 payout_mult = 3.0
-                outcome_title = f"🏆 WIN! Triple {r1}!"
+                outcome_title = f"WIN! Triple {r1}!"
         elif r1 == r2 or r2 == r3 or r1 == r3:
             payout_mult = 1.5
-            outcome_title = "✨ Small Win! Double Match!"
+            outcome_title = "Small Win! Double Match!"
 
         payout = 0
         net_profit = 0
@@ -5878,20 +5870,18 @@ class LeaderboardInteractiveView(discord.ui.View):
             await self.record_minigame_win(ctx.guild.id, ctx.author.id, "slots")
 
         embed = discord.Embed(
-            title="🎰 Casino Slot Machine",
+            title="🎰 Slots Machine",
             description=(
                 f"**[ {r1} | {r2} | {r3} ]**\n\n"
                 f"**{outcome_title}**\n"
-                f"📈 Multiplier: **{payout_mult:.1f}x**"
+                f"📊 Multiplier: **{payout_mult:.1f}x**"
             ),
             color=0x000000
         )
 
         if bet and bet > 0:
-            sign = "🟢 +" if net_profit > 0 else ("⚪ " if net_profit == 0 else "🔴 ")
             embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
             embed.add_field(name="💵 Payout", value=format_tad(payout), inline=True)
-            embed.add_field(name="📈 Net Outcome", value=f"{sign}{format_tad(net_profit)}", inline=False)
 
         await spin_msg.edit(embed=embed)
 
@@ -5966,20 +5956,12 @@ class LeaderboardInteractiveView(discord.ui.View):
             await economy_cog.deduct_balance(ctx.author.id, bet, context="Roulette Bet")
 
         spin_embed = discord.Embed(
-            title="🎡 European Roulette",
-            description="🔄 *Kandwwr roulette wheel...*" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
+            description="🔄 *Roulette kaddor...*" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
             color=0x000000
         )
-        gif_path = os.path.join("assets", "roulette.gif")
-        if os.path.exists(gif_path):
-            file = discord.File(gif_path, filename="roulette.gif")
-            spin_embed.set_image(url="attachment://roulette.gif")
-            spin_msg = await ctx.send(embed=spin_embed, file=file)
-        else:
-            spin_embed.set_image(url="https://media.giphy.com/media/26uf2JHNV0Tq3NPYs/giphy.gif")
-            spin_msg = await ctx.send(embed=spin_embed)
+        spin_msg = await ctx.send(embed=spin_embed)
 
-        await asyncio.sleep(7.0)
+        await asyncio.sleep(5.0)
 
         landed_num = random.randint(0, 36)
         if landed_num == 0:
@@ -6041,18 +6023,15 @@ class LeaderboardInteractiveView(discord.ui.View):
         embed = discord.Embed(
             title=f"🎡 Roulette: {color_emoji} **{landed_num} ({color_name.upper()})**",
             description=(
-                f"Lkhtiyar dialek: `{choice}`\n"
-                f"Landed on: {color_emoji} `{landed_num}`\n\n"
+                f"Lkhtiyar: `{choice}` • Landed on: {color_emoji} **{landed_num}**\n\n"
                 f"**{outcome_title}**"
             ),
             color=0x000000
         )
 
         if bet and bet > 0:
-            sign = "🟢 +" if net_profit > 0 else "🔴 "
             embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
             embed.add_field(name="💵 Payout", value=format_tad(payout), inline=True)
-            embed.add_field(name="📈 Net Outcome", value=f"{sign}{format_tad(abs(net_profit))}", inline=False)
 
         await spin_msg.edit(embed=embed, attachments=[])
 

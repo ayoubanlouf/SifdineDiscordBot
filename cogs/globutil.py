@@ -1184,7 +1184,7 @@ class GlobUtil(commands.Cog):
 
             display_name = details.get("displayName")
             real_name = details.get("name")
-            bio = details.get("description") or "Walo bio."
+            bio = details.get("description") or "Walo l bio."
             created_at_str = details.get("created")
 
             created_date = created_at_str.split("T")[0] if created_at_str else "Hidden"
@@ -1555,7 +1555,7 @@ class GlobUtil(commands.Cog):
         try:
             data = await self._get_player_data(steam_id, api_key)
             if not data:
-                await wait.edit(embed=discord.Embed(description="Ma9dertch njbed l data.", color=0x000000))
+                await wait.edit(embed=discord.Embed(description="Ma9dertch njbed data.", color=0x000000))
                 return
             
             player = data["player"]
@@ -2045,7 +2045,7 @@ class GlobUtil(commands.Cog):
                             await wait.edit(embed=embed, view=view)
                             return
 
-            await wait.edit(embed=discord.Embed(description="❌ Ma9ditch n9esser had l link. T2ked mn URL.", color=0x000000))
+            await wait.edit(embed=discord.Embed(description="❌ Ma9ditch n9esser had link. T2ked mn URL.", color=0x000000))
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
