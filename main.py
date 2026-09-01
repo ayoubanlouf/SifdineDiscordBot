@@ -394,14 +394,43 @@ async def main():
     if not token:
         raise ValueError("DISCORD_TOKEN missing from environment variables.")
 
-    async with bot:
+    max_retries = 10
+    retry_delay = 5
+
+    for attempt in range(1, max_retries + 1):
         try:
-            await bot.start(token)
+            async with bot:
+                await bot.start(token)
+                break
+        except (aiohttp.ClientError, asyncio.TimeoutError, discord.DiscordException, OSError) as e:
+            if hasattr(bot, 'db') and bot.db:
+                try:
+                    await bot.db.close()
+                except Exception:
+                    pass
+            if hasattr(bot, 'session') and bot.session:
+                try:
+                    await bot.session.close()
+                except Exception:
+                    pass
+
+            if attempt == max_retries:
+                print(f"[Fatal] Failed to connect to Discord after {max_retries} attempts: {e}")
+                raise
+            print(f"[Network/DNS Warning] Attempt {attempt}/{max_retries} failed to connect to Discord ({e}). Retrying in {retry_delay}s...")
+            await asyncio.sleep(retry_delay)
+            retry_delay = min(30, retry_delay * 2)
         finally:
             if hasattr(bot, 'db') and bot.db:
-                await bot.db.close()
+                try:
+                    await bot.db.close()
+                except Exception:
+                    pass
             if hasattr(bot, 'session') and bot.session:
-                await bot.session.close()
+                try:
+                    await bot.session.close()
+                except Exception:
+                    pass
 
 
 if __name__ == "__main__":
