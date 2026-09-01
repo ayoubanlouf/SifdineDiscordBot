@@ -389,49 +389,19 @@ async def setup_hook():
 bot.setup_hook = setup_hook
 
 
-import socket
-
-
-async def wait_for_network(host: str = "discord.com", port: int = 443, max_retries: int = 15, initial_delay: float = 3.0):
-    """Waits for DNS resolution and network connectivity before starting the Discord client."""
-    delay = initial_delay
-    loop = asyncio.get_running_loop()
-    for attempt in range(1, max_retries + 1):
-        try:
-            await loop.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
-            return True
-        except Exception as e:
-            if attempt == max_retries:
-                print(f"[Fatal] Failed to resolve {host} after {max_retries} attempts: {e}")
-                raise
-            print(f"[Network/DNS Warning] Attempt {attempt}/{max_retries} failed to resolve {host} ({e}). Retrying in {delay:.1f}s...")
-            await asyncio.sleep(delay)
-            delay = min(30.0, delay * 1.5)
-    return True
-
-
 async def main():
     token = os.environ.get("DISCORD_TOKEN")
     if not token:
         raise ValueError("DISCORD_TOKEN missing from environment variables.")
-
-    # Ensure DNS and network connectivity is active before initializing Discord client
-    await wait_for_network()
 
     async with bot:
         try:
             await bot.start(token)
         finally:
             if hasattr(bot, 'db') and bot.db:
-                try:
-                    await bot.db.close()
-                except Exception:
-                    pass
+                await bot.db.close()
             if hasattr(bot, 'session') and bot.session:
-                try:
-                    await bot.session.close()
-                except Exception:
-                    pass
+                await bot.session.close()
 
 
 if __name__ == "__main__":
