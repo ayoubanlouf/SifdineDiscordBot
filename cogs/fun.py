@@ -195,7 +195,9 @@ class ChessView(View):
             return ""
 
         if self.is_bot_game and winner == self.player_white:
-            net, tax = await economy_cog.apply_tax_and_add_balance(self.player_white.id, 50, context="Chess Bot Win")
+            net, tax = await economy_cog.apply_tax_and_add_balance(self.player_white.id, 1000, context="Chess Bot Win")
+            if self.cog and self.message and self.message.guild:
+                await self.cog.record_minigame_win(self.message.guild.id, self.player_white.id, "chess", earnings=net)
             return f"\n\n💰 **{winner.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 5% tax burned)!"
 
         if self.bet <= 0:
@@ -752,7 +754,7 @@ class TicTacToeView(View):
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     return f"🏆 **{self.player_x.mention} (X) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
                 elif self.is_bot_game:
-                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **80** {TAD_EMOJI} TAD!"
+                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **1000** {TAD_EMOJI} TAD!"
                 return f"🏆 **{self.player_x.mention} (X) rbe7!**"
             elif winner == "O":
                 if self.is_bot_game:
@@ -904,7 +906,7 @@ class TicTacToeView(View):
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe", earnings=w_payout - self.bet)
                 elif self.is_bot_game and winner == "X" and economy_cog:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_x.id, 30, context="TTT Bot Win")
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_x.id, 1000, context="TTT Bot Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player_x.id, "tictactoe", earnings=net)
                 elif not self.is_bot_game and self.cog and interaction.guild:
@@ -1069,7 +1071,7 @@ class ConnectFourView(View):
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
                 elif self.is_bot_game:
-                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **100** {TAD_EMOJI} TAD!"
+                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **1000** {TAD_EMOJI} TAD!"
                 return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**"
             elif winner == "🟡":
                 if self.is_bot_game:
@@ -1331,7 +1333,7 @@ class ConnectFourView(View):
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour", earnings=w_payout - self.bet)
                 elif self.is_bot_game and winner == "🔴" and economy_cog:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_red.id, 40, context="ConnectFour Bot Win")
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_red.id, 1000, context="ConnectFour Bot Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player_red.id, "connectfour", earnings=net)
                 elif not self.is_bot_game and self.cog and interaction.guild:
@@ -4341,9 +4343,12 @@ class HigherLowerView(discord.ui.View):
         self.message: Optional[discord.Message] = None
 
     def get_multiplier(self) -> float:
-        if self.streak == 0:
+        if self.streak <= 0:
             return 1.00
-        return round(1.0 + (self.streak * 0.45) + (self.streak ** 1.3) * 0.15, 2)
+        streak_table = [1.00, 1.20, 1.50, 2.00, 2.50, 3.20, 4.00, 5.00, 6.50, 8.00, 10.00]
+        if self.streak < len(streak_table):
+            return streak_table[self.streak]
+        return round(10.00 + (self.streak - 10) * 1.50, 2)
 
     def get_embed(self, outcome_msg=""):
         embed = discord.Embed(
@@ -5187,6 +5192,20 @@ class Fun(commands.Cog):
                             await ctx.send(f"⌛ Sala lwe9t: -1 HP (Ba9i: **{lives[player.id]} HP**)")
                         else:
                             await ctx.send(f"💥 **{player.mention}** t elimina (**0 HP**)")
+
+                economy_cog = self.bot.get_cog("Economy")
+                correct_count = len(used_words)
+                gross = 10 + (correct_count * 5)
+                eco_msg = ""
+                if economy_cog and correct_count > 0:
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="BlackTea Solo")
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, player.id, "blacktea", earnings=net)
+                await ctx.send(embed=discord.Embed(
+                    description=f"🎯 Game Over {player.mention}! L9iti **{correct_count} kelmat**.{eco_msg}",
+                    color=0x000000
+                ))
             else:
                 while len(active_players) > 1:
                     for player in list(active_players):
@@ -5230,10 +5249,10 @@ class Fun(commands.Cog):
                     economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
                     if economy_cog:
-                        gross = 40 + (len(players) * 15) if not single_player else 20
+                        gross = 40 + (len(players) * 15)
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="BlackTea Win")
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
-                        if not single_player and ctx.guild:
+                        if ctx.guild:
                             await self.record_minigame_win(ctx.guild.id, winner.id, "blacktea", earnings=net)
                     await ctx.send(embed=discord.Embed(
                         description=f"🏆 {winner.mention} rbe7 lgame!{eco_msg}",
@@ -6247,16 +6266,20 @@ class Fun(commands.Cog):
 
         if bet and bet > 0 and economy_cog:
             gross_payout = int(round(bet * mult))
+            embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
             if gross_payout > 0:
                 net_payout, tax = await economy_cog.apply_tax_and_add_balance(ctx.author.id, gross_payout, context=f"Dice Payout ({mult}x)")
                 net_profit = net_payout - bet
                 if mult >= 1.2 and ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "dice", earnings=max(0, net_profit))
-                embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
-                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+                if net_profit > 0:
+                    embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+                elif net_profit < 0:
+                    embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(abs(net_profit))}** (Refund: {net_payout:,} TAD • 🔥 `{tax:,}` TAD tax burned)", inline=False)
+                else:
+                    embed.add_field(name="💵 Net Payout", value=f"⚪ **+0 TAD** (Refund: {net_payout:,} TAD)", inline=False)
             else:
-                embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
-                embed.add_field(name="💵 Net Payout", value=format_tad(0), inline=False)
+                embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(bet)}**", inline=False)
         else:
             embed.set_footer(text="Bghiti t9emmer b flous? Kteb sat dice 100")
 

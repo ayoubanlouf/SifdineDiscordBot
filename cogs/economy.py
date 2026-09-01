@@ -547,7 +547,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="tax", help="[Admin] N9ess flous mn wallet dial user.")
     @commands.is_owner()
-    async def tax_user(self, ctx: commands.Context, target: discord.Member, amount: int):
+    async def tax_user(self, ctx: commands.Context, target: discord.User, amount: int):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
@@ -564,7 +564,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="reward", help="[Admin] zid flous l wallet dial user.")
     @commands.is_owner()
-    async def reward_user(self, ctx: commands.Context, target: discord.Member, amount: int):
+    async def reward_user(self, ctx: commands.Context, target: discord.User, amount: int):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
@@ -580,7 +580,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="fraud", aliases=["nssab"], help="[Admin] Blocki user mn l economy system.")
     @commands.is_owner()
-    async def fraud_user(self, ctx: commands.Context, target: discord.Member):
+    async def fraud_user(self, ctx: commands.Context, target: discord.User):
         await self.get_wallet(target.id)
         await self.bot.db.execute("UPDATE user_wallets SET is_fraud = 1 WHERE user_id = ?", (target.id,))
         await self.bot.db.commit()
@@ -594,7 +594,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="legit", aliases=["n9i"], help="[Admin] Unblocki user mn l economy system.")
     @commands.is_owner()
-    async def legit_user(self, ctx: commands.Context, target: discord.Member):
+    async def legit_user(self, ctx: commands.Context, target: discord.User):
         await self.get_wallet(target.id)
         await self.bot.db.execute("UPDATE user_wallets SET is_fraud = 0 WHERE user_id = ?", (target.id,))
         await self.bot.db.commit()

@@ -28,7 +28,7 @@ AllBotCommands = {
         "blur", "circle", "invert", "wide", "uglyupclose", "clown", "restinpeace", "affectbaby", "trash"
     ],
     "Economy": [
-        "wallet", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit"
+        "wallet", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit", "wallets"
     ],
     "Triggers": [
         "👀", "🧠", "🧽", "👎", "🚨", "🎤"
