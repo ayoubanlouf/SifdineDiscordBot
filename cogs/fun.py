@@ -4659,7 +4659,7 @@ MINIGAME_DISPLAY_MAP = {
     "mines": ("💣 Mines", ["mines", "gems", "gemhunt"]),
     "roulette": ("🎡 Roulette", ["roulette", "wheel", "roul"]),
     "higherlower": ("🃏 HigherLower", ["higherlower", "hl", "cardduel"]),
-    "coinflip": ("🪙 Coinflip", ["coinflip", "cf", "drhm", "drhem", "flip"]),
+    "coinflip": ("🪙 Coinflip", ["coinflip", "cf", "drhm", "drhem"]),
     "dice": ("🎲 Dice", ["dice", "nrd", "roll", "diceroll"]),
     "tictactoe": ("❌ TicTacToe", ["tictactoe", "ttt", "morpion"]),
     "connectfour": ("🔴 ConnectFour", ["connectfour", "c4", "connect4"]),
@@ -6158,7 +6158,7 @@ class Fun(commands.Cog):
 
             await view.show_game_page(interaction=None, game_key=target_key, sort_by="wins", page=0)
 
-    @commands.command(aliases=['cf', 'drhm', 'flip'], help="Nlou7 derhem o chouf wach jak ras wla njma (sat coinflip [ras/njma] [bet:500]).")
+    @commands.command(aliases=['cf', 'drhm'], help="Nlou7 derhem o chouf wach jak ras wla njma (sat coinflip [ras/njma] [bet:500]).")
     @not_fraud()
     async def coinflip(self, ctx: commands.Context, *args):
         economy_cog = self.bot.get_cog("Economy")
