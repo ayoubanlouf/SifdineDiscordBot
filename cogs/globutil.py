@@ -1548,14 +1548,14 @@ class GlobUtil(commands.Cog):
                 steam_id = await self._resolve_vanity_url(identifier, api_key)
 
         if not steam_id:
-            await wait.edit(embed=discord.Embed(description="Ma9dertch nel9a  profile.", color=0x000000))
+            await wait.edit(embed=discord.Embed(description="Mal9itch had l profile. Dir l username machy display name.", color=0x000000))
             return
 
         # 2. Get Data
         try:
             data = await self._get_player_data(steam_id, api_key)
             if not data:
-                await wait.edit(embed=discord.Embed(description="Ma9dertch njbed data.", color=0x000000))
+                await wait.edit(embed=discord.Embed(description="Mal9itch had l profile. Dir l username machy display name.", color=0x000000))
                 return
             
             player = data["player"]
@@ -1654,6 +1654,7 @@ class GlobUtil(commands.Cog):
         games_count = "N/A"
         total_playtime = "N/A"
         recently_played = []
+        top_games = []
         
         if is_public:
             # Get Owned Games
@@ -1681,7 +1682,6 @@ class GlobUtil(commands.Cog):
                     })
             
             # Sort Top Played
-            top_games = []
             if games:
                 sorted_games = sorted(games, key=lambda x: x.get("playtime_forever", 0), reverse=True)
                 for g in sorted_games[:3]:
@@ -1697,17 +1697,6 @@ class GlobUtil(commands.Cog):
             "games_count": games_count,
             "total_playtime": total_playtime,
             "top_games": top_games,
-            "recently_played": recently_played,
-            "is_public": is_public
-        }
-
-
-        return {
-            "player": player,
-            "bio": bio,
-            "level": level,
-            "games_count": games_count,
-            "total_playtime": total_playtime,
             "recently_played": recently_played,
             "is_public": is_public
         }
