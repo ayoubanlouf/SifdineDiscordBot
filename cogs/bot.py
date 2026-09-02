@@ -560,6 +560,115 @@ class Bot(commands.Cog):
         except Exception as e:
             await wait_msg.edit(content=f"❌ Tra mochkil f backup: `{e}`")
 
+    @commands.command(name="disable", help="Desactivi command f had server.")
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
+    async def disable_command(self, ctx: commands.Context, *, command_name: str):
+        clean_name = command_name.strip().lower()
+        if clean_name.startswith(ctx.prefix.lower()):
+            clean_name = clean_name[len(ctx.prefix):].strip()
+
+        target_cmd = self.bot.get_command(clean_name)
+        if not target_cmd:
+            await ctx.send(f"❌ Mal9itch chi command smitha `{command_name}`.")
+            return
+
+        canonical_name = target_cmd.qualified_name.lower()
+        if canonical_name in ("enable", "disable", "disabled", "help"):
+            await ctx.send(f"❌ Mat9dch tdesaktivi command `{canonical_name}` 7it essential!")
+            return
+
+        async with self.bot.db.execute(
+            "SELECT 1 FROM disabled_commands WHERE guild_id = ? AND command_name = ?",
+            (ctx.guild.id, canonical_name)
+        ) as cursor:
+            exists = await cursor.fetchone()
+
+        if exists:
+            await ctx.send(f"⚠️ Command `{canonical_name}` deja mdesaktivia f had server.")
+            return
+
+        await self.bot.db.execute(
+            "INSERT INTO disabled_commands (guild_id, command_name) VALUES (?, ?)",
+            (ctx.guild.id, canonical_name)
+        )
+        await self.bot.db.commit()
+
+        embed = discord.Embed(
+            title="🚫 Command Disabled",
+            description=f"✅ Desaktiviti command `{canonical_name}` f had server.\n7ta wa7d ma ghay9der ysta3melha daba.",
+            color=0x000000
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command(name="enable", help="Activi chy command mdesactivia f had server.")
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
+    async def enable_command(self, ctx: commands.Context, *, command_name: str):
+        clean_name = command_name.strip().lower()
+        if clean_name.startswith(ctx.prefix.lower()):
+            clean_name = clean_name[len(ctx.prefix):].strip()
+
+        target_cmd = self.bot.get_command(clean_name)
+        canonical_name = target_cmd.qualified_name.lower() if target_cmd else clean_name
+
+        async with self.bot.db.execute(
+            "SELECT 1 FROM disabled_commands WHERE guild_id = ? AND command_name = ?",
+            (ctx.guild.id, canonical_name)
+        ) as cursor:
+            exists = await cursor.fetchone()
+
+        if not exists:
+            await ctx.send(f"⚠️ Command `{canonical_name}` aslan mamsaktech / mamdesaktivyach f had server.")
+            return
+
+        await self.bot.db.execute(
+            "DELETE FROM disabled_commands WHERE guild_id = ? AND command_name = ?",
+            (ctx.guild.id, canonical_name)
+        )
+        await self.bot.db.commit()
+
+        embed = discord.Embed(
+            title="✅ Command Enabled",
+            description=f"🟢 Re-aktiviti command `{canonical_name}` f had server b nja7!",
+            color=0x000000
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command(name="disabled", aliases=["disabledlist", "disabledcmds"], help="Chouf ga3 commands li mdesactivyin f had server.")
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
+    async def list_disabled(self, ctx: commands.Context):
+        async with self.bot.db.execute(
+            "SELECT command_name FROM disabled_commands WHERE guild_id = ? ORDER BY command_name ASC",
+            (ctx.guild.id,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        if not rows:
+            embed = discord.Embed(
+                title="📋 Disabled Commands",
+                description="✨ Walo! Ga3 commands m-aktiviyn f had server.",
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
+        cmds_list = [f"• `{r[0]}`" for r in rows]
+        paginator = self.bot.Paginator(ctx, cmds_list, per_page=15, title=f"🚫 Disabled Commands ({len(rows)})")
+        embed = discord.Embed(
+            title=f"🚫 Disabled Commands ({len(rows)})",
+            description="\n".join(paginator.chunks[0]) if paginator.chunks else "Walo",
+            color=0x000000
+        )
+        if paginator.total_pages > 1:
+            embed.set_footer(text=f"Page 1/{paginator.total_pages} • Server: {ctx.guild.name}")
+            msg = await ctx.send(embed=embed, view=paginator)
+            paginator.message = msg
+        else:
+            embed.set_footer(text=f"Server: {ctx.guild.name}")
+            await ctx.send(embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(Bot(bot))

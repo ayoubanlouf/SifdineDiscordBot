@@ -326,6 +326,32 @@ async def is_not_blacklisted(ctx):
     return is_blacklisted is None
 
 
+@bot.check
+async def is_command_enabled(ctx):
+    if not ctx.guild or not ctx.command:
+        return True
+
+    cmd_name = ctx.command.qualified_name.lower()
+    root_name = ctx.command.root_parent.name.lower() if ctx.command.root_parent else cmd_name
+    if root_name in ("enable", "disable", "disabled", "help"):
+        return True
+
+    if not hasattr(bot, 'db') or not bot.db:
+        return True
+
+    async with bot.db.execute(
+        "SELECT 1 FROM disabled_commands WHERE guild_id = ? AND command_name IN (?, ?)",
+        (ctx.guild.id, cmd_name, root_name)
+    ) as cursor:
+        row = await cursor.fetchone()
+
+    if row:
+        await ctx.send(f"❌ Had lcommand (`{ctx.prefix}{cmd_name}`) **mdesactivia** f had server!", delete_after=6)
+        return False
+
+    return True
+
+
 async def load_extensions():
     for filename in os.listdir("./cogs"):
         if filename.endswith(".py"):
@@ -342,6 +368,7 @@ async def setup_hook():
     bot.db = await create_database_client()
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_prefixes (guild_id INTEGER PRIMARY KEY, prefix TEXT)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS blacklists (user_id INTEGER PRIMARY KEY)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS disabled_commands (guild_id INTEGER, command_name TEXT, PRIMARY KEY (guild_id, command_name))")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, earnings INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
     try:

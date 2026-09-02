@@ -545,7 +545,7 @@ class Economy(commands.Cog):
 
     # ============ MODERATOR COMMANDS ============
 
-    @commands.command(name="tax", help="[Admin] N9ess flous mn wallet dial user.")
+    @commands.command(name="tax", help="N9ess flous mn wallet dial user.")
     @commands.is_owner()
     async def tax_user(self, ctx: commands.Context, target: discord.User, amount: int):
         if amount <= 0:
@@ -562,7 +562,7 @@ class Economy(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="reward", help="[Admin] zid flous l wallet dial user.")
+    @commands.command(name="reward", help="zid flous l wallet dial user.")
     @commands.is_owner()
     async def reward_user(self, ctx: commands.Context, target: discord.User, amount: int):
         if amount <= 0:
@@ -578,7 +578,7 @@ class Economy(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="fraud", aliases=["nssab"], help="[Admin] Blocki user mn l economy system.")
+    @commands.command(name="fraud", aliases=["nssab"], help="Blocki user mn l economy system.")
     @commands.is_owner()
     async def fraud_user(self, ctx: commands.Context, target: discord.User):
         await self.get_wallet(target.id)
@@ -592,7 +592,7 @@ class Economy(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="legit", aliases=["n9i"], help="[Admin] Unblocki user mn l economy system.")
+    @commands.command(name="legit", aliases=["n9i"], help="Unblocki user mn l economy system.")
     @commands.is_owner()
     async def legit_user(self, ctx: commands.Context, target: discord.User):
         await self.get_wallet(target.id)
