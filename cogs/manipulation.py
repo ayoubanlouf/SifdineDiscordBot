@@ -332,7 +332,7 @@ class Manipulation(commands.Cog):
                 await ctx.reply(f"❌ Malkitch lmember `{user1}`.", mention_author=False)
                 return
 
-        await self._fetch_nekobot(ctx, "ship", user1=man.display_avatar.url, user2=woman.display_avatar.url)
+        await self._fetch_nekobot(ctx, "ship", user1=woman.display_avatar.url, user2=man.display_avatar.url)
 
     @commands.command(name="mirror", aliases=["flip"], help="9leb tswira.")
     async def mirror(self, ctx, *, target: Optional[str] = None):
