@@ -398,7 +398,7 @@ class GlobUtil(commands.Cog):
 
             await ctx.send(embed=em)
 
-    @commands.command(aliases=["trans", "trjm", "trjem", "terjem"], help="Nterjem lik ay 7aja.")
+    @commands.command(aliases=["trjm", "trjem", "terjem"], help="Nterjem lik ay 7aja.")
     async def translate(self, ctx, fromlang, tolang, *, text):
         if not hasattr(self, "_google_translator") or self._google_translator is None:
             from googletrans import Translator
