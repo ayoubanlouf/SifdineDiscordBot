@@ -476,6 +476,77 @@ class Events(commands.Cog):
             text = urllib.parse.quote(message.content, safe='')
             url = f"https://frenchnoodles.xyz/api/endpoints/lisastage?text={text}"
             await message.reply(url, mention_author=False)
+        elif emoji == "🤖":
+            if not message.content:
+                return
+            qs = urllib.parse.urlencode({"type": "clyde", "text": message.content})
+            session = getattr(self.bot, "session", None)
+            if session and not session.closed:
+                try:
+                    async with session.get(f"https://nekobot.xyz/api/imagegen?{qs}", timeout=10) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            msg_url = data.get("message")
+                            if msg_url and msg_url.startswith("http"):
+                                await message.reply(msg_url, mention_author=False)
+                except Exception:
+                    pass
+        elif emoji == "🦅":
+            if not message.content:
+                return
+            qs = urllib.parse.urlencode({"type": "trumptweet", "text": message.content})
+            session = getattr(self.bot, "session", None)
+            if session and not session.closed:
+                try:
+                    async with session.get(f"https://nekobot.xyz/api/imagegen?{qs}", timeout=10) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            msg_url = data.get("message")
+                            if msg_url and msg_url.startswith("http"):
+                                await message.reply(msg_url, mention_author=False)
+                except Exception:
+                    pass
+        elif emoji == "🐦":
+            if not message.content:
+                return
+            avatar = urllib.parse.quote(message.author.display_avatar.url, safe='')
+            d_name = urllib.parse.quote(message.author.display_name, safe='')
+            u_name = urllib.parse.quote(message.author.name, safe='')
+            comment = urllib.parse.quote(message.content, safe='')
+            url = f"https://some-random-api.com/canvas/misc/tweet?avatar={avatar}&displayname={d_name}&username={u_name}&comment={comment}"
+            await message.reply(url, mention_author=False)
+        elif emoji == "📺":
+            if not message.content:
+                return
+            avatar = urllib.parse.quote(message.author.display_avatar.url, safe='')
+            u_name = urllib.parse.quote(message.author.display_name, safe='')
+            comment = urllib.parse.quote(message.content, safe='')
+            url = f"https://some-random-api.com/canvas/misc/youtube-comment?avatar={avatar}&username={u_name}&comment={comment}"
+            await message.reply(url, mention_author=False)
+        elif emoji == "🚀":
+            if not message.content:
+                return
+            t_raw = message.content.strip()
+            clean = t_raw.replace("_", "__").replace("-", "--").replace(" ", "_").replace("?", "~q").replace("&", "~a").replace("%", "~p").replace("#", "~h").replace("/", "~s").replace('"', "''")
+            t_enc = clean or "_"
+            b_enc = f"{clean}_Everywhere"
+            url = f"https://api.memegen.link/images/buzz/{t_enc}/{b_enc}.png"
+            await message.reply(url, mention_author=False)
+        elif emoji == "💡":
+            if not message.content:
+                return
+            qs = urllib.parse.urlencode({"type": "fact", "text": message.content})
+            session = getattr(self.bot, "session", None)
+            if session and not session.closed:
+                try:
+                    async with session.get(f"https://nekobot.xyz/api/imagegen?{qs}", timeout=10) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            msg_url = data.get("message")
+                            if msg_url and msg_url.startswith("http"):
+                                await message.reply(msg_url, mention_author=False)
+                except Exception:
+                    pass
         else:
             return
 

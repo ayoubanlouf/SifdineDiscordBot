@@ -26,12 +26,15 @@ AllBotCommands = {
     ],
     "Manipulation": [
         "worthless", "drake", "presidentialalert", "spongebobburnpaper", "lisastage", "changemymind", "awkwardmonkey",
-        "blur", "circle", "invert", "wide", "uglyupclose", "clown", "restinpeace", "affectbaby", "trash"
+        "blur", "circle", "invert", "wide", "uglyupclose", "clown", "restinpeace", "affectbaby", "trash",
+        "clyde", "trump", "nobitches", "tweet", "youtubecomment", "threats", "pixellate", "simpcard", "hornycard",
+        "heart", "sepia", "greyscale", "brightness", "treshold", "ship", "mirror", "deepfry",
+        "buzzeverywhere", "customcaption", "dailystruggle", "gruplan", "isthis", "tuxedopooh", "nekofact", "magik", "trapcard", "transgender"
     ],
     "Economy": [
         "wallet", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit", "wallets"
     ],
     "Triggers": [
-        "👀", "🧠", "🧽", "👎", "🚨", "🎤"
+        "👀", "🧠", "🧽", "👎", "🚨", "🎤", "🤖", "🦅", "🐦", "📺", "🚀", "💡"
     ],
 }
