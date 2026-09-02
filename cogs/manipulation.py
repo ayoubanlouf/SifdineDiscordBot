@@ -313,23 +313,26 @@ class Manipulation(commands.Cog):
             await ctx.reply("❌ Khassek t7ded au moins 1 user bach dir m3ah ship! Mital: `sat ship @user`", mention_author=False)
             return
 
-        try:
-            m1 = await FuzzyMember().convert(ctx, user1)
-        except Exception:
-            await ctx.reply(f"❌ Malkitch lmember `{user1}`.", mention_author=False)
-            return
-
         if user2:
             try:
-                m2 = await FuzzyMember().convert(ctx, user2)
+                man = await FuzzyMember().convert(ctx, user1)
+            except Exception:
+                await ctx.reply(f"❌ Malkitch lmember `{user1}`.", mention_author=False)
+                return
+            try:
+                woman = await FuzzyMember().convert(ctx, user2)
             except Exception:
                 await ctx.reply(f"❌ Malkitch lmember `{user2}`.", mention_author=False)
                 return
         else:
-            m2 = m1
-            m1 = ctx.author
+            man = ctx.author
+            try:
+                woman = await FuzzyMember().convert(ctx, user1)
+            except Exception:
+                await ctx.reply(f"❌ Malkitch lmember `{user1}`.", mention_author=False)
+                return
 
-        await self._fetch_nekobot(ctx, "ship", user1=m1.display_avatar.url, user2=m2.display_avatar.url)
+        await self._fetch_nekobot(ctx, "ship", user1=man.display_avatar.url, user2=woman.display_avatar.url)
 
     @commands.command(name="mirror", aliases=["flip"], help="9leb tswira.")
     async def mirror(self, ctx, *, target: Optional[str] = None):
