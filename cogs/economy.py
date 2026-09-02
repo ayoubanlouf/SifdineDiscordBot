@@ -6,7 +6,7 @@ from discord.ext import commands
 
 
 TAD_EMOJI = "<:TAD:1543808845728710686>"
-TAX_RATE = 0.05  # 5% anti-inflation transaction burn
+TAX_RATE = 0.02  # 2% anti-inflation transaction burn
 
 
 def format_tad(amount: int) -> str:
@@ -73,9 +73,9 @@ def calculate_pvp_payout(bet_per_player: int) -> Tuple[int, int, int]:
     """
     Returns (winner_payout, burned_amount, draw_split_per_player)
     Total pot = 2 * bet
-    Tax burn = round(Total pot * 5%)
+    Tax burn = round(Total pot * 2%)
     Winner payout = Total pot - Tax burn
-    Draw split = floor((Total pot - Tax burn) / 2) -> (each player recovers 95% of their stake)
+    Draw split = floor((Total pot - Tax burn) / 2) -> (each player recovers 98% of their stake)
     """
     total_pot = bet_per_player * 2
     burned = round(total_pot * TAX_RATE)
@@ -95,8 +95,8 @@ def not_fraud():
             embed = discord.Embed(
                 title="🚫 Economy Suspended",
                 description=(
-                    "⚠️ 7sabek f l'economy mbloqui 7it mssjl ka **Fraud**.\n"
-                    "Ma9adch tsta3mel commands dial flous, t9emmer, wla tched chat rewards."
+                    "⚠️ Wallet ta3k mjemda 7it mssjl ka **Fraud**.\n"
+                    "Mat9dch tsta3mel commands dial flous, t9emmer, wla tched chat rewards."
                 ),
                 color=0x000000
             )
@@ -247,7 +247,7 @@ class Economy(commands.Cog):
 
     async def apply_tax_and_add_balance(self, user_id: int, gross_payout: int, context: str = "") -> Tuple[int, int]:
         """
-        Applies 5% anti-inflation tax burn on gross payout, adds after-tax balance, and logs transaction.
+        Applies 2% anti-inflation tax burn on gross payout, adds after-tax balance, and logs transaction.
         Returns: (net_payout, tax_burned)
         """
         if gross_payout <= 0 or self.is_bot_user(user_id):
@@ -526,7 +526,7 @@ class Economy(commands.Cog):
             await ctx.send(f"❌ **{target.display_name}** 7sabo mbloqui ka Fraud, ma ymkench yst9bel flous.")
             return
 
-        # 5% tax burn
+        # 2% tax burn
         tax = round(amount * TAX_RATE)
         received = amount - tax
 
@@ -537,7 +537,7 @@ class Economy(commands.Cog):
             title="💸 Payment Successful",
             description=(
                 f"Sifti {format_tad(received)} l **{target.mention}**.\n\n"
-                f"🔥 **5% Tax Burned:** `{tax:,}` TAD"
+                f"🔥 **2% Tax Burned:** `{tax:,}` TAD"
             ),
             color=0x000000
         )
@@ -587,7 +587,7 @@ class Economy(commands.Cog):
 
         embed = discord.Embed(
             title="🚨 Economy Fraud Suspension",
-            description=f"🔒 **{target.mention}** tmarka **Fraud**.\nWallet dialo tjmdat o ma 9adch ysta3mel l'economy wla ycharek f games.",
+            description=f"🔒 **{target.mention}** tmarka **Fraud**.\nWallet dialo tjmdat o may9edch ysta3mel l economy wla yl3b lgames.",
             color=0x000000
         )
         await ctx.send(embed=embed)
@@ -601,7 +601,7 @@ class Economy(commands.Cog):
 
         embed = discord.Embed(
             title="✅ Economy Standing Restored",
-            description=f"🟢 **{target.mention}** rje3 **Legit**! Wallet dialo t7llat o progress dialo kaml b9a kifma kan.",
+            description=f"🟢 **{target.mention}** rje3 **Legit**! Wallet dialo t7llat o progress dialo b9a kima kan.",
             color=0x000000
         )
         await ctx.send(embed=embed)

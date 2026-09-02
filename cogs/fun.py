@@ -198,7 +198,7 @@ class ChessView(View):
             net, tax = await economy_cog.apply_tax_and_add_balance(self.player_white.id, 1000, context="Chess Bot Win")
             if self.cog and self.message and self.message.guild:
                 await self.cog.record_minigame_win(self.message.guild.id, self.player_white.id, "chess", earnings=net)
-            return f"\n\n💰 **{winner.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 5% tax burned)!"
+            return f"\n\n💰 **{winner.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 2% tax burned)!"
 
         if self.bet <= 0:
             return ""
@@ -207,10 +207,10 @@ class ChessView(View):
         if is_draw:
             await economy_cog.add_balance(self.player_white.id, d_split, context="Chess Draw Split")
             await economy_cog.add_balance(self.player_black.id, d_split, context="Chess Draw Split")
-            return f"\n\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)."
+            return f"\n\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
         elif winner:
             await economy_cog.add_balance(winner.id, w_payout, context="Chess Wager Win")
-            return f"\n\n💰 **{winner.mention}** rbe7 {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+            return f"\n\n💰 **{winner.mention}** rbe7 {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
         return ""
 
     def build_embed(self) -> discord.Embed:
@@ -227,9 +227,9 @@ class ChessView(View):
                 eco_suffix = ""
                 if self.bet > 0:
                     if outcome.winner in (chess.WHITE, chess.BLACK):
-                        eco_suffix = f"\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                        eco_suffix = f"\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                     else:
-                        eco_suffix = f"\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)."
+                        eco_suffix = f"\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
 
                 if outcome.winner == chess.WHITE:
                     embed.description = f"🏆 **Checkmate! {self.player_white.mention} (Byed) rbe7!**{eco_suffix}"
@@ -747,12 +747,12 @@ class TicTacToeView(View):
             if winner == "draw":
                 if self.bet > 0:
                     _, burned, d_split = calculate_pvp_payout(self.bet)
-                    return f"🤝 **Ta3adol!**\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)."
+                    return f"🤝 **Ta3adol!**\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
                 return "🤝 **Ta3adol!**"
             elif winner == "X":
                 if self.bet > 0:
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
-                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                 elif self.is_bot_game:
                     return f"🏆 **{self.player_x.mention} (X) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **1000** {TAD_EMOJI} TAD!"
                 return f"🏆 **{self.player_x.mention} (X) rbe7!**"
@@ -762,7 +762,7 @@ class TicTacToeView(View):
                 else:
                     if self.bet > 0:
                         w_payout, burned, _ = calculate_pvp_payout(self.bet)
-                        return f"🏆 **{self.player_o.mention} (O) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                        return f"🏆 **{self.player_o.mention} (O) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                     return f"🏆 **{self.player_o.mention} (O) rbe7!**"
         else:
             current_player = "X" if self.current_turn == self.player_x else "O"
@@ -1064,12 +1064,12 @@ class ConnectFourView(View):
             if winner == "draw":
                 if self.bet > 0:
                     _, burned, d_split = calculate_pvp_payout(self.bet)
-                    return f"{board_text}\n\n🤝 **Ta3adol!**\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)."
+                    return f"{board_text}\n\n🤝 **Ta3adol!**\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
                 return f"{board_text}\n\n🤝 **Ta3adol!**"
             elif winner == "🔴":
                 if self.bet > 0:
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
-                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                 elif self.is_bot_game:
                     return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **1000** {TAD_EMOJI} TAD!"
                 return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**"
@@ -1079,7 +1079,7 @@ class ConnectFourView(View):
                 else:
                     if self.bet > 0:
                         w_payout, burned, _ = calculate_pvp_payout(self.bet)
-                        return f"{board_text}\n\n🏆 **{self.player_yellow.mention} (🟡) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                        return f"{board_text}\n\n🏆 **{self.player_yellow.mention} (🟡) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                     return f"{board_text}\n\n🏆 **{self.player_yellow.mention} (🟡) rbe7!**"
 
         current_symbol = "🔴" if self.current_turn == self.player_red else "🟡"
@@ -1553,7 +1553,7 @@ class AkinatorView(View):
                 eco_msg = ""
                 if economy_cog:
                     net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 25, context="Akinator Win")
-                    eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 5% tax burned)!"
+                    eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 2% tax burned)!"
                 embed = discord.Embed(
                     title="🎉 Rbe7t!",
                     description=f"**{self.aki.first_guess['name']}**\n{self.aki.first_guess.get('description', '')}{eco_msg}",
@@ -1685,7 +1685,7 @@ class RPSBotView(View):
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             if economy_cog:
                 net, tax = await economy_cog.apply_tax_and_add_balance(winning_user.id, 20, context="RPS Bot Win")
-                outcome += f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 5% tax burned)!"
+                outcome += f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 2% tax burned)!"
             if self.cog and interaction.guild:
                 await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors")
 
@@ -1771,7 +1771,7 @@ class RPSMultiplayerView(View):
                     if economy_cog:
                         await economy_cog.add_balance(self.player1.id, d_split, context="RPS Draw Split")
                         await economy_cog.add_balance(self.player2.id, d_split, context="RPS Draw Split")
-                    outcome += f"\n\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)."
+                    outcome += f"\n\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
             elif (p1_choice == "rock" and p2_choice == "scissors") or \
                  (p1_choice == "paper" and p2_choice == "rock") or \
                  (p1_choice == "scissors" and p2_choice == "paper"):
@@ -1791,7 +1791,7 @@ class RPSMultiplayerView(View):
                         await economy_cog.add_balance(winning_user.id, w_payout, context="RPS Wager Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors", earnings=w_payout - self.bet)
-                    outcome += f"\n\n💰 **{winning_user.mention}** rbe7 {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 5% tax burned)!"
+                    outcome += f"\n\n💰 **{winning_user.mention}** rbe7 {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                 elif self.cog and interaction.guild:
                     await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors")
 
@@ -2069,7 +2069,7 @@ class MinesweeperSoloView(View):
             eco_msg = ""
             if economy_cog:
                 net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 40, context="Minesweeper Clear")
-                eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 40 TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 40 TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                 if interaction.guild:
                     await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "minesweeper", earnings=net)
 
@@ -2166,7 +2166,7 @@ class MinesweeperMultiplayerView(View):
             net_profit = winner_payout - self.bet
             if self.message and self.message.guild:
                 await self.cog.record_minigame_win(self.message.guild.id, winner.id, "minesweeper", earnings=net_profit)
-            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 5% tax burned)!"
+            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 2% tax burned)!"
 
     def get_content(self, extra: str = "") -> str:
         if self.game_over:
@@ -2481,7 +2481,7 @@ class WordleSoloView(View):
                     attempts = len(self.guesses)
                     gross = 50 if attempts <= 2 else (35 if attempts <= 4 else 20)
                     net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Wordle Solo ({attempts}/6)")
-                    eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                    eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "wordle", earnings=net)
                 else:
@@ -2590,7 +2590,7 @@ class WordleMultiplayerMatch:
             net_profit = winner_payout - self.bet
             if self.channel_msg and self.channel_msg.guild:
                 await self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "wordle", earnings=net_profit)
-            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 5% tax burned)!"
+            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 2% tax burned)!"
 
     def get_player_dm_content(self, player: discord.Member) -> str:
         opponent = self.p2 if player == self.p1 else self.p1
@@ -3102,7 +3102,7 @@ class HangmanSoloView(View):
             if economy_cog:
                 if self.won:
                     net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 30, context="Hangman Solo Win")
-                    eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 30 TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                    eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 30 TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "hangman", earnings=net)
                 else:
@@ -3208,7 +3208,7 @@ class HangmanMultiplayerMatch:
             net_profit = winner_payout - self.bet
             if self.channel_msg and self.channel_msg.guild:
                 await self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "hangman", earnings=net_profit)
-            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 5% tax burned)!"
+            return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • 🔥 `{tax_burned:,}` TAD 2% tax burned)!"
 
     def get_player_dm_content(self, player: discord.Member) -> str:
         opponent = self.p2 if player == self.p1 else self.p1
@@ -3996,14 +3996,14 @@ class BlackjackView(discord.ui.View):
                 net_profit = net_payout - self.bet
                 if self.message and self.message.guild:
                     await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "blackjack", earnings=max(0, net_profit))
-                outcome_text += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)!"
+                outcome_text += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)!"
             elif is_win:
                 gross_payout = self.bet * 2
                 net_payout, tax = await economy_cog.apply_tax_and_add_balance(self.author.id, gross_payout, context="Blackjack Win")
                 net_profit = net_payout - self.bet
                 if self.message and self.message.guild:
                     await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "blackjack", earnings=max(0, net_profit))
-                outcome_text += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)!"
+                outcome_text += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)!"
             elif is_push:
                 await economy_cog.add_balance(self.author.id, self.bet, context="Blackjack Push Refund")
                 outcome_text += f"\n\n🤝 Rje3 lik l bet ta3k: {format_tad(self.bet)}."
@@ -4195,7 +4195,7 @@ class MinesGambleView(discord.ui.View):
             net_profit = net_payout - self.bet
             if self.message and self.message.guild:
                 await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines", earnings=max(0, net_profit))
-            embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+            embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)", inline=False)
         elif self.message and self.message.guild:
             await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines")
 
@@ -4222,7 +4222,7 @@ class MinesGambleView(discord.ui.View):
                     net_profit = net_payout - self.bet
                     if self.message.guild:
                         await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines", earnings=max(0, net_profit))
-                    desc = f"⏰ **Game Timed Out (Auto-Cashed Out)!**\nMultiplier: **{mult:.2f}x** • Net Payout: **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)."
+                    desc = f"⏰ **Game Timed Out (Auto-Cashed Out)!**\nMultiplier: **{mult:.2f}x** • Net Payout: **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)."
             else:
                 desc = "⏰ **Game Timed Out!**"
 
@@ -4294,7 +4294,7 @@ class MinesGambleView(discord.ui.View):
                 net_profit = net_payout - self.bet
                 if self.message and self.message.guild:
                     await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines", earnings=max(0, net_profit))
-                embed.add_field(name="💵 Net Payout", value=f"👑 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+                embed.add_field(name="💵 Net Payout", value=f"👑 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)", inline=False)
             elif self.message and self.message.guild:
                 await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines")
             
@@ -4445,7 +4445,7 @@ class HigherLowerView(discord.ui.View):
             net_profit = net_payout - self.bet
             if self.message and self.message.guild:
                 await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "higherlower", earnings=max(0, net_profit))
-            embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+            embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)", inline=False)
         elif self.message and self.message.guild:
             await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "higherlower")
 
@@ -4474,7 +4474,7 @@ class HigherLowerView(discord.ui.View):
                     net_profit = net_payout - self.bet
                     if self.message.guild:
                         await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "higherlower", earnings=max(0, net_profit))
-                    desc = f"⏰ **Game Timed Out (Auto-Cashed Out)!**\nStreak: **{self.streak}** (Multiplier: **{mult:.2f}x**) • Net Payout: **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)."
+                    desc = f"⏰ **Game Timed Out (Auto-Cashed Out)!**\nStreak: **{self.streak}** (Multiplier: **{mult:.2f}x**) • Net Payout: **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)."
             else:
                 desc = "⏰ **Game Timed Out!**"
 
@@ -4557,7 +4557,7 @@ class CoinflipView(discord.ui.View):
                 if self.message and self.message.guild:
                     await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "coinflip", earnings=max(0, net_profit))
                 embed.add_field(name="💰 Stake", value=format_tad(self.bet), inline=True)
-                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)", inline=False)
             else:
                 embed.add_field(name="💰 Stake", value=format_tad(self.bet), inline=True)
                 embed.add_field(name="💵 Net Payout", value=format_tad(0), inline=False)
@@ -5023,7 +5023,7 @@ class Fun(commands.Cog):
                 if economy_cog:
                     gross = 40 + (len(players) * 15) + (len(country_pool) - len(match_pool)) * 2
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
-                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, winner.id, "flags", earnings=net)
                 win_embed = discord.Embed(
@@ -5102,7 +5102,7 @@ class Fun(commands.Cog):
             eco_msg = ""
             if economy_cog:
                 net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Flags Solo")
-                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
             await ctx.send(embed=discord.Embed(
                 description=f"🎯 Game Over {player.mention}!{eco_msg}",
                 color=0x000000
@@ -5199,7 +5199,7 @@ class Fun(commands.Cog):
                 eco_msg = ""
                 if economy_cog and correct_count > 0:
                     net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="BlackTea Solo")
-                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, player.id, "blacktea", earnings=net)
                 await ctx.send(embed=discord.Embed(
@@ -5251,7 +5251,7 @@ class Fun(commands.Cog):
                     if economy_cog:
                         gross = 40 + (len(players) * 15)
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="BlackTea Win")
-                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
                             await self.record_minigame_win(ctx.guild.id, winner.id, "blacktea", earnings=net)
                     await ctx.send(embed=discord.Embed(
@@ -5366,7 +5366,7 @@ class Fun(commands.Cog):
                     if economy_cog and maxpoints > 0:
                         gross = 40 + (len(players) * 15) + (maxpoints * 3)
                         net, tax = await economy_cog.apply_tax_and_add_balance(winners[0], gross, context="GreenTea Win")
-                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
                             await self.record_minigame_win(ctx.guild.id, winners[0], "greentea", earnings=net)
                     await ctx.send(embed=discord.Embed(
@@ -5426,7 +5426,7 @@ class Fun(commands.Cog):
             wager_str = (
                 f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
                 f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
-                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🔥 **2% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
                 f"🤝 **Draw Split:** {format_tad(d_split)} each"
             )
 
@@ -5476,7 +5476,7 @@ class Fun(commands.Cog):
             wager_str = (
                 f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
                 f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
-                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🔥 **2% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
                 f"🤝 **Draw Split:** {format_tad(d_split)} each"
             )
 
@@ -5546,7 +5546,7 @@ class Fun(commands.Cog):
             wager_str = (
                 f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
                 f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
-                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🔥 **2% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
                 f"🤝 **Draw Split:** {format_tad(d_split)} each"
             )
 
@@ -5599,7 +5599,7 @@ class Fun(commands.Cog):
             wager_str = (
                 f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
                 f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
-                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🔥 **2% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
                 f"🤝 **Draw Split:** {format_tad(d_split)} each"
             )
 
@@ -5649,7 +5649,7 @@ class Fun(commands.Cog):
             wager_str = (
                 f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
                 f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
-                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🔥 **2% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
                 f"🤝 **Draw Split:** {format_tad(d_split)} each"
             )
 
@@ -5699,7 +5699,7 @@ class Fun(commands.Cog):
             wager_str = (
                 f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
                 f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
-                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🔥 **2% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
                 f"🤝 **Draw Split:** {format_tad(d_split)} each"
             )
 
@@ -5749,7 +5749,7 @@ class Fun(commands.Cog):
             wager_str = (
                 f"\n\n🚨 **ACTIVE WAGER: {format_tad(bet)}** 🚨\n"
                 f"💰 **Total Pot:** {format_tad(bet*2)} (Winner Takes: **{format_tad(w_payout)}**)\n"
-                f"🔥 **5% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
+                f"🔥 **2% Tax Burned:** `{burned:,}` {TAD_EMOJI} TAD\n"
                 f"🤝 **Draw Split:** {format_tad(d_split)} each"
             )
 
@@ -5824,7 +5824,7 @@ class Fun(commands.Cog):
                 if economy_cog:
                     gross = 40 + (len(players) * 15) + (scores.get(winner.id, 0) * 3)
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Trivia Win")
-                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, winner.id, "trivia", earnings=net)
                 await ctx.send(embed=discord.Embed(
@@ -5903,7 +5903,7 @@ class Fun(commands.Cog):
             eco_msg = ""
             if economy_cog:
                 net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Trivia Solo")
-                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!"
+                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
             await ctx.send(embed=discord.Embed(
                 description=f"🎯 Game Over {player.mention}! Score dialk: **{scores[player.id]} questions correct**.{eco_msg}",
                 color=0x000000
@@ -6064,7 +6064,7 @@ class Fun(commands.Cog):
                     net, tax = await economy_cog.apply_tax_and_add_balance(ranked[0].id, gross, context="TypeRacer Win")
                     leaderboard_embed.add_field(
                         name="🏆 Winner Reward",
-                        value=f"**{ranked[0].mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 5% tax burned)!",
+                        value=f"**{ranked[0].mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!",
                         inline=False
                     )
                     if ctx.guild:
@@ -6217,7 +6217,7 @@ class Fun(commands.Cog):
                 if ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "coinflip", earnings=max(0, net_profit))
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
-                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)", inline=False)
             else:
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
                 embed.add_field(name="💵 Net Payout", value=format_tad(0), inline=False)
@@ -6273,7 +6273,7 @@ class Fun(commands.Cog):
                 if mult >= 1.2 and ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "dice", earnings=max(0, net_profit))
                 if net_profit > 0:
-                    embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+                    embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)", inline=False)
                 elif net_profit < 0:
                     embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(abs(net_profit))}** (Refund: {net_payout:,} TAD • 🔥 `{tax:,}` TAD tax burned)", inline=False)
                 else:
@@ -6323,7 +6323,7 @@ class Fun(commands.Cog):
                     net_profit = net_payout - bet
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, ctx.author.id, "blackjack", earnings=max(0, net_profit))
-                    outcome_str += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)!"
+                    outcome_str += f"\n\n💰 Rbe7ti **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)!"
                 elif ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "blackjack")
                 initial_embed = view.get_embed(dealer_reveal=True, outcome_text=outcome_str)
@@ -6405,7 +6405,7 @@ class Fun(commands.Cog):
                 if payout_mult > 0 and ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "slots", earnings=max(0, net_profit))
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
-                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)", inline=False)
             else:
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
                 embed.add_field(name="💵 Net Payout", value=format_tad(0), inline=False)
@@ -6558,7 +6558,7 @@ class Fun(commands.Cog):
                 if ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "roulette", earnings=max(0, net_profit))
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
-                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 5% tax burned)", inline=False)
+                embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)", inline=False)
             else:
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
                 embed.add_field(name="💵 Net Payout", value=format_tad(0), inline=False)
