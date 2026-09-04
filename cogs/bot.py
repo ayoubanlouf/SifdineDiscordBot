@@ -575,7 +575,7 @@ class Bot(commands.Cog):
 
         canonical_name = target_cmd.qualified_name.lower()
         if canonical_name in ("enable", "disable", "disabled", "help"):
-            await ctx.send(f"❌ Mat9dch tdesaktivi command `{canonical_name}` 7it essential!")
+            await ctx.send(f"❌ Mat9dch tdesactivi command `{canonical_name}` 7it essential!")
             return
 
         async with self.bot.db.execute(

@@ -357,12 +357,12 @@ class Economy(commands.Cog):
         next_midnight_ts = int(next_midnight.timestamp())
 
         if not daily_claimed:
-            daily_val = f"✅ Available to claim (`/daily`)\n🔥 Streak: `{daily_streak}/7`"
+            daily_val = f"✅ Available to claim\n🔥 Streak: `{daily_streak}/7`"
         else:
             daily_val = f"⏳ Resets <t:{next_midnight_ts}:R>\n🔥 Streak: `{daily_streak}/7`"
 
         if (now_ts - last_weekly) >= 604800:
-            weekly_val = "✅ Available to claim (`/weekly`)"
+            weekly_val = "✅ Available to claim"
         else:
             next_weekly_ts = last_weekly + 604800
             weekly_val = f"⏳ Resets <t:{next_weekly_ts}:R>"

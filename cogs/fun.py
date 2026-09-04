@@ -199,6 +199,9 @@ class ChessView(View):
             if self.cog and self.message and self.message.guild:
                 await self.cog.record_minigame_win(self.message.guild.id, self.player_white.id, "chess", earnings=net)
             return f"\n\n💰 **{winner.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 2% tax burned)!"
+        elif self.is_bot_game and is_draw:
+            net, tax = await economy_cog.apply_tax_and_add_balance(self.player_white.id, 2000, context="Chess Bot Draw")
+            return f"\n\n🤝 **Ta3adol m3a bot AI!**\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 2,000 TAD • 🔥 `{tax}` TAD 2% tax burned)!"
 
         if self.bet <= 0:
             return ""
@@ -230,6 +233,11 @@ class ChessView(View):
                         eco_suffix = f"\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                     else:
                         eco_suffix = f"\n💰 Kola wa7d rj3at lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
+                elif self.is_bot_game:
+                    if outcome.winner == chess.WHITE:
+                        eco_suffix = f"\n🤖 Ghelbti bot AI o rbe7ti **5,000** {TAD_EMOJI} TAD!"
+                    elif outcome.winner is None:
+                        eco_suffix = f"\n🤖 Ta3adol m3a bot AI! Rbe7ti **2,000** {TAD_EMOJI} TAD!"
 
                 if outcome.winner == chess.WHITE:
                     embed.description = f"🏆 **Checkmate! {self.player_white.mention} (Byed) rbe7!**{eco_suffix}"
@@ -1065,6 +1073,8 @@ class ConnectFourView(View):
                 if self.bet > 0:
                     _, burned, d_split = calculate_pvp_payout(self.bet)
                     return f"{board_text}\n\n🤝 **Ta3adol!**\n💰 Kola wa7d rj3at lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
+                elif self.is_bot_game:
+                    return f"{board_text}\n\n🤝 **Ta3adol!**\n🤖 Ta3adol m3a bot AI! Rbe7ti **1,000** {TAD_EMOJI} TAD!"
                 return f"{board_text}\n\n🤝 **Ta3adol!**"
             elif winner == "🔴":
                 if self.bet > 0:
@@ -1325,6 +1335,8 @@ class ConnectFourView(View):
                 _, burned, d_split = calculate_pvp_payout(self.bet)
                 await economy_cog.add_balance(self.player_red.id, d_split, context="ConnectFour Draw Split")
                 await economy_cog.add_balance(self.player_yellow.id, d_split, context="ConnectFour Draw Split")
+            elif winner == "draw" and self.is_bot_game and economy_cog:
+                await economy_cog.apply_tax_and_add_balance(self.player_red.id, 1000, context="ConnectFour Bot Draw")
             elif winner in ("🔴", "🟡"):
                 winning_user = self.player_red if winner == "🔴" else self.player_yellow
                 if self.bet > 0 and economy_cog:
@@ -1353,6 +1365,10 @@ class ConnectFourView(View):
             if winner:
                 self.game_over = True
                 self.disable_all_buttons()
+                if winner == "draw":
+                    economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+                    if economy_cog:
+                        await economy_cog.apply_tax_and_add_balance(self.player_red.id, 1000, context="ConnectFour Bot Draw")
                 self.stop()
             else:
                 self.current_turn = self.player_red
@@ -1630,10 +1646,12 @@ class AkinatorView(View):
 # ============ ROCK PAPER SCISSORS UI CLASSES (Module Level) ============
 
 class RPSBotView(View):
-    def __init__(self, player: discord.Member, cog: Optional["Fun"] = None):
+    def __init__(self, player: discord.Member, cog: Optional["Fun"] = None, bet: int = 0):
         super().__init__(timeout=60)
         self.player = player
         self.cog = cog
+        self.bet = bet
+        self.game_over = False
         self.message: Optional[discord.Message] = None
 
     @discord.ui.button(label="Rock", style=discord.ButtonStyle.secondary, emoji="🪨", custom_id="rps_rock")
@@ -1655,6 +1673,7 @@ class RPSBotView(View):
         return True
 
     async def process_choice(self, interaction: discord.Interaction, player_choice: str):
+        self.game_over = True
         self.stop()
         for item in self.children:
             item.disabled = True
@@ -1667,27 +1686,34 @@ class RPSBotView(View):
             "scissors": "✂️ Scissors"
         }
 
-        winning_user = None
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+
         if player_choice == bot_choice:
             title = "🤝 Ta3adol!"
             outcome = f"Nta khtarti **{emoji_map[player_choice]}** o ana khtart **{emoji_map[bot_choice]}**."
+            if self.bet > 0 and economy_cog:
+                await economy_cog.add_balance(self.player.id, self.bet, context="RPS Bot Draw (1x)")
+                outcome += f"\n\n🤝 **Ta3adol (1x):** Rje3 lik l bet: {format_tad(self.bet)}."
         elif (player_choice == "rock" and bot_choice == "scissors") or \
              (player_choice == "paper" and bot_choice == "rock") or \
              (player_choice == "scissors" and bot_choice == "paper"):
             title = "🎉 Rbe7ti!"
             outcome = f"Nta khtarti **{emoji_map[player_choice]}** o ana khtart **{emoji_map[bot_choice]}**."
-            winning_user = self.player
+            if self.bet > 0 and economy_cog:
+                gross_payout = self.bet * 2
+                net_payout, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross_payout, context="RPS Bot Win (2x)")
+                net_profit = net_payout - self.bet
+                outcome += f"\n\n💰 Rbe7ti (2x) **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • 🔥 `{tax:,}` TAD 2% tax burned)!"
+            elif economy_cog:
+                net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 20, context="RPS Bot Win")
+                outcome += f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 2% tax burned)!"
+            if self.cog and interaction.guild:
+                await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "rockpaperscissors", earnings=self.bet if self.bet > 0 else 20)
         else:
             title = "🤖 Rb7tk!"
             outcome = f"Nta khtarti **{emoji_map[player_choice]}** o ana khtart **{emoji_map[bot_choice]}**."
-
-        if winning_user:
-            economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
-            if economy_cog:
-                net, tax = await economy_cog.apply_tax_and_add_balance(winning_user.id, 20, context="RPS Bot Win")
-                outcome += f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 2% tax burned)!"
-            if self.cog and interaction.guild:
-                await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors")
+            if self.bet > 0:
+                outcome += f"\n\n💥 **Khserti (0x):** -{format_tad(self.bet)}."
 
         embed = discord.Embed(
             title=title,
@@ -1697,18 +1723,29 @@ class RPSBotView(View):
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def on_timeout(self):
-        for item in self.children:
-            item.disabled = True
-        if self.message:
-            try:
+        if not self.game_over:
+            self.game_over = True
+            for item in self.children:
+                item.disabled = True
+            economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
+            if self.bet > 0 and economy_cog:
+                await economy_cog.add_balance(self.player.id, self.bet, context="RPS Timeout Refund")
+                embed = discord.Embed(
+                    title="⏰ Sala lwe9t",
+                    description=f"Sala lwe9t o ma khtartich. Rje3 lik l bet: {format_tad(self.bet)}.",
+                    color=0x000000
+                )
+            else:
                 embed = discord.Embed(
                     title="⏰ Sala lwe9t",
                     description="Sala lwe9t o ma khtartich.",
                     color=0x000000
                 )
-                await self.message.edit(embed=embed, view=self)
-            except discord.HTTPException:
-                pass
+            if self.message:
+                try:
+                    await self.message.edit(embed=embed, view=self)
+                except Exception:
+                    pass
 
 
 class RPSMultiplayerView(View):
@@ -4818,7 +4855,7 @@ class LeaderboardInteractiveView(discord.ui.View):
 DIFFICULTY_STAKES = {
     "easy": 1.0,
     "medium": 1.5,
-    "hard": 2.5
+    "hard": 2.0
 }
 
 EASY_COUNTRIES = {
@@ -5121,33 +5158,41 @@ class Fun(commands.Cog):
         await signup_msg.edit(embed=start_embed, view=None)
         await asyncio.sleep(2)
 
+        player_correct_flags = {p.id: 0 for p in players}
+
         while len(active_players) > 0:
             if not single_player and len(active_players) == 1:
                 winner = active_players[0]
                 economy_cog = self.bot.get_cog("Economy")
                 eco_msg = ""
+                winner_flags = player_correct_flags.get(winner.id, 0)
                 if economy_cog:
-                    correct_flags = len(country_pool) - len(match_pool)
-                    base_gross = 200 + (len(players) * 50) + (correct_flags * 30)
+                    base_gross = (len(players) * 50) + (winner_flags * 15)
                     gross = int(base_gross * diff_mult)
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, winner.id, "flags", earnings=net)
                 win_embed = discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame!{eco_msg}",
+                    description=f"🏆 {winner.mention} rbe7 lgame b **{winner_flags} flags**!{eco_msg}",
                     color=0x000000
                 )
                 await ctx.send(embed=win_embed)
                 return
+
+            if not match_pool:
+                await ctx.send(embed=discord.Embed(
+                    description="🏁 **Flags pool salaw kamlin! Game sala.**",
+                    color=0x000000
+                ))
+                break
 
             for player in list(active_players):
                 if not single_player and len(active_players) == 1:
                     break
 
                 if not match_pool:
-                    match_pool = list(country_pool)
-                    random.shuffle(match_pool)
+                    break
 
                 target = match_pool.pop()
                 correct_name = target["name"]
@@ -5185,6 +5230,7 @@ class Fun(commands.Cog):
                         if is_flag_guess_correct(msg.content, target_code, correct_name):
                             await msg.add_reaction("✅")
                             guessed_correctly = True
+                            player_correct_flags[player.id] = player_correct_flags.get(player.id, 0) + 1
                             break
 
                     except asyncio.TimeoutError:
@@ -5206,19 +5252,57 @@ class Fun(commands.Cog):
         if single_player:
             player = players[0]
             economy_cog = self.bot.get_cog("Economy")
-            correct_flags = max(0, len(country_pool) - len(match_pool))
-            base_gross = 50 + (correct_flags * 10)
+            p_flags = player_correct_flags.get(player.id, 0)
+            base_gross = 50 + (p_flags * 15)
             gross = int(base_gross * diff_mult)
             eco_msg = ""
-            if economy_cog:
+            if economy_cog and p_flags > 0:
                 net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Flags Solo")
                 eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                 if ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, player.id, "flags", earnings=net)
             await ctx.send(embed=discord.Embed(
-                description=f"🎯 Game Over {player.mention}!{eco_msg}",
+                description=f"🎯 Game Over {player.mention}! L9iti **{p_flags} flags**.{eco_msg}",
                 color=0x000000
             ))
+        elif not single_player:
+            max_guesses = max(player_correct_flags.values()) if player_correct_flags else 0
+            if max_guesses > 0:
+                top_players = [p for p in players if player_correct_flags.get(p.id, 0) == max_guesses]
+                if len(top_players) == 1:
+                    winner = top_players[0]
+                    economy_cog = self.bot.get_cog("Economy")
+                    eco_msg = ""
+                    if economy_cog:
+                        base_gross = (len(players) * 50) + (max_guesses * 15)
+                        gross = int(base_gross * diff_mult)
+                        net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
+                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                        if ctx.guild:
+                            await self.record_minigame_win(ctx.guild.id, winner.id, "flags", earnings=net)
+                    await ctx.send(embed=discord.Embed(
+                        description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} flags** o rbe7 lgame!{eco_msg}",
+                        color=0x000000
+                    ))
+                else:
+                    winners_mention = " o ".join(p.mention for p in top_players)
+                    economy_cog = self.bot.get_cog("Economy")
+                    split_eco_msg = ""
+                    if economy_cog:
+                        base_gross = (len(players) * 50) + (max_guesses * 15)
+                        gross_split = max(1, int((base_gross * diff_mult) / len(top_players)))
+                        for wp in top_players:
+                            await economy_cog.apply_tax_and_add_balance(wp.id, gross_split, context="Flags Win (Tie)")
+                        split_eco_msg = f"\n💰 Kola wa7d rbe7 **{gross_split}** TAD!"
+                    await ctx.send(embed=discord.Embed(
+                        description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} flags**!{split_eco_msg}",
+                        color=0x000000
+                    ))
+            else:
+                await ctx.send(embed=discord.Embed(
+                    description="🎯 Game Over! Ta wa7d ma jab chy raya s7i7a.",
+                    color=0x000000
+                ))
 
     @commands.command(aliases=["jklm"], help="Kteb kelma fiha l7orof li ghan3tik.")
     async def blacktea(self, ctx, *args):
@@ -5364,13 +5448,14 @@ class Fun(commands.Cog):
                     economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
                     if economy_cog:
-                        gross = int((200 + (len(players) * 50)) * diff_mult)
+                        match_words_count = len(used_words)
+                        gross = int(((len(players) * 50) + (match_words_count * 10)) * diff_mult)
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="BlackTea Win")
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
                             await self.record_minigame_win(ctx.guild.id, winner.id, "blacktea", earnings=net)
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner.mention} rbe7 lgame!{eco_msg}",
+                        description=f"🏆 {winner.mention} rbe7 lgame! L9ito majmou3 **{len(used_words)} kelmat**.{eco_msg}",
                         color=0x000000
                     ))
         except Exception as e:
@@ -5482,7 +5567,7 @@ class Fun(commands.Cog):
                     economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
                     if economy_cog and maxpoints > 0:
-                        base_gross = 200 + (len(players) * 50) + (maxpoints * 20)
+                        base_gross = (len(players) * 50) + (maxpoints * 20)
                         gross = int(base_gross * diff_mult)
                         net, tax = await economy_cog.apply_tax_and_add_balance(winners[0], gross, context="GreenTea Win")
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
@@ -5677,15 +5762,38 @@ class Fun(commands.Cog):
         )
         await ctx.send(content=content, view=challenge_view)
 
-    @commands.command(name="rockpaperscissors", aliases=["rps", "zdimbomba7", "zba7"], help="7ajar wara9 mi9as (sat rps @user [bet:500]).")
+    @commands.command(name="rockpaperscissors", aliases=["rps", "zdimbomba7", "zba7"], help="7ajar wara9 mi9as (sat rps [bet] wla sat rps @user [bet]).")
     @not_fraud()
     async def rps(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
-        bet, _ = parse_bet_argument(*args)
+        economy_cog = self.bot.get_cog("Economy")
+        w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
+
+        msg_parts = ctx.message.content.split()
+        cmd_words = msg_parts[1:] if len(msg_parts) > 1 else []
+        parsed_bet, _ = parse_bet_argument(*cmd_words, user_balance=w.get("balance", 0))
+
+        if not ctx.message.mentions and member is not None:
+            first_val, _ = parse_bet_argument(cmd_words[0] if cmd_words else None, user_balance=w.get("balance", 0))
+            if first_val is not None:
+                member = None
+                bet = first_val
+            else:
+                bet = parsed_bet
+        else:
+            bet = parsed_bet
+
         if member is None:
-            view = RPSBotView(ctx.author, cog=self)
+            if bet and bet > 0 and economy_cog:
+                if w["balance"] < bet:
+                    await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w['balance'])}.")
+                    return
+                await economy_cog.deduct_balance(ctx.author.id, bet, context="RPS Bot Bet")
+
+            view = RPSBotView(ctx.author, cog=self, bet=bet or 0)
+            stake_str = f"\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""
             embed = discord.Embed(
                 title="🪨 Rock Paper Scissors",
-                description=f"⚔️ {ctx.author.mention} vs 🤖 Bot\n\nKhtar choice dialk:",
+                description=f"⚔️ {ctx.author.mention} vs 🤖 Bot\n\nKhtar choice dialk:{stake_str}",
                 color=0x000000
             )
             message = await ctx.send(embed=embed, view=view)
@@ -5941,7 +6049,8 @@ class Fun(commands.Cog):
                 economy_cog = self.bot.get_cog("Economy")
                 eco_msg = ""
                 if economy_cog:
-                    gross = 200 + (len(players) * 50) + (scores.get(winner.id, 0) * 20)
+                    winner_answers = scores.get(winner.id, 0)
+                    gross = (len(players) * 50) + (winner_answers * 50)
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Trivia Win")
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
@@ -6179,7 +6288,7 @@ class Fun(commands.Cog):
             if scores.get(ranked[0].id, 0) > 0:
                 economy_cog = self.bot.get_cog("Economy")
                 if economy_cog:
-                    gross = 200 + (len(players) * 50) + (scores[ranked[0].id] * 50)
+                    gross = (len(players) * 50) + (scores[ranked[0].id] * 50)
                     net, tax = await economy_cog.apply_tax_and_add_balance(ranked[0].id, gross, context="TypeRacer Win")
                     leaderboard_embed.add_field(
                         name="🏆 Winner Reward",
@@ -6579,12 +6688,7 @@ class Fun(commands.Cog):
         red_nums = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
         black_nums = {2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35}
 
-        economy_cog = self.bot.get_cog("Economy")
-        w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
-        bet, remaining = parse_bet_argument(*args, user_balance=w.get("balance", 0))
-        choice = remaining[0] if remaining else None
-
-        if choice is None:
+        if not args:
             embed = discord.Embed(
                 title="🎡 European Roulette Table",
                 description=(
@@ -6592,16 +6696,77 @@ class Fun(commands.Cog):
                     "• `red` / `black` (2x payout)\n"
                     "• `even` / `odd` (2x payout)\n"
                     "• `1-18` (Low) / `19-36` (High) (2x payout)\n"
-                    "• `green` / `0` (14x payout)\n"
+                    "• `green` (14x payout)\n"
                     "• Number direct `0` - `36` (36x payout)\n\n"
-                    f"Mital: `{ctx.clean_prefix}roulette red 100` wla `{ctx.clean_prefix}roulette 7 500`"
+                    f"Mital: `{ctx.clean_prefix}roulette 1 200` wla `{ctx.clean_prefix}roulette red 500`"
                 ),
                 color=0x000000
             )
             await ctx.send(embed=embed)
             return
 
-        choice = choice.strip().lower()
+        def parse_roulette_choice(val: str) -> Optional[tuple[str, str, str]]:
+            """Returns (choice_type, choice_val, display_label) or None."""
+            if not val:
+                return None
+            s = str(val).strip().lower()
+            if s.isdigit():
+                num = int(s)
+                if 0 <= num <= 36:
+                    return ("number", str(num), f"Ra9m {num}")
+                return None
+            if s in ("zero",):
+                return ("number", "0", "Ra9m 0")
+            if s in ("red", "r", "7mer", "7mr"):
+                return ("red", "red", "Red 🔴")
+            if s in ("black", "b", "k7el", "k7l", "k7al"):
+                return ("black", "black", "Black ⚫")
+            if s in ("green", "g", "khder"):
+                return ("green", "green", "Green 🟢")
+            if s in ("even", "zawji"):
+                return ("even", "even", "Even (Zawji)")
+            if s in ("odd", "fardi"):
+                return ("odd", "odd", "Odd (Fardi)")
+            if s in ("1-18", "low", "fo9"):
+                return ("low", "1-18", "1-18 (Low)")
+            if s in ("19-36", "high", "ta7t", "t7t"):
+                return ("high", "19-36", "19-36 (High)")
+            return None
+
+        economy_cog = self.bot.get_cog("Economy")
+        w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
+
+        # Resolve choice and bet: try choice first, then remaining as bet; or bet first, then choice
+        choice_tuple = parse_roulette_choice(args[0])
+        if choice_tuple:
+            bet, _ = parse_bet_argument(*args[1:], user_balance=w.get("balance", 0))
+        elif len(args) >= 2:
+            choice_tuple = parse_roulette_choice(args[1])
+            if choice_tuple:
+                bet, _ = parse_bet_argument(args[0], user_balance=w.get("balance", 0))
+            else:
+                bet = None
+        else:
+            bet = None
+
+        if not choice_tuple:
+            embed = discord.Embed(
+                title="❌ Lkhtiyar dialek machi s7i7 f Roulette",
+                description=(
+                    f"Had lkhtiyar `{args[0]}` makaynch f tabla dial Roulette!\n\n"
+                    "**Lkhtiyarat li momkine:**\n"
+                    "• **Ra9m direct:** `0` 7tal `36` (36x payout)\n"
+                    "• **Alwan:** `red` 🔴 / `black` ⚫ (2x) wla `green` 🟢 (14x)\n"
+                    "• **Zawji / Fardi:** `even` / `odd` (2x)\n"
+                    "• **Nsf:** `1-18` (Low) / `19-36` (High) (2x)\n\n"
+                    f"Mital: `{ctx.clean_prefix}roulette 1 200` wla `{ctx.clean_prefix}roulette red 500`"
+                ),
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
+        choice_type, choice_val, choice_display = choice_tuple
 
         if bet and bet > 0 and economy_cog:
             if w["balance"] < bet:
@@ -6610,7 +6775,7 @@ class Fun(commands.Cog):
             await economy_cog.deduct_balance(ctx.author.id, bet, context="Roulette Bet")
 
         spin_embed = discord.Embed(
-            description="🔄 *Roulette kaddor...*" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
+            description=f"🔄 *Roulette kaddor...* (Lkhtiyar: **{choice_display}**)" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
             color=0x000000
         )
         spin_msg = await ctx.send(embed=spin_embed)
@@ -6634,36 +6799,37 @@ class Fun(commands.Cog):
         won = False
         mult = 0.0
 
-        if choice in ["red", "r", "7mer", "7mr"] and color_name == "red":
+        if choice_type == "number":
+            if landed_num == int(choice_val):
+                won = True
+                mult = 36.0
+        elif choice_type == "red" and color_name == "red":
             won = True
             mult = 2.0
-        elif choice in ["black", "b", "k7el", "k7l", "k7al"] and color_name == "black":
+        elif choice_type == "black" and color_name == "black":
             won = True
             mult = 2.0
-        elif choice in ["green", "g", "khder", "0", "zero"] and color_name == "green":
+        elif choice_type == "green" and color_name == "green":
             won = True
             mult = 14.0
-        elif choice in ["even", "zawji"] and landed_num > 0 and landed_num % 2 == 0:
+        elif choice_type == "even" and landed_num > 0 and landed_num % 2 == 0:
             won = True
             mult = 2.0
-        elif choice in ["odd", "fardi"] and landed_num % 2 != 0:
+        elif choice_type == "odd" and landed_num % 2 != 0:
             won = True
             mult = 2.0
-        elif choice in ["1-18", "low", "fo9"] and 1 <= landed_num <= 18:
+        elif choice_type == "low" and 1 <= landed_num <= 18:
             won = True
             mult = 2.0
-        elif choice in ["19-36", "high", "ta7t", "t7t"] and 19 <= landed_num <= 36:
+        elif choice_type == "high" and 19 <= landed_num <= 36:
             won = True
             mult = 2.0
-        elif choice.isdigit() and int(choice) == landed_num:
-            won = True
-            mult = 36.0
 
         outcome_title = f"🏆 Rbe7ti! ({mult:.0f}x)" if won else "💥 Khesrti!"
         embed = discord.Embed(
             title=f"🎡 Roulette: {color_emoji} **{landed_num} ({color_name.upper()})**",
             description=(
-                f"Lkhtiyar: `{choice}` • Landed on: {color_emoji} **{landed_num}**\n\n"
+                f"Lkhtiyar ta3k: **{choice_display}** • Natija: {color_emoji} **{landed_num}**\n\n"
                 f"**{outcome_title}**"
             ),
             color=0x000000
