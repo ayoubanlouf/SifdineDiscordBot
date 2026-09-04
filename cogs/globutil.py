@@ -649,16 +649,48 @@ class GlobUtil(commands.Cog):
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
+    async def get_reddit_access_token(self) -> str | None:
+        if hasattr(self, "_reddit_token") and self._reddit_token and time.time() < getattr(self, "_reddit_token_expires", 0):
+            return self._reddit_token
+
+        client_id = os.getenv("REDDIT_CLIENT_ID")
+        client_secret = os.getenv("REDDIT_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            return os.getenv("REDDIT_BOT_TOKEN")
+
+        auth_header = aiohttp.helpers.BasicAuth(client_id, client_secret).encode()
+        headers = {
+            "Authorization": auth_header,
+            "User-Agent": "discord:sifdinebot:v1.0 (by /u/sifdine)"
+        }
+        data = {"grant_type": "client_credentials"}
+        try:
+            async with ReusableSession(self.bot.session) as session:
+                async with session.post("https://www.reddit.com/api/v1/access_token", headers=headers, data=data) as resp:
+                    if resp.status == 200:
+                        res = await resp.json()
+                        token = res.get("access_token")
+                        expires_in = res.get("expires_in", 3600)
+                        self._reddit_token = token
+                        self._reddit_token_expires = time.time() + expires_in - 300
+                        return token
+        except Exception as e:
+            print(f"[get_reddit_access_token error]: {e}")
+        return None
+
     @commands.command(name="reddit", help="Chouf chy profile f reddit.")
     async def reddit(self, ctx, username: str):
         wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        token = await self.get_reddit_access_token()
+        if not token:
+            await wait.edit(embed=discord.Embed(description="Reddit API keys not configured (Khass `REDDIT_CLIENT_ID` o `REDDIT_CLIENT_SECRET` f `.env`).", color=0x000000))
+            return
+
         headers = {
-            "User-Agent": "SifdineBot/1.0",
+            "User-Agent": "discord:sifdinebot:v1.0 (by /u/sifdine)",
+            "Authorization": f"Bearer {token}",
             "Accept": "application/json",
         }
-        token = os.getenv("REDDIT_BOT_TOKEN")
-        if token:
-            headers["Authorization"] = f"bearer {token}"
 
         try:
             async with ReusableSession(self.bot.session) as session:
@@ -670,7 +702,8 @@ class GlobUtil(commands.Cog):
                         await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f Reddit: `{username}`", color=0x000000))
                         return
                     if resp.status == 401 or resp.status == 403:
-                        msg = (f"Mochkil f Token. Error code: `{resp.status}`")
+                        self._reddit_token = None
+                        msg = (f"Mochkil f Token ta3 Reddit (Error code: `{resp.status}`).")
                         await wait.edit(embed=discord.Embed(description=msg, color=0x000000))
                         return
                     if resp.status != 200:

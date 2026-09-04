@@ -152,6 +152,52 @@ class Moderation(commands.Cog):
                 await ctx.channel.purge(limit=amount + 1, check=is_user)
                 await ctx.send(f'Mse7t **{amount}** messages ta3 **{user}**', delete_after=5)
 
+    @staticmethod
+    def is_color_role(role: discord.Role) -> bool:
+        mod_perms = (
+            role.permissions.administrator or
+            role.permissions.manage_guild or
+            role.permissions.manage_roles or
+            role.permissions.manage_channels or
+            role.permissions.manage_messages or
+            role.permissions.kick_members or
+            role.permissions.ban_members or
+            role.permissions.moderate_members
+        )
+        if mod_perms:
+            return False
+
+        if role.permissions.mention_everyone or role.permissions.manage_webhooks or role.permissions.view_audit_log:
+            return False
+
+        if role.color.value != 0:
+            if not role.hoist or role.permissions.value == 0:
+                return True
+
+        return False
+
+    def get_author_highest_effective_role(self, member: discord.Member) -> discord.Role:
+        functional_roles = [r for r in member.roles if not r.is_default() and not self.is_color_role(r)]
+        if functional_roles:
+            return max(functional_roles, key=lambda r: r.position)
+        return member.guild.default_role
+
+    def can_manage_role(self, ctx: commands.Context, role: discord.Role) -> tuple[bool, str]:
+        if not ctx.guild:
+            return False, "Had lcommand khdama gher fservers."
+
+        if role >= ctx.guild.me.top_role:
+            return False, f"Ma9derch n-modifi {role.mention} 7it fo9 mn role dial bot wla 9do."
+
+        if ctx.author.id == ctx.guild.owner_id:
+            return True, ""
+
+        author_effective_role = self.get_author_highest_effective_role(ctx.author)
+        if role.position >= author_effective_role.position:
+            return False, f"Mat9edch t-modifi {role.mention} 7it fo9 mn top mod role dialk (`{author_effective_role.name}`) wla 9do."
+
+        return True, ""
+
     @commands.group(name="role", help="Ga3 l commands ta3 roles.", invoke_without_command=True)
     async def role(self, ctx):
         await ctx.send(f"Hada command group. Kteb `{ctx.prefix}help role` bach tchouf subcommands.")
@@ -159,6 +205,11 @@ class Moderation(commands.Cog):
     @role.command(aliases=["g", "add"], help="3ti chy role l chy wa7d.")
     @commands.has_permissions(manage_roles=True)
     async def give(self, ctx, member: FuzzyMember, role: discord.Role):
+        can_manage, err_msg = self.can_manage_role(ctx, role)
+        if not can_manage:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
+            return
+
         if role in member.roles:
             e = discord.Embed(description=f'{member.mention} deja 3endo {role.mention}',
                                color=0x000000)
@@ -171,6 +222,11 @@ class Moderation(commands.Cog):
     @role.command(aliases=["t", "remove"], help="7yed chy role l chy wa7d.")
     @commands.has_permissions(manage_roles=True)
     async def take(self, ctx, member: FuzzyMember, role: discord.Role):
+        can_manage, err_msg = self.can_manage_role(ctx, role)
+        if not can_manage:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
+            return
+
         if role in member.roles:
             await member.remove_roles(role)
             e = discord.Embed(description=f'Sf 7yet {role.mention} l {member.mention}',
@@ -233,6 +289,11 @@ class Moderation(commands.Cog):
     @role.command(aliases=["n"], help="Bdel smiya ta3 chy role.")
     @commands.has_permissions(manage_roles=True)
     async def name(self, ctx, role:discord.Role, *,name:str):
+        can_manage, err_msg = self.can_manage_role(ctx, role)
+        if not can_manage:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
+            return
+
         await role.edit(name=name)
         e = discord.Embed(description=f"Bdelt smyt role: {role.mention}",
                            color=role.color)
@@ -241,6 +302,11 @@ class Moderation(commands.Cog):
     @role.command(aliases=["c", "colour"], help="Bdel loun ta3 chy role.")
     @commands.has_permissions(manage_roles=True)
     async def color(self, ctx, role: discord.Role, *, color:discord.Color):
+        can_manage, err_msg = self.can_manage_role(ctx, role)
+        if not can_manage:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
+            return
+
         await role.edit(color=color)
         e = discord.Embed(description=f"Bdelt loun ta3 role: {role.mention}",
                            color=role.color)
@@ -249,6 +315,11 @@ class Moderation(commands.Cog):
     @role.command(aliases=["i"], help="Bdel l icon ta3 chy role.")
     @commands.has_permissions(manage_roles=True)
     async def icon(self, ctx, role: discord.Role, *, image_or_emoji:str=None):
+        can_manage, err_msg = self.can_manage_role(ctx, role)
+        if not can_manage:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
+            return
+
         async def get_image_from_url(url: str):
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:

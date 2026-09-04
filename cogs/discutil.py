@@ -100,7 +100,7 @@ class DiscordUtil(commands.Cog):
         await ctx.send(embed=embed)
 
 
-    @commands.command(name="avatar", aliases=["av"], help="Tswira ta3k wla ta3 chy wa7d.")
+    @commands.command(name="avatar", aliases=["av", "pfp"], help="Tswira ta3k wla ta3 chy wa7d.")
     async def avatar(self, ctx, user: FuzzyMember = None):
         user = user or ctx.author
         asset = user.display_avatar

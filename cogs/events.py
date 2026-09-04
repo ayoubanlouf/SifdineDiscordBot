@@ -91,10 +91,14 @@ class Events(commands.Cog):
         try:
             await asyncio.sleep(0.5)
             async for entry in guild.audit_logs(limit=8, action=action):
-                if abs((datetime.now(timezone.utc) - entry.created_at).total_seconds()) <= 60:
+                time_diff = abs((datetime.now(timezone.utc) - entry.created_at).total_seconds())
+                if time_diff <= 60:
                     entry_target_id = getattr(entry.target, "id", None)
                     if target_id is None or entry_target_id == target_id:
                         return entry
+                    if action in (discord.AuditLogAction.member_disconnect, discord.AuditLogAction.member_move):
+                        if entry.target is None and time_diff <= 7:
+                            return entry
         except Exception as e:
             print(f"[get_audit_entry error]: {e}")
         return None
@@ -819,22 +823,35 @@ class Events(commands.Cog):
             embed.set_author(name=member.name, icon_url=member.display_avatar.url)
             await self.send_log(member.guild, embed)
 
-        # Left VC
+        # Left VC / Disconnected
         elif before.channel is not None and after.channel is None:
-            embed = discord.Embed(
-                title="🔇 Voice Channel Left",
-                description=f"{member.mention} (`{member.id}`) khrj mn **{before.channel.name}** ({before.channel.mention})",
-                color=0x000000,
-                timestamp=datetime.now(timezone.utc)
-            )
+            audit_entry = await self.get_audit_entry(member.guild, discord.AuditLogAction.member_disconnect, target_id=member.id)
+            if audit_entry and audit_entry.user and audit_entry.user.id != member.id:
+                mod_str = f"\n**Disconnected By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)"
+                reason_str = f"\n**Reason:** `{audit_entry.reason}`" if audit_entry.reason else ""
+                embed = discord.Embed(
+                    title="🔇 Voice Channel Disconnected",
+                    description=f"{member.mention} (`{member.id}`) has been disconnected mn **{before.channel.name}** ({before.channel.mention}){mod_str}{reason_str}",
+                    color=0x000000,
+                    timestamp=datetime.now(timezone.utc)
+                )
+            else:
+                embed = discord.Embed(
+                    title="🔇 Voice Channel Left",
+                    description=f"{member.mention} (`{member.id}`) khrj mn **{before.channel.name}** ({before.channel.mention})",
+                    color=0x000000,
+                    timestamp=datetime.now(timezone.utc)
+                )
             embed.set_author(name=member.name, icon_url=member.display_avatar.url)
             await self.send_log(member.guild, embed)
 
         # Moved VC
         elif before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
+            audit_entry = await self.get_audit_entry(member.guild, discord.AuditLogAction.member_move, target_id=member.id)
+            mod_str = f"\n**Moved By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)" if audit_entry and audit_entry.user and audit_entry.user.id != member.id else ""
             embed = discord.Embed(
                 title="🔀 Voice Channel Moved",
-                description=f"{member.mention} (`{member.id}`) t7wel mn **{before.channel.name}** ➔ **{after.channel.name}**",
+                description=f"{member.mention} (`{member.id}`) t7wel mn **{before.channel.name}** ➔ **{after.channel.name}**{mod_str}",
                 color=0x000000,
                 timestamp=datetime.now(timezone.utc)
             )

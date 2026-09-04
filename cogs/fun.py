@@ -195,7 +195,7 @@ class ChessView(View):
             return ""
 
         if self.is_bot_game and winner == self.player_white:
-            net, tax = await economy_cog.apply_tax_and_add_balance(self.player_white.id, 1000, context="Chess Bot Win")
+            net, tax = await economy_cog.apply_tax_and_add_balance(self.player_white.id, 5000, context="Chess Bot Win")
             if self.cog and self.message and self.message.guild:
                 await self.cog.record_minigame_win(self.message.guild.id, self.player_white.id, "chess", earnings=net)
             return f"\n\n💰 **{winner.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (🔥 `{tax}` TAD 2% tax burned)!"
@@ -207,7 +207,7 @@ class ChessView(View):
         if is_draw:
             await economy_cog.add_balance(self.player_white.id, d_split, context="Chess Draw Split")
             await economy_cog.add_balance(self.player_black.id, d_split, context="Chess Draw Split")
-            return f"\n\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
+            return f"\n\n💰 Kola wa7d rj3at lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
         elif winner:
             await economy_cog.add_balance(winner.id, w_payout, context="Chess Wager Win")
             return f"\n\n💰 **{winner.mention}** rbe7 {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
@@ -229,7 +229,7 @@ class ChessView(View):
                     if outcome.winner in (chess.WHITE, chess.BLACK):
                         eco_suffix = f"\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                     else:
-                        eco_suffix = f"\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
+                        eco_suffix = f"\n💰 Kola wa7d rj3at lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
 
                 if outcome.winner == chess.WHITE:
                     embed.description = f"🏆 **Checkmate! {self.player_white.mention} (Byed) rbe7!**{eco_suffix}"
@@ -747,14 +747,14 @@ class TicTacToeView(View):
             if winner == "draw":
                 if self.bet > 0:
                     _, burned, d_split = calculate_pvp_payout(self.bet)
-                    return f"🤝 **Ta3adol!**\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
+                    return f"🤝 **Ta3adol!**\n💰 Kola wa7d rj3at lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
                 return "🤝 **Ta3adol!**"
             elif winner == "X":
                 if self.bet > 0:
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     return f"🏆 **{self.player_x.mention} (X) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                 elif self.is_bot_game:
-                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **1000** {TAD_EMOJI} TAD!"
+                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **5,000** {TAD_EMOJI} TAD!"
                 return f"🏆 **{self.player_x.mention} (X) rbe7!**"
             elif winner == "O":
                 if self.is_bot_game:
@@ -906,7 +906,7 @@ class TicTacToeView(View):
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe", earnings=w_payout - self.bet)
                 elif self.is_bot_game and winner == "X" and economy_cog:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_x.id, 1000, context="TTT Bot Win")
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_x.id, 5000, context="TTT Bot Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player_x.id, "tictactoe", earnings=net)
                 elif not self.is_bot_game and self.cog and interaction.guild:
@@ -1064,14 +1064,14 @@ class ConnectFourView(View):
             if winner == "draw":
                 if self.bet > 0:
                     _, burned, d_split = calculate_pvp_payout(self.bet)
-                    return f"{board_text}\n\n🤝 **Ta3adol!**\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
+                    return f"{board_text}\n\n🤝 **Ta3adol!**\n💰 Kola wa7d rj3at lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
                 return f"{board_text}\n\n🤝 **Ta3adol!**"
             elif winner == "🔴":
                 if self.bet > 0:
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)!"
                 elif self.is_bot_game:
-                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **1000** {TAD_EMOJI} TAD!"
+                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **5,000** {TAD_EMOJI} TAD!"
                 return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**"
             elif winner == "🟡":
                 if self.is_bot_game:
@@ -1333,7 +1333,7 @@ class ConnectFourView(View):
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour", earnings=w_payout - self.bet)
                 elif self.is_bot_game and winner == "🔴" and economy_cog:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_red.id, 1000, context="ConnectFour Bot Win")
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_red.id, 5000, context="ConnectFour Bot Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player_red.id, "connectfour", earnings=net)
                 elif not self.is_bot_game and self.cog and interaction.guild:
@@ -1771,7 +1771,7 @@ class RPSMultiplayerView(View):
                     if economy_cog:
                         await economy_cog.add_balance(self.player1.id, d_split, context="RPS Draw Split")
                         await economy_cog.add_balance(self.player2.id, d_split, context="RPS Draw Split")
-                    outcome += f"\n\n💰 Kola wa7d rje3 lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
+                    outcome += f"\n\n💰 Kola wa7d rj3at lih {format_tad(d_split)} (🔥 `{burned:,}` {TAD_EMOJI} 2% tax burned)."
             elif (p1_choice == "rock" and p2_choice == "scissors") or \
                  (p1_choice == "paper" and p2_choice == "rock") or \
                  (p1_choice == "scissors" and p2_choice == "paper"):
@@ -4813,6 +4813,97 @@ class LeaderboardInteractiveView(discord.ui.View):
         return embed
 
 
+# ============ MINIGAME DIFFICULTY CONFIG & HELPERS ============
+
+DIFFICULTY_STAKES = {
+    "easy": 1.0,
+    "medium": 1.5,
+    "hard": 2.5
+}
+
+EASY_COUNTRIES = {
+    "ma", "fr", "es", "it", "de", "jp", "br", "ar", "us", "gb", "ca", "ru", "cn",
+    "pt", "nl", "eg", "sa", "tr", "dz", "tn", "mx", "be", "ch", "se", "kr",
+    "in", "au", "ps", "qa", "ae", "sn", "ng", "za", "cl", "co", "pl", "gr", "no"
+}
+
+MEDIUM_COUNTRIES = EASY_COUNTRIES | {
+    "pe", "uy", "ec", "py", "bo", "ve", "cr", "pa", "cu", "jm", "at", "dk",
+    "fi", "ie", "is", "cz", "hu", "ro", "bg", "rs", "hr", "si", "sk", "ua",
+    "gh", "ci", "cm", "ke", "et", "tz", "ug", "ao", "mz", "mg", "id", "th",
+    "vn", "my", "ph", "sg", "nz", "pk", "bd", "lk", "np", "iq", "ir", "sy",
+    "lb", "jo", "kw", "om", "ye", "kz", "uz", "az", "ge", "am", "cy", "mt"
+}
+
+def parse_minigame_args(*args, default_duration=15, default_difficulty="medium"):
+    duration = default_duration
+    difficulty = default_difficulty
+    for arg in args:
+        if arg is None:
+            continue
+        s = str(arg).strip().lower()
+        if s in ("easy", "medium", "hard", "e", "m", "h", "sahel", "3adi", "s3ib"):
+            if s in ("easy", "e", "sahel"):
+                difficulty = "easy"
+            elif s in ("medium", "m", "3adi"):
+                difficulty = "medium"
+            elif s in ("hard", "h", "s3ib"):
+                difficulty = "hard"
+        else:
+            try:
+                duration = int(s)
+            except ValueError:
+                pass
+    return max(5, duration), difficulty
+
+
+class MinigameDifficultyView(View):
+    def __init__(self, host_id: int, initial_difficulty: str = "medium"):
+        super().__init__(timeout=25)
+        self.host_id = host_id
+        self.difficulty = initial_difficulty
+        self._update_buttons()
+
+    def _update_buttons(self):
+        self.clear_items()
+        configs = [
+            ("easy", "🟢 Easy (1.0x)", discord.ButtonStyle.success),
+            ("medium", "🟡 Medium (1.5x)", discord.ButtonStyle.primary),
+            ("hard", "🔴 Hard (2.5x)", discord.ButtonStyle.danger)
+        ]
+        for diff_key, label, style in configs:
+            btn = Button(
+                label=label,
+                style=style,
+                custom_id=f"diff_{diff_key}",
+                disabled=(self.difficulty == diff_key)
+            )
+            btn.callback = self._make_callback(diff_key)
+            self.add_item(btn)
+
+    def _make_callback(self, selected_diff: str):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.host_id:
+                await interaction.response.send_message("Gher l host li y9ed ybdel difficulty.", ephemeral=True)
+                return
+            self.difficulty = selected_diff
+            self._update_buttons()
+            if interaction.message and interaction.message.embeds:
+                embed = interaction.message.embeds[0]
+                mult = DIFFICULTY_STAKES.get(selected_diff, 1.0)
+                lines = embed.description.split("\n")
+                new_lines = []
+                for line in lines:
+                    if not line.startswith("Difficulty:"):
+                        new_lines.append(line)
+                new_lines.append(f"Difficulty: **{selected_diff.upper()}** (Stake: **{mult}x**)")
+                embed.description = "\n".join(new_lines)
+                await interaction.response.edit_message(embed=embed, view=self)
+            else:
+                await interaction.response.edit_message(view=self)
+        return callback
+
+
 # ============ MAIN COG ============
 
 class Fun(commands.Cog):
@@ -4895,11 +4986,12 @@ class Fun(commands.Cog):
                     print(f"[get_hangman_secret error]: {e}")
         return random.choice(["planet", "castle", "dragon", "monster", "python", "bridge", "silver", "garden", "forest", "wizard"])
 
-    def get_combo(self) -> str:
+    def get_combo(self, difficulty: str = "medium") -> str:
+        diff = difficulty.lower() if difficulty in ("easy", "medium", "hard") else "medium"
         for attempt in range(2):
             try:
                 cur = self._get_cursor()
-                cur.execute("SELECT combo FROM word_combos ORDER BY RANDOM() LIMIT 1")
+                cur.execute("SELECT combo FROM word_combos WHERE difficulty = ? ORDER BY RANDOM() LIMIT 1", (diff,))
                 row = cur.fetchone()
                 if row:
                     return row[0]
@@ -4908,7 +5000,12 @@ class Fun(commands.Cog):
                 self.dict_conn = sqlite3.connect(self.words_db_path, check_same_thread=False)
                 if attempt == 1:
                     print(f"[get_combo error]: {e}")
-        return random.choice(["ing", "ter", "con", "sta", "ent", "ear", "tra", "man", "all", "ver", "pro", "dis", "cal", "ted", "ith"])
+        fallbacks = {
+            "easy": ["ing", "ter", "con", "sta", "ent", "pro", "all", "ver"],
+            "medium": ["blo", "clo", "dra", "fre", "gla", "qui", "sco", "tra"],
+            "hard": ["zyl", "phy", "kno", "rhy", "psy", "sph", "lyn", "hyp"]
+        }
+        return random.choice(fallbacks.get(diff, fallbacks["medium"]))
 
     def is_english_word(self, word: str) -> bool:
         if not word or not isinstance(word, str):
@@ -4949,12 +5046,10 @@ class Fun(commands.Cog):
         await ctx.send(data['question'])
 
     @commands.command(name="flags", aliases=["gtf"], help="Guess the flag okda.")
-    async def flags(self, ctx, round_duration: int = 20):
-        if round_duration < 5:
-            round_duration = 5
-            time_display = "5s (Minimum)"
-        else:
-            time_display = f"{round_duration}s"
+    async def flags(self, ctx, *args):
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="medium")
+        time_display = f"{round_duration}s"
+        mult = DIFFICULTY_STAKES[difficulty]
 
         async with aiohttp.ClientSession() as session:
             try:
@@ -4979,13 +5074,18 @@ class Fun(commands.Cog):
         join_emoji = "✅"
         signup_embed = discord.Embed(
             title="🏁 Guess the Flag!",
-            description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**",
+            description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
             color=0x000000
         )
-        signup_msg = await ctx.send(embed=signup_embed)
+        diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
+        signup_msg = await ctx.send(embed=signup_embed, view=diff_view)
         await signup_msg.add_reaction(join_emoji)
 
         await asyncio.sleep(19)
+
+        difficulty = diff_view.difficulty
+        diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
+        diff_view.stop()
 
         signup_msg = await ctx.channel.fetch_message(signup_msg.id)
         reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
@@ -4997,22 +5097,28 @@ class Fun(commands.Cog):
                     players.append(user)
 
         if not players:
-            await signup_msg.edit(embed=discord.Embed(description="💨 7ta wa7d ma dkhel lgame ._.", color=0x000000))
+            await signup_msg.edit(embed=discord.Embed(description="💨 7ta wa7d ma dkhel lgame ._.", color=0x000000), view=None)
             return
 
         single_player = len(players) == 1
         hp = {player.id: 3 for player in players}
         active_players = list(players)
 
+        # Apply difficulty filter to flag pool
+        if difficulty == "easy":
+            country_pool = [c for c in country_pool if c["code"] in EASY_COUNTRIES] or country_pool
+        elif difficulty == "medium":
+            country_pool = [c for c in country_pool if c["code"] in MEDIUM_COUNTRIES] or country_pool
+
         # Match pool to prevent any repeated flags in the same match
         match_pool = list(country_pool)
         random.shuffle(match_pool)
 
         start_embed = discord.Embed(
-            description="▶️ Bdina! Kola wa7d 3ndo **3 HP**.",
+            description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
             color=0x000000
         )
-        await signup_msg.edit(embed=start_embed)
+        await signup_msg.edit(embed=start_embed, view=None)
         await asyncio.sleep(2)
 
         while len(active_players) > 0:
@@ -5021,7 +5127,9 @@ class Fun(commands.Cog):
                 economy_cog = self.bot.get_cog("Economy")
                 eco_msg = ""
                 if economy_cog:
-                    gross = 40 + (len(players) * 15) + (len(country_pool) - len(match_pool)) * 2
+                    correct_flags = len(country_pool) - len(match_pool)
+                    base_gross = 200 + (len(players) * 50) + (correct_flags * 30)
+                    gross = int(base_gross * diff_mult)
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
@@ -5098,34 +5206,41 @@ class Fun(commands.Cog):
         if single_player:
             player = players[0]
             economy_cog = self.bot.get_cog("Economy")
-            gross = 15 + max(0, (len(country_pool) - len(match_pool)) * 3)
+            correct_flags = max(0, len(country_pool) - len(match_pool))
+            base_gross = 50 + (correct_flags * 10)
+            gross = int(base_gross * diff_mult)
             eco_msg = ""
             if economy_cog:
                 net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Flags Solo")
                 eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, player.id, "flags", earnings=net)
             await ctx.send(embed=discord.Embed(
                 description=f"🎯 Game Over {player.mention}!{eco_msg}",
                 color=0x000000
             ))
 
     @commands.command(aliases=["jklm"], help="Kteb kelma fiha l7orof li ghan3tik.")
-    async def blacktea(self, ctx, round_duration: int = 15):
-        if round_duration < 5:
-            round_duration = 5
-            time_display = "5s (Minimum)"
-        else:
-            time_display = f"{round_duration}s"
+    async def blacktea(self, ctx, *args):
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="medium")
+        time_display = f"{round_duration}s"
+        mult = DIFFICULTY_STAKES[difficulty]
 
         try:
             join_emoji = "✅"
             signup_embed = discord.Embed(
                 title="☕ BlackTea",
-                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**",
+                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
                 color=0x000000
             )
-            start = await ctx.send(embed=signup_embed)
+            diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
+            start = await ctx.send(embed=signup_embed, view=diff_view)
             await start.add_reaction(join_emoji)
             await asyncio.sleep(19)
+
+            difficulty = diff_view.difficulty
+            diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
+            diff_view.stop()
 
             signup_msg = await ctx.channel.fetch_message(start.id)
             reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
@@ -5140,7 +5255,7 @@ class Fun(commands.Cog):
                 await start.edit(embed=discord.Embed(
                     description="💨 7ta wa7d ma dkhel lgame ._.",
                     color=0x000000
-                ))
+                ), view=None)
                 return
 
             single_player = len(players) == 1
@@ -5150,20 +5265,20 @@ class Fun(commands.Cog):
 
             if single_player:
                 await start.edit(embed=discord.Embed(
-                    description="▶️ Bdina! 3ndek **3 HP**.",
+                    description=f"▶️ Bdina! 3ndek **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
                     color=0x000000
-                ))
+                ), view=None)
             else:
                 await start.edit(embed=discord.Embed(
-                    description="▶️ Bdina! Kola wa7d 3ndo **3 HP**.",
+                    description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
                     color=0x000000
-                ))
+                ), view=None)
             await asyncio.sleep(2)
 
             if single_player:
                 player = active_players[0]
                 while lives[player.id] > 0:
-                    combo = self.get_combo()
+                    combo = self.get_combo(difficulty)
 
                     await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
 
@@ -5195,7 +5310,7 @@ class Fun(commands.Cog):
 
                 economy_cog = self.bot.get_cog("Economy")
                 correct_count = len(used_words)
-                gross = 10 + (correct_count * 5)
+                gross = int((50 + (correct_count * 10)) * diff_mult)
                 eco_msg = ""
                 if economy_cog and correct_count > 0:
                     net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="BlackTea Solo")
@@ -5212,7 +5327,7 @@ class Fun(commands.Cog):
                         if len(active_players) <= 1:
                             break
 
-                        combo = self.get_combo()
+                        combo = self.get_combo(difficulty)
 
                         await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
 
@@ -5249,7 +5364,7 @@ class Fun(commands.Cog):
                     economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
                     if economy_cog:
-                        gross = 40 + (len(players) * 15)
+                        gross = int((200 + (len(players) * 50)) * diff_mult)
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="BlackTea Win")
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
@@ -5261,24 +5376,27 @@ class Fun(commands.Cog):
         except Exception as e:
             print(f"[blacktea error]: {e}")
 
-    @commands.command(help="Kteb kelma fiha l7orof li ghan3tik bzerba.")
-    async def greentea(self, ctx, round_duration: int = 15):
-        if round_duration < 5:
-            round_duration = 5
-            time_display = "5s (Minimum)"
-        else:
-            time_display = f"{round_duration}s"
+    @commands.command(aliases=["gt", "green"], help="Kteb kelma fiha l7orof li ghan3tik bzerba.")
+    async def greentea(self, ctx, *args):
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="medium")
+        time_display = f"{round_duration}s"
+        mult = DIFFICULTY_STAKES[difficulty]
 
         try:
             join_emoji = "✅"
             signup_embed = discord.Embed(
                 title="🍵 GreenTea",
-                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nMin Players: **2**",
+                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nMin Players: **2**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
                 color=0x000000
             )
-            start = await ctx.send(embed=signup_embed)
+            diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
+            start = await ctx.send(embed=signup_embed, view=diff_view)
             await start.add_reaction(join_emoji)
             await asyncio.sleep(19)
+
+            difficulty = diff_view.difficulty
+            diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
+            diff_view.stop()
 
             signup_msg = await ctx.channel.fetch_message(start.id)
             reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
@@ -5293,13 +5411,13 @@ class Fun(commands.Cog):
                 await start.edit(embed=discord.Embed(
                     description="❌ Khass minimum **2 players** bach tl3bo GreenTea.",
                     color=0x000000
-                ))
+                ), view=None)
                 return
 
             await start.edit(embed=discord.Embed(
-                description="▶️ **Bdina!** (10 Rounds)\nPlayers: " + ", ".join(p.mention for p in players),
+                description="▶️ **Bdina!** (10 Rounds)\nPlayers: " + ", ".join(p.mention for p in players) + f"\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
                 color=0x000000
-            ))
+            ), view=None)
 
             points = {p.id: 0 for p in players}
             player_ids = {p.id for p in players}
@@ -5310,7 +5428,7 @@ class Fun(commands.Cog):
                 if len(player_ids) <= 1:
                     break
 
-                combo = self.get_combo()
+                combo = self.get_combo(difficulty)
                 if not combo:
                     continue
 
@@ -5364,7 +5482,8 @@ class Fun(commands.Cog):
                     economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
                     if economy_cog and maxpoints > 0:
-                        gross = 40 + (len(players) * 15) + (maxpoints * 3)
+                        base_gross = 200 + (len(players) * 50) + (maxpoints * 20)
+                        gross = int(base_gross * diff_mult)
                         net, tax = await economy_cog.apply_tax_and_add_balance(winners[0], gross, context="GreenTea Win")
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
@@ -5822,7 +5941,7 @@ class Fun(commands.Cog):
                 economy_cog = self.bot.get_cog("Economy")
                 eco_msg = ""
                 if economy_cog:
-                    gross = 40 + (len(players) * 15) + (scores.get(winner.id, 0) * 3)
+                    gross = 200 + (len(players) * 50) + (scores.get(winner.id, 0) * 20)
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Trivia Win")
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
@@ -5899,7 +6018,7 @@ class Fun(commands.Cog):
         if single_player:
             player = players[0]
             economy_cog = self.bot.get_cog("Economy")
-            gross = 10 + (scores.get(player.id, 0) * 5)
+            gross = 50 + (scores.get(player.id, 0) * 10)
             eco_msg = ""
             if economy_cog:
                 net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Trivia Solo")
@@ -6060,7 +6179,7 @@ class Fun(commands.Cog):
             if scores.get(ranked[0].id, 0) > 0:
                 economy_cog = self.bot.get_cog("Economy")
                 if economy_cog:
-                    gross = 40 + (len(players) * 15) + (scores[ranked[0].id] * 5)
+                    gross = 200 + (len(players) * 50) + (scores[ranked[0].id] * 50)
                     net, tax = await economy_cog.apply_tax_and_add_balance(ranked[0].id, gross, context="TypeRacer Win")
                     leaderboard_embed.add_field(
                         name="🏆 Winner Reward",
@@ -6250,7 +6369,7 @@ class Fun(commands.Cog):
         multipliers = {
             1: (0.0, "💥 Khesrti l bet! (0x)"),
             2: (0.5, "🤏 Rje3 lik ness l bet (0.5x)"),
-            3: (1.0, "🤝 Rje3 lik floussek (1.0x)"),
+            3: (1.0, "🤝 Rj3o lik floussek (1.0x)"),
             4: (1.2, "✨ Small Win! (1.2x)"),
             5: (1.5, "🔥 Good Win! (1.5x)"),
             6: (2.0, "👑 DOUBLE JACKPOT! (2.0x)")

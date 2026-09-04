@@ -1,5 +1,7 @@
 import time
 import re
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import Optional, Tuple
 import discord
 from discord.ext import commands
@@ -7,6 +9,7 @@ from discord.ext import commands
 
 TAD_EMOJI = "<:TAD:1543808845728710686>"
 TAX_RATE = 0.02  # 2% anti-inflation transaction burn
+CASA_TZ = ZoneInfo("Africa/Casablanca")
 
 
 def format_tad(amount: int) -> str:
@@ -156,7 +159,30 @@ class WalletView(discord.ui.View):
         self.author = author
         self.cog = cog
         self.showing_transactions = False
+        self.filter_mode = "all"  # "all", "plus", "minus"
         self.message: Optional[discord.Message] = None
+        self._update_buttons()
+
+    def _update_buttons(self):
+        self.clear_items()
+        if not self.showing_transactions:
+            btn_tx = discord.ui.Button(label="Recent Transactions", style=discord.ButtonStyle.secondary, emoji="📜")
+            btn_tx.callback = self.toggle_view_callback
+            self.add_item(btn_tx)
+        else:
+            btn_back = discord.ui.Button(label="Back to Wallet", style=discord.ButtonStyle.primary, emoji="🔙")
+            btn_back.callback = self.toggle_view_callback
+            self.add_item(btn_back)
+
+            # 3-display toggle: default all, 2nd + (income), 3rd - (expense)
+            if self.filter_mode == "all":
+                btn_filter = discord.ui.Button(label="Filter: All (Recent)", style=discord.ButtonStyle.secondary, emoji="🔄")
+            elif self.filter_mode == "plus":
+                btn_filter = discord.ui.Button(label="Filter: (+) Added", style=discord.ButtonStyle.success, emoji="🟢")
+            else:
+                btn_filter = discord.ui.Button(label="Filter: (-) Removed", style=discord.ButtonStyle.danger, emoji="🔴")
+            btn_filter.callback = self.toggle_filter_callback
+            self.add_item(btn_filter)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
@@ -164,21 +190,34 @@ class WalletView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="Recent Transactions", style=discord.ButtonStyle.secondary, emoji="📜")
-    async def toggle_view(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def toggle_view_callback(self, interaction: discord.Interaction):
         self.showing_transactions = not self.showing_transactions
         if self.showing_transactions:
-            button.label = "Back to Wallet"
-            button.emoji = "🔙"
-            button.style = discord.ButtonStyle.primary
-            embed = await self.cog.get_transactions_embed(self.target_user)
+            self.filter_mode = "all"
+            self._update_buttons()
+            embed = await self.cog.get_transactions_embed(self.target_user, self.filter_mode)
         else:
-            button.label = "Recent Transactions"
-            button.emoji = "📜"
-            button.style = discord.ButtonStyle.secondary
+            self._update_buttons()
             embed = await self.cog.get_wallet_embed(self.target_user)
 
         await interaction.response.edit_message(embed=embed, view=self)
+
+    async def toggle_filter_callback(self, interaction: discord.Interaction):
+        modes = ["all", "plus", "minus"]
+        curr_idx = modes.index(self.filter_mode)
+        self.filter_mode = modes[(curr_idx + 1) % len(modes)]
+        self._update_buttons()
+        embed = await self.cog.get_transactions_embed(self.target_user, self.filter_mode)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
 
 
 class Economy(commands.Cog):
@@ -293,6 +332,41 @@ class Economy(commands.Cog):
         w = await self.get_wallet(user.id)
         status_str = "🔒 **Frozen (Fraud)**" if w["is_fraud"] == 1 else "🟢 **Active**"
 
+        # Check daily and weekly cooldown status
+        async with self.bot.db.execute(
+            "SELECT last_daily, daily_streak, last_weekly FROM economy_cooldowns WHERE user_id = ?",
+            (user.id,)
+        ) as cursor:
+            cd_row = await cursor.fetchone()
+
+        last_daily = cd_row[0] if cd_row and cd_row[0] else 0
+        daily_streak = cd_row[1] if cd_row and cd_row[1] else 0
+        last_weekly = cd_row[2] if cd_row and cd_row[2] else 0
+
+        now_ts = int(time.time())
+        now_casa = datetime.now(CASA_TZ)
+        today_date = now_casa.date()
+
+        if last_daily:
+            last_daily_date = datetime.fromtimestamp(last_daily, tz=CASA_TZ).date()
+            daily_claimed = (last_daily_date == today_date)
+        else:
+            daily_claimed = False
+
+        next_midnight = (now_casa + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        next_midnight_ts = int(next_midnight.timestamp())
+
+        if not daily_claimed:
+            daily_val = f"✅ Available to claim (`/daily`)\n🔥 Streak: `{daily_streak}/7`"
+        else:
+            daily_val = f"⏳ Resets <t:{next_midnight_ts}:R>\n🔥 Streak: `{daily_streak}/7`"
+
+        if (now_ts - last_weekly) >= 604800:
+            weekly_val = "✅ Available to claim (`/weekly`)"
+        else:
+            next_weekly_ts = last_weekly + 604800
+            weekly_val = f"⏳ Resets <t:{next_weekly_ts}:R>"
+
         embed = discord.Embed(
             title=f"💼 Bstam ta3 {user.display_name}",
             color=0x000000
@@ -300,29 +374,36 @@ class Economy(commands.Cog):
         embed.set_thumbnail(url=user.display_avatar.url)
         embed.add_field(name="Balance", value=format_tad(w['balance']), inline=True)
         embed.add_field(name="Status", value=status_str, inline=True)
-        embed.add_field(
-            name="Total Activity Rewards",
-            value=f"{format_tad(w['total_activity_rewards'])}",
-            inline=False
-        )
+        embed.add_field(name="Daily Reward", value=daily_val, inline=False)
+        embed.add_field(name="Weekly Reward", value=weekly_val, inline=False)
         return embed
 
-    async def get_transactions_embed(self, user: discord.Member) -> discord.Embed:
+    async def get_transactions_embed(self, user: discord.Member, filter_mode: str = "all") -> discord.Embed:
         w = await self.get_wallet(user.id)
-        async with self.bot.db.execute(
-            "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 6",
-            (user.id,)
-        ) as cursor:
+        if filter_mode == "plus":
+            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? AND amount > 0 ORDER BY created_at DESC LIMIT 6"
+            title = f"📈 Income Transactions (+) — {user.display_name}"
+            empty_msg = "*No income transactions yet.*"
+        elif filter_mode == "minus":
+            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? AND amount < 0 ORDER BY created_at DESC LIMIT 6"
+            title = f"📉 Expense Transactions (-) — {user.display_name}"
+            empty_msg = "*No expense transactions yet.*"
+        else:
+            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 6"
+            title = f"📜 Recent Transactions — {user.display_name}"
+            empty_msg = "*No Transactions yet.*"
+
+        async with self.bot.db.execute(query, (user.id,)) as cursor:
             rows = await cursor.fetchall()
 
         embed = discord.Embed(
-            title=f"📜 Recent Transactions — {user.display_name}",
+            title=title,
             color=0x000000
         )
         embed.set_thumbnail(url=user.display_avatar.url)
 
         if not rows:
-            embed.description = "*No Transactions yet.*"
+            embed.description = empty_msg
         else:
             lines = []
             for amt, ctx_desc, ts in rows:
@@ -339,7 +420,7 @@ class Economy(commands.Cog):
 
     # ============ USER COMMANDS ============
 
-    @commands.command(name="wallet", aliases=["bstam", "money", "flous", "bztam", "balance", "bank", "cash"], help="Chouf ch7al 3ndek tlflous.")
+    @commands.command(name="wallet", aliases=["bstam", "money", "flous", "bztam", "balance", "bal", "cash", "wal"], help="Chouf ch7al 3ndek tlflous.")
     @not_fraud()
     async def wallet(self, ctx: commands.Context, member: Optional[discord.Member] = None):
         target = member or ctx.author
@@ -408,6 +489,8 @@ class Economy(commands.Cog):
     @not_fraud()
     async def daily(self, ctx: commands.Context):
         now = int(time.time())
+        now_casa = datetime.now(CASA_TZ)
+        today_date = now_casa.date()
         user_id = ctx.author.id
 
         async with self.bot.db.execute(
@@ -419,21 +502,24 @@ class Economy(commands.Cog):
         last_daily = row[0] if row else 0
         streak = row[1] if row else 0
 
-        # Cooldown: 24h = 86400s
-        diff = now - last_daily
-        if diff < 86400:
-            remaining = 86400 - diff
-            hours = remaining // 3600
-            mins = (remaining % 3600) // 60
-            await ctx.send(embed=discord.Embed(
-                description=f"⏳ Mazal ma dazt 24h 3la daily ta3k!\nRje3 mn hna **{hours}h {mins}m**.",
-                color=0x000000
-            ))
-            return
+        # Cooldown check: resets for all users at 00:00 Casablanca timezone
+        if last_daily:
+            last_daily_date = datetime.fromtimestamp(last_daily, tz=CASA_TZ).date()
+            if last_daily_date == today_date:
+                next_midnight = (now_casa + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                next_midnight_ts = int(next_midnight.timestamp())
+                await ctx.send(embed=discord.Embed(
+                    description=f"⏳ Mazal ma wsl lwa9t! Daily tay-tresetta kola nhar m3a **00:00 (Casablanca)**.\nRje3 <t:{next_midnight_ts}:R>.",
+                    color=0x000000
+                ))
+                return
 
-        # Streak calculation (lost if > 48h)
-        if diff <= 172800:
-            streak = min(streak + 1, 7)
+            # Streak calculation: streak maintained if claimed yesterday
+            yesterday_date = today_date - timedelta(days=1)
+            if last_daily_date == yesterday_date:
+                streak = min(streak + 1, 7)
+            else:
+                streak = 1
         else:
             streak = 1
 
@@ -477,8 +563,9 @@ class Economy(commands.Cog):
             remaining = 604800 - diff
             days = remaining // 86400
             hours = (remaining % 86400) // 3600
+            next_weekly_ts = last_weekly + 604800
             await ctx.send(embed=discord.Embed(
-                description=f"⏳ Mazal ma wssl weekly ta3k!\nRje3 mn hna **{days}d {hours}h**.",
+                description=f"⏳ Mazal ma wssl weekly ta3k!\nRje3 <t:{next_weekly_ts}:R> (**{days}d {hours}h**).",
                 color=0x000000
             ))
             return
