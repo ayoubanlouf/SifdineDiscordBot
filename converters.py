@@ -1,23 +1,45 @@
 import difflib
+import re
+from typing import Union
 import discord
 from discord.ext import commands
 
 
-class FuzzyMember(commands.Converter[discord.Member]):
-    async def convert(self, ctx: commands.Context, argument: str) -> discord.Member:
-        # 1. Exact resolution (IDs, @mentions, exact usernames/nicknames)
+class FuzzyMember(commands.Converter[Union[discord.Member, discord.User]]):
+    async def convert(self, ctx: commands.Context, argument: str) -> Union[discord.Member, discord.User]:
+        arg_clean_str = argument.strip()
+
+        # 1. Exact resolution within current guild or shared guilds (IDs, @mentions, exact usernames/nicknames)
         try:
-            return await commands.MemberConverter().convert(ctx, argument)
+            return await commands.MemberConverter().convert(ctx, arg_clean_str)
         except commands.MemberNotFound:
             pass
 
-        if not ctx.guild:
-            raise commands.MemberNotFound(argument)
+        # 2. If argument is an ID or mention, resolve globally as discord.User (even across other servers or outside guilds)
+        match = re.match(r'^<@!?([0-9]{15,20})>$|^([0-9]{15,20})$', arg_clean_str)
+        if match or arg_clean_str.isdigit():
+            user_id_str = match.group(1) or match.group(2) if match else arg_clean_str
+            try:
+                user_id = int(user_id_str)
+                user = ctx.bot.get_user(user_id)
+                if not user:
+                    user = await ctx.bot.fetch_user(user_id)
+                if user:
+                    return user
+            except (discord.NotFound, discord.HTTPException, ValueError):
+                pass
 
-        arg_clean = argument.lower()
+        if not ctx.guild:
+            # If in DMs and not an ID, try UserConverter for cached users
+            try:
+                return await commands.UserConverter().convert(ctx, arg_clean_str)
+            except commands.UserNotFound:
+                raise commands.MemberNotFound(argument)
+
+        arg_clean = arg_clean_str.lower()
         matches = []
 
-        # 2. Compare input against server members (dynamically query gateway or fallback to cache)
+        # 3. Compare input against server members (dynamically query gateway or fallback to cache)
         try:
             members = await ctx.guild.query_members(query=argument, limit=50)
         except Exception:
@@ -41,9 +63,9 @@ class FuzzyMember(commands.Converter[discord.Member]):
             if highest_score_for_member >= 0.50:
                 matches.append((highest_score_for_member, member))
 
-        # 3. Select maximum similarity score
+        # 4. Select maximum similarity score
         if matches:
             best_match = max(matches, key=lambda x: x[0])[1]
             return best_match
 
-        raise commands.MemberNotFound(argument)
+        raise commands.MemberNotFound(argument)

@@ -18,6 +18,14 @@ class Moderation(commands.Cog):
         self.ENV = os.getenv("ENVIRONMENT")
         self.fallback_emojis = ["😀", "😎", "🔥", "✨", "👑", "🎨", "👾", "⭐", "🎉", "🚀"]
 
+    async def cog_before_invoke(self, ctx: commands.Context):
+        if not ctx.command or ctx.command.name in {"ban", "unban", "purge", "clearsnipes", "logs", "lock", "unlock", "slowmode"}:
+            return
+        for arg in list(ctx.args[2:]) + list(ctx.kwargs.values()):
+            if isinstance(arg, discord.User) and not isinstance(arg, discord.Member):
+                await ctx.send("❌ Had l member makaynch f had server.")
+                raise commands.CheckFailure("Member not in guild")
+
     @staticmethod
     def parse_duration(duration_str: str) -> datetime.timedelta | None:
         if not duration_str:
@@ -194,7 +202,7 @@ class Moderation(commands.Cog):
 
         author_effective_role = self.get_author_highest_effective_role(ctx.author)
         if role.position >= author_effective_role.position:
-            return False, f"Mat9edch t-modifi {role.mention} 7it fo9 mn top mod role dialk (`{author_effective_role.name}`) wla 9do."
+            return False, f"Mat9edch tmodifyi {role.mention} 7it fo9 mn top mod role dialk (`{author_effective_role.name}`) wla 9do."
 
         return True, ""
 
@@ -949,9 +957,9 @@ class Moderation(commands.Cog):
 
     @commands.command(name="kick", aliases=["kicki"], help="Kick chy wa7d mn server.")
     @commands.has_permissions(kick_members=True)
-    async def kick(self, ctx, member: FuzzyMember, *, reason: str = None):
+    async def kick(self, ctx, member: discord.User, *, reason: str = None):
         if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tkick chy wa7d b7alk wla fo9 mnk f role ._.")
+            await ctx.send(f"Mat9edch tkicki chy wa7d b7alk wla fo9 mnk f role ._.")
             return
 
         try:
@@ -964,7 +972,7 @@ class Moderation(commands.Cog):
     @commands.has_permissions(ban_members=True)
     async def ban(self, ctx, member: discord.User, *, reason: str = None):
         if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tban chy wa7d b7alk wla fo9 mnk f role ._.")
+            await ctx.send(f"Mat9edch tbanni chy wa7d b7alk wla fo9 mnk f role ._.")
             return
 
         try:
@@ -1082,7 +1090,7 @@ class Moderation(commands.Cog):
     @commands.has_permissions(moderate_members=True)
     async def deafen(self, ctx, member: FuzzyMember):
         if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tdeafen chy wa7d b7alk wla fo9 mnk f role ._.")
+            await ctx.send(f"Mat9edch tdeafeni chy wa7d b7alk wla fo9 mnk f role ._.")
             return
 
         if not member.voice:
@@ -1113,7 +1121,7 @@ class Moderation(commands.Cog):
     @commands.has_permissions(moderate_members=True)
     async def disconnect(self, ctx, member: FuzzyMember):
         if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tkick chy wa7d b7alk wla fo9 mnk f role ._.")
+            await ctx.send(f"Mat9edch tdisconnecti chy wa7d b7alk wla fo9 mnk f role ._.")
             return
 
         if not member.voice:

@@ -1,4 +1,5 @@
 import io
+import re
 import asyncio
 import urllib.parse
 from typing import Optional
@@ -6,6 +7,15 @@ import discord
 from discord.ext import commands
 from PIL import Image, ImageEnhance, ImageOps
 from converters import FuzzyMember
+
+
+def ensure_png_url(url: str) -> str:
+    if not url:
+        return url
+    if "cdn.discordapp.com" in url or "media.discordapp.net" in url:
+        return re.sub(r'\.webp(?=[?&]|$)', '.png', url)
+    return url
+
 
 
 def memegen_escape(text: str) -> str:
@@ -31,22 +41,29 @@ class Manipulation(commands.Cog):
     async def resolve_image(self, ctx, target: Optional[str] = None) -> str:
         if not target:
             if ctx.message.attachments:
-                return ctx.message.attachments[0].url
-            return ctx.author.display_avatar.url
+                return ensure_png_url(ctx.message.attachments[0].url)
+            return ctx.author.display_avatar.with_format("png").url
         
         target_lower = target.lower()
         if target_lower.startswith("http://") or target_lower.startswith("https://"):
-            return target
+            return ensure_png_url(target)
             
         try:
             member = await FuzzyMember().convert(ctx, target)
-            return member.display_avatar.url
+            return member.display_avatar.with_format("png").url
         except commands.CommandError:
             raise commands.BadArgument("Malkitch had l member, 3awd chouf smiya wla dir link direct.")
 
     async def _fetch_nekobot(self, ctx, endpoint_type: str, **params) -> None:
         """Helper to fetch image from Nekobot API and reply with image URL."""
-        qs = urllib.parse.urlencode({"type": endpoint_type, **params})
+        cleaned_params = {}
+        for k, v in params.items():
+            if isinstance(v, str):
+                cleaned_params[k] = ensure_png_url(v)
+            else:
+                cleaned_params[k] = v
+
+        qs = urllib.parse.urlencode({"type": endpoint_type, **cleaned_params})
         url = f"https://nekobot.xyz/api/imagegen?{qs}"
         session = getattr(self.bot, "session", None)
         if not session or session.closed:
@@ -54,16 +71,29 @@ class Manipulation(commands.Cog):
             return
 
         try:
-            async with session.get(url, timeout=12) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    msg_url = data.get("message")
-                    if msg_url and msg_url.startswith("http"):
-                        await ctx.reply(msg_url, mention_author=False)
-                        return
-                await ctx.reply("❌ Tra mochkil f generation dial tswira, 3awed jereb.", mention_author=False)
+            async with ctx.typing():
+                async with session.get(url, timeout=30) as resp:
+                    data = None
+                    try:
+                        data = await resp.json()
+                    except Exception:
+                        pass
+
+                    if resp.status == 200 and isinstance(data, dict):
+                        msg_url = data.get("message")
+                        if msg_url and msg_url.startswith("http"):
+                            await ctx.reply(msg_url, mention_author=False)
+                            return
+
+                    err_msg = ""
+                    if isinstance(data, dict) and "message" in data:
+                        err_msg = f": {data['message']}"
+                    await ctx.reply(f"❌ Tra mochkil f generation dial tswira{err_msg}.", mention_author=False)
+        except asyncio.TimeoutError:
+            await ctx.reply("❌ API t3tlat bzaf (Timeout). 3awed jereb mn b3d.", mention_author=False)
         except Exception as e:
-            await ctx.reply(f"❌ Error: `{e}`", mention_author=False)
+            err_text = str(e).strip() or type(e).__name__
+            await ctx.reply(f"❌ Error: `{err_text}`", mention_author=False)
 
     async def _download_image_bytes(self, url: str) -> Optional[bytes]:
         session = getattr(self.bot, "session", None)
@@ -156,7 +186,7 @@ class Manipulation(commands.Cog):
             except Exception:
                 pass
 
-        avatar = urllib.parse.quote(target_member.display_avatar.url, safe='')
+        avatar = urllib.parse.quote(target_member.display_avatar.with_format("png").url, safe='')
         d_name = urllib.parse.quote(target_member.display_name, safe='')
         u_name = urllib.parse.quote(target_member.name, safe='')
         comment = urllib.parse.quote(text, safe='')
@@ -175,7 +205,7 @@ class Manipulation(commands.Cog):
             except Exception:
                 pass
 
-        avatar = urllib.parse.quote(target_member.display_avatar.url, safe='')
+        avatar = urllib.parse.quote(target_member.display_avatar.with_format("png").url, safe='')
         u_name = urllib.parse.quote(target_member.display_name, safe='')
         comment = urllib.parse.quote(text, safe='')
         url = f"https://some-random-api.com/canvas/misc/youtube-comment?avatar={avatar}&username={u_name}&comment={comment}"
@@ -332,7 +362,7 @@ class Manipulation(commands.Cog):
                 await ctx.reply(f"❌ Malkitch lmember `{user1}`.", mention_author=False)
                 return
 
-        await self._fetch_nekobot(ctx, "ship", user1=woman.display_avatar.url, user2=man.display_avatar.url)
+        await self._fetch_nekobot(ctx, "ship", user1=woman.display_avatar.with_format("png").url, user2=man.display_avatar.with_format("png").url)
 
     @commands.command(name="mirror", aliases=["flip"], help="9leb tswira.")
     async def mirror(self, ctx, *, target: Optional[str] = None):
@@ -392,23 +422,23 @@ class Manipulation(commands.Cog):
 
     @commands.command(name="customcaption", aliases=["caption", "meme"], help="Zid text fo9 avatar ta3 chy wa7d.")
     async def customcaption(self, ctx, *, text: str):
-        target_url = ctx.author.display_avatar.url
+        target_url = ctx.author.display_avatar.with_format("png").url
         parts = text.split(maxsplit=1)
         if len(parts) > 1:
             first_word = parts[0]
             if first_word.startswith("http://") or first_word.startswith("https://"):
-                target_url = first_word
+                target_url = ensure_png_url(first_word)
                 text = parts[1]
             else:
                 try:
                     m = await FuzzyMember().convert(ctx, first_word)
-                    target_url = m.display_avatar.url
+                    target_url = m.display_avatar.with_format("png").url
                     text = parts[1]
                 except Exception:
                     pass
 
         if ctx.message.attachments:
-            target_url = ctx.message.attachments[0].url
+            target_url = ensure_png_url(ctx.message.attachments[0].url)
 
         if "," in text:
             top, bottom = text.split(",", 1)
@@ -507,16 +537,16 @@ class Manipulation(commands.Cog):
     @commands.command(name="trapcard", aliases=["yugioh", "yugi"], help="9ad card ta3 Yu-Gi-Oh b tswira o smiya ta3k.")
     async def trapcard(self, ctx, *, target: Optional[str] = None):
         target_name = ctx.author.display_name
-        img_url = ctx.author.display_avatar.url
+        img_url = ctx.author.display_avatar.with_format("png").url
         if target:
             try:
                 m = await FuzzyMember().convert(ctx, target)
                 target_name = m.display_name
-                img_url = m.display_avatar.url
+                img_url = m.display_avatar.with_format("png").url
             except Exception:
                 img_url = await self.resolve_image(ctx, target)
         elif ctx.message.attachments:
-            img_url = ctx.message.attachments[0].url
+            img_url = ensure_png_url(ctx.message.attachments[0].url)
 
         await self._fetch_nekobot(ctx, "trap", name=target_name, author="Trap Card", image=img_url)
 

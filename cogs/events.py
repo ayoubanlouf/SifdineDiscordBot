@@ -158,7 +158,10 @@ class Events(commands.Cog):
 
         elif isinstance(error, commands.BotMissingPermissions):
             await ctx.reply("Ma3endich l permissions bach ndir had lcommand.")
-        
+
+        elif isinstance(error, commands.CheckFailure):
+            pass
+
         elif isinstance(error, commands.CommandNotFound):
             invoked_cmd = ctx.invoked_with.lower() if ctx.invoked_with else ""
             if not invoked_cmd:

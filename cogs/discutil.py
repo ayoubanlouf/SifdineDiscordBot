@@ -75,23 +75,24 @@ class DiscordUtil(commands.Cog):
         member = member or ctx.author
 
 
-        roles = [role.mention for role in member.roles[1:]]
+        roles = [role.mention for role in member.roles[1:]] if hasattr(member, 'roles') else []
         roles.reverse()
         roles_display = ", ".join(roles) if roles else "None"
 
-
-        permissions = [perm[0].replace('_', ' ').title() for perm in member.guild_permissions if perm[1]]
-        is_key_admin = "Administrator" in permissions or member.id == ctx.guild.owner_id
+        permissions = [perm[0].replace('_', ' ').title() for perm in member.guild_permissions if perm[1]] if hasattr(member, 'guild_permissions') else []
+        is_key_admin = ("Administrator" in permissions or (ctx.guild and member.id == ctx.guild.owner_id)) if hasattr(member, 'guild_permissions') else False
 
         embed = discord.Embed(title=f"Chkoun {member}?", color=0x000000, timestamp=ctx.message.created_at)
         embed.set_thumbnail(url=member.display_avatar.url)
 
         embed.add_field(name="Identity", value=f"• **ID:** `{member.id}`\n• **Bot:** `{'Yes' if member.bot else 'No'}`",
                         inline=False)
+        server_join = discord.utils.format_dt(member.joined_at, style='R') if getattr(member, 'joined_at', None) else 'Not in this server'
         embed.add_field(name="Dates",
-                        value=f"• **Joined Discord:** {discord.utils.format_dt(member.created_at, style='R')}\n• **Joined Server:** {discord.utils.format_dt(member.joined_at, style='R') if member.joined_at else 'Unknown'}",
+                        value=f"• **Joined Discord:** {discord.utils.format_dt(member.created_at, style='R')}\n• **Joined Server:** {server_join}",
                         inline=False)
-        embed.add_field(name=f"Roles [{len(roles)}]", value=roles_display, inline=False)
+        if roles_display != "None":
+            embed.add_field(name=f"Roles [{len(roles)}]", value=roles_display, inline=False)
 
         if is_key_admin:
             embed.add_field(name="Key Acknowledgements", value="`Server Authority / Administrator`", inline=False)
@@ -150,7 +151,7 @@ class DiscordUtil(commands.Cog):
     async def serveravatar(self, ctx, member: FuzzyMember = None):
         member = member or ctx.author
 
-        if not member.guild_avatar:
+        if not getattr(member, 'guild_avatar', None):
             await ctx.send(f"**{member.display_name}** ma3ndouch local avatar f had server.")
             return
 
