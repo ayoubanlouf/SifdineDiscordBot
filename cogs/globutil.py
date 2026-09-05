@@ -24,15 +24,49 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 
 
+_rl_session = None
+
+def _get_rl_session():
+    global _rl_session
+    if _rl_session is None:
+        from curl_cffi import requests
+        _rl_session = requests.Session(impersonate="chrome")
+        _rl_session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://rocketleague.tracker.network/",
+            "Origin": "https://rocketleague.tracker.network",
+        })
+        try:
+            _rl_session.get("https://rocketleague.tracker.network/", timeout=10)
+        except Exception:
+            pass
+    return _rl_session
+
+
 def _fetch_rl_sync(platform: str, username: str):
-    from curl_cffi import requests
+    global _rl_session
+    session = _get_rl_session()
     url = f"https://api.tracker.gg/api/v2/rocket-league/standard/profile/{platform}/{urllib.parse.quote(username)}"
-    resp = requests.get(url, impersonate="chrome", timeout=15)
-    if resp.status_code == 404:
-        return 404, None
-    if resp.status_code != 200:
-        return resp.status_code, None
-    return 200, resp.json()
+    try:
+        resp = session.get(url, timeout=15)
+        # If Cloudflare challenged or session expired, re-warm session and retry once
+        if resp.status_code == 403:
+            try:
+                session.get("https://rocketleague.tracker.network/", timeout=10)
+                resp = session.get(url, timeout=15)
+            except Exception:
+                pass
+
+        if resp.status_code == 404:
+            return 404, None
+        if resp.status_code != 200:
+            return resp.status_code, None
+        return 200, resp.json()
+    except Exception:
+        return 500, None
+
 
 
 def _fetch_wikihow_sync(url: str):
@@ -1892,14 +1926,14 @@ class GlobUtil(commands.Cog):
         try:
             status, data = await asyncio.to_thread(_fetch_rl_sync, platform, username)
 
-            if status == 404 or not data:
+            if status == 404:
                 await wait.edit(embed=discord.Embed(
                     description=f"Mal9itch had l user f Rocket League: `{username}` (Platform: `{platform}`)",
                     color=0x000000
                 ))
                 return
 
-            if status != 200:
+            if status != 200 or not data:
                 await wait.edit(embed=discord.Embed(
                     description=f"Tracker Network returned status `{status}`. Jarreb mn be3d.",
                     color=0x000000
