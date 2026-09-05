@@ -962,7 +962,7 @@ class Moderation(commands.Cog):
 
     @commands.command(name="ban", aliases=["banni"], help="Ban chy wa7d mn server.")
     @commands.has_permissions(ban_members=True)
-    async def ban(self, ctx, member: FuzzyMember, *, reason: str = None):
+    async def ban(self, ctx, member: discord.User, *, reason: str = None):
         if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
             await ctx.send(f"Mat9edch tban chy wa7d b7alk wla fo9 mnk f role ._.")
             return
@@ -973,15 +973,53 @@ class Moderation(commands.Cog):
         except Exception as e:
             await ctx.send(embed=discord.Embed(description=f"Ma9dertch nban **{member.display_name}**: `{e}`", color=0x000000))
 
-    @commands.command(name="unban", aliases=["unbanni"], help="Unban chy wa7d mn server.")
+    @commands.command(name="unban", aliases=["unbanni"], help="Unban chy wa7d mn server (b username wla ID).")
     @commands.has_permissions(ban_members=True)
-    async def unban(self, ctx, *, user_id: int):
+    async def unban(self, ctx, *, query: str):
+        if not ctx.guild:
+            await ctx.send("Had lcommand khdama gher f servers.")
+            return
+
+        target_query = query.strip()
+        mention_match = re.match(r"^<@!?(\d+)>$", target_query)
+        if mention_match:
+            target_query = mention_match.group(1)
+
+        banned_user = None
+
+        if target_query.isdigit():
+            target_id = int(target_query)
+            try:
+                ban_entry = await ctx.guild.fetch_ban(discord.Object(id=target_id))
+                banned_user = ban_entry.user
+            except (discord.NotFound, discord.HTTPException):
+                try:
+                    banned_user = await self.bot.fetch_user(target_id)
+                except Exception:
+                    pass
+
+        if not banned_user:
+            target_clean = target_query.lower()
+            async for entry in ctx.guild.bans():
+                u = entry.user
+                if (
+                    u.name.lower() == target_clean
+                    or str(u).lower() == target_clean
+                    or (u.global_name and u.global_name.lower() == target_clean)
+                    or (u.display_name and u.display_name.lower() == target_clean)
+                ):
+                    banned_user = u
+                    break
+
+        if not banned_user:
+            await ctx.send(f"❌ Mal9itch banned user b had l'username wla ID (`{query}`). Dir `sat banlist` bach tchouf ga3 bans.")
+            return
+
         try:
-            user = await self.bot.fetch_user(user_id)
-            await ctx.guild.unban(user)
-            await ctx.send(f"{user.mention} (ID: {user_id}) t unbanna.")
+            await ctx.guild.unban(banned_user)
+            await ctx.send(f"✅ **{banned_user}** (ID: `{banned_user.id}`) t unbanna mn server.")
         except discord.NotFound:
-            await ctx.send("Mal9itch user b had l ID.")
+            await ctx.send(f"⚠️ **{banned_user}** aslan mam-banniych mn had server.")
         except Exception as e:
             await ctx.send(embed=discord.Embed(description=f"Ma9dertch n7yed lban: `{e}`", color=0x000000))
 

@@ -302,7 +302,7 @@ class Economy(commands.Cog):
         await self.add_balance(user_id, net_payout, context=ctx_desc)
         return net_payout, tax
 
-    async def deduct_balance(self, user_id: int, amount: int, context: str = "") -> bool:
+    async def deduct_balance(self, user_id: int, amount: int, context: str = "", force: bool = False) -> bool:
         if amount <= 0:
             return True
         if self.is_bot_user(user_id):
@@ -311,8 +311,9 @@ class Economy(commands.Cog):
         # Ensure user wallet exists
         await self.get_wallet(user_id)
 
+        fraud_clause = "" if force else "AND is_fraud = 0"
         cursor = await self.bot.db.execute(
-            "UPDATE user_wallets SET balance = balance - ? WHERE user_id = ? AND balance >= ? AND is_fraud = 0",
+            f"UPDATE user_wallets SET balance = balance - ? WHERE user_id = ? AND balance >= ? {fraud_clause}",
             (amount, user_id, amount)
         )
         if not cursor or (hasattr(cursor, "rowcount") and cursor.rowcount <= 0):
@@ -509,7 +510,7 @@ class Economy(commands.Cog):
                 next_midnight = (now_casa + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
                 next_midnight_ts = int(next_midnight.timestamp())
                 await ctx.send(embed=discord.Embed(
-                    description=f"⏳ Mazal ma wsl lwa9t! Daily tay-tresetta kola nhar m3a **00:00 (Casablanca)**.\nRje3 <t:{next_midnight_ts}:R>.",
+                    description=f"⏳ Deja chditi daily lyouma.\nRje3 <t:{next_midnight_ts}:R>.",
                     color=0x000000
                 ))
                 return
@@ -632,24 +633,30 @@ class Economy(commands.Cog):
 
     # ============ MODERATOR COMMANDS ============
 
-    @commands.command(name="tax", help="N9ess flous mn wallet dial user.")
+    @commands.command(name="tax", help="N9ess flous mn wallet dial user (mention wla ID).")
     @commands.is_owner()
     async def tax_user(self, ctx: commands.Context, target: discord.User, amount: int):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
 
-        await self.deduct_balance(target.id, amount, context=f"Taxed by Admin {ctx.author.display_name}")
         w = await self.get_wallet(target.id)
+        if w["balance"] <= 0:
+            await ctx.send(f"⚠️ Wallet dial **{target.mention}** aslan fiha 0 TAD.")
+            return
+
+        deduct_amt = min(w["balance"], amount)
+        await self.deduct_balance(target.id, deduct_amt, context=f"Taxed by Admin {ctx.author.display_name}", force=True)
+        w_after = await self.get_wallet(target.id)
 
         embed = discord.Embed(
             title="🏛️ Economy Tax Applied",
-            description=f"N9ssna **{amount:,}** TAD mn wallet dial **{target.mention}**.\n💰 **New Balance:** {format_tad(w['balance'])}",
+            description=f"N9ssna **{deduct_amt:,}** TAD mn wallet dial **{target.mention}**.\n💰 **New Balance:** {format_tad(w_after['balance'])}",
             color=0x000000
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="reward", help="zid flous l wallet dial user.")
+    @commands.command(name="reward", help="zid flous l wallet dial user (mention wla ID).")
     @commands.is_owner()
     async def reward_user(self, ctx: commands.Context, target: discord.User, amount: int):
         if amount <= 0:
@@ -665,10 +672,14 @@ class Economy(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="fraud", aliases=["nssab"], help="Blocki user mn l economy system.")
+    @commands.command(name="fraud", aliases=["nssab", "scammer", "cheater"], help="Blocki user mn l economy system (mention wla ID).")
     @commands.is_owner()
     async def fraud_user(self, ctx: commands.Context, target: discord.User):
-        await self.get_wallet(target.id)
+        w = await self.get_wallet(target.id)
+        if w.get("is_fraud", 0) == 1:
+            await ctx.send(f"⚠️ **{target.mention}** aslan mmarki **Fraud** mn 9bel!")
+            return
+
         await self.bot.db.execute("UPDATE user_wallets SET is_fraud = 1 WHERE user_id = ?", (target.id,))
         await self.bot.db.commit()
 
@@ -679,10 +690,14 @@ class Economy(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="legit", aliases=["n9i"], help="Unblocki user mn l economy system.")
+    @commands.command(name="legit", aliases=["n9i"], help="Unblocki user mn l economy system (mention wla ID).")
     @commands.is_owner()
     async def legit_user(self, ctx: commands.Context, target: discord.User):
-        await self.get_wallet(target.id)
+        w = await self.get_wallet(target.id)
+        if w.get("is_fraud", 0) == 0:
+            await ctx.send(f"⚠️ **{target.mention}** aslan **Legit** (machiy fraud).")
+            return
+
         await self.bot.db.execute("UPDATE user_wallets SET is_fraud = 0 WHERE user_id = ?", (target.id,))
         await self.bot.db.commit()
 
@@ -692,6 +707,37 @@ class Economy(commands.Cog):
             color=0x000000
         )
         await ctx.send(embed=embed)
+
+    @commands.command(name="fraudlist", aliases=["frauds", "scammers", "cheaters", "nssaba"], help="Chouf ga3 users li mmarkiyin fraud fl economy.")
+    @commands.is_owner()
+    async def fraud_list(self, ctx: commands.Context):
+        async with self.bot.db.execute(
+            "SELECT user_id, balance FROM user_wallets WHERE is_fraud = 1 ORDER BY balance DESC"
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        if not rows:
+            embed = discord.Embed(
+                title="🚨 Fraud List",
+                description="✨ Walo! 7ta wa7d mammarki fraud f l'economy.",
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
+        entries = []
+        for uid, bal in rows:
+            u = self.bot.get_user(uid)
+            user_str = f"**{u.name}**" if u else f"<@{uid}>"
+            entries.append(f"• {user_str} (ID: `{uid}`) — Balance: **{bal:,} TAD**")
+
+        paginator = self.bot.Paginator(
+            ctx,
+            pages=entries,
+            per_page=10,
+            title=f"🚨 Fraud List ({len(rows)})"
+        )
+        await paginator.send()
 
 
 async def setup(bot):

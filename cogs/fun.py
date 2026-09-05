@@ -4906,7 +4906,7 @@ class MinigameDifficultyView(View):
         configs = [
             ("easy", "🟢 Easy (1.0x)", discord.ButtonStyle.success),
             ("medium", "🟡 Medium (1.5x)", discord.ButtonStyle.primary),
-            ("hard", "🔴 Hard (2.5x)", discord.ButtonStyle.danger)
+            ("hard", "🔴 Hard (2.0x)", discord.ButtonStyle.danger)
         ]
         for diff_key, label, style in configs:
             btn = Button(
@@ -5082,7 +5082,22 @@ class Fun(commands.Cog):
             data = await resp.json()
         await ctx.send(data['question'])
 
-    @commands.command(name="flags", aliases=["gtf"], help="Guess the flag okda.")
+async def countdown_reactions(msg: discord.Message, total_duration: float):
+    """Reacts with 3️⃣, 2️⃣, 1️⃣ when 3, 2, and 1 seconds remain on msg."""
+    try:
+        pre_wait = total_duration - 3.0
+        if pre_wait > 0:
+            await asyncio.sleep(pre_wait)
+        for emoji in ("3️⃣", "2️⃣", "1️⃣"):
+            try:
+                await msg.add_reaction(emoji)
+            except (discord.HTTPException, discord.NotFound, discord.Forbidden):
+                return
+            await asyncio.sleep(1.0)
+    except asyncio.CancelledError:
+        pass
+
+    @commands.command(name="flags", aliases=["gtf"], help="N3tik flag o goul lia chno smit dawla.")
     async def flags(self, ctx, *args):
         round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="medium")
         time_display = f"{round_duration}s"
@@ -5167,8 +5182,7 @@ class Fun(commands.Cog):
                 eco_msg = ""
                 winner_flags = player_correct_flags.get(winner.id, 0)
                 if economy_cog:
-                    base_gross = (len(players) * 50) + (winner_flags * 15)
-                    gross = int(base_gross * diff_mult)
+                    gross = (len(players) * 50) + int(round((winner_flags * 15) * diff_mult))
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
@@ -5204,13 +5218,14 @@ class Fun(commands.Cog):
                     color=0x000000
                 )
                 game_embed.set_image(url=flag_url)
-                await ctx.send(player.mention, embed=game_embed)
+                round_msg = await ctx.send(player.mention, embed=game_embed)
 
                 def check(m):
                     return m.author.id == player.id and m.channel.id == ctx.channel.id
 
                 start_time = time.time()
                 guessed_correctly = False
+                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
 
                 while time.time() - start_time < round_duration:
                     time_left = round_duration - (time.time() - start_time)
@@ -5221,6 +5236,8 @@ class Fun(commands.Cog):
                         msg = await self.bot.wait_for("message", check=check, timeout=time_left)
 
                         if msg.content.strip().lower() == "exitgame":
+                            if not countdown_task.done():
+                                countdown_task.cancel()
                             hp[player.id] = 0
                             await ctx.send(f"🚪 **{player.mention}** khrej mn lgame.")
                             active_players.remove(player)
@@ -5228,6 +5245,8 @@ class Fun(commands.Cog):
                             break
 
                         if is_flag_guess_correct(msg.content, target_code, correct_name):
+                            if not countdown_task.done():
+                                countdown_task.cancel()
                             await msg.add_reaction("✅")
                             guessed_correctly = True
                             player_correct_flags[player.id] = player_correct_flags.get(player.id, 0) + 1
@@ -5235,6 +5254,9 @@ class Fun(commands.Cog):
 
                     except asyncio.TimeoutError:
                         break
+
+                if not countdown_task.done():
+                    countdown_task.cancel()
 
                 if not guessed_correctly:
                     hp[player.id] -= 1
@@ -5253,8 +5275,7 @@ class Fun(commands.Cog):
             player = players[0]
             economy_cog = self.bot.get_cog("Economy")
             p_flags = player_correct_flags.get(player.id, 0)
-            base_gross = 50 + (p_flags * 15)
-            gross = int(base_gross * diff_mult)
+            gross = 50 + int(round((p_flags * 15) * diff_mult))
             eco_msg = ""
             if economy_cog and p_flags > 0:
                 net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Flags Solo")
@@ -5274,8 +5295,7 @@ class Fun(commands.Cog):
                     economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
                     if economy_cog:
-                        base_gross = (len(players) * 50) + (max_guesses * 15)
-                        gross = int(base_gross * diff_mult)
+                        gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
@@ -5289,8 +5309,8 @@ class Fun(commands.Cog):
                     economy_cog = self.bot.get_cog("Economy")
                     split_eco_msg = ""
                     if economy_cog:
-                        base_gross = (len(players) * 50) + (max_guesses * 15)
-                        gross_split = max(1, int((base_gross * diff_mult) / len(top_players)))
+                        base_gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
+                        gross_split = max(1, int(base_gross / len(top_players)))
                         for wp in top_players:
                             await economy_cog.apply_tax_and_add_balance(wp.id, gross_split, context="Flags Win (Tie)")
                         split_eco_msg = f"\n💰 Kola wa7d rbe7 **{gross_split}** TAD!"
@@ -5364,7 +5384,8 @@ class Fun(commands.Cog):
                 while lives[player.id] > 0:
                     combo = self.get_combo(difficulty)
 
-                    await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
+                    round_msg = await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
+                    countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
 
                     def check(message):
                         if message.author.id != player.id or message.channel.id != ctx.channel.id:
@@ -5378,6 +5399,8 @@ class Fun(commands.Cog):
 
                     try:
                         word_msg = await self.bot.wait_for('message', check=check, timeout=round_duration)
+                        if not countdown_task.done():
+                            countdown_task.cancel()
                         if word_msg:
                             if word_msg.content.strip().lower() == "exitgame":
                                 lives[player.id] = 0
@@ -5386,6 +5409,8 @@ class Fun(commands.Cog):
                             used_words.add(word_msg.content.strip().lower())
                             await word_msg.add_reaction('✅')
                     except asyncio.TimeoutError:
+                        if not countdown_task.done():
+                            countdown_task.cancel()
                         lives[player.id] -= 1
                         if lives[player.id] > 0:
                             await ctx.send(f"⌛ Sala lwe9t: -1 HP (Ba9i: **{lives[player.id]} HP**)")
@@ -5394,7 +5419,7 @@ class Fun(commands.Cog):
 
                 economy_cog = self.bot.get_cog("Economy")
                 correct_count = len(used_words)
-                gross = int((50 + (correct_count * 10)) * diff_mult)
+                gross = 50 + int(round((correct_count * 10) * diff_mult))
                 eco_msg = ""
                 if economy_cog and correct_count > 0:
                     net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="BlackTea Solo")
@@ -5413,7 +5438,8 @@ class Fun(commands.Cog):
 
                         combo = self.get_combo(difficulty)
 
-                        await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
+                        round_msg = await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
+                        countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
 
                         def check(message):
                             if message.author.id != player.id or message.channel.id != ctx.channel.id:
@@ -5427,6 +5453,8 @@ class Fun(commands.Cog):
 
                         try:
                             word_msg = await self.bot.wait_for('message', check=check, timeout=round_duration)
+                            if not countdown_task.done():
+                                countdown_task.cancel()
                             if word_msg:
                                 if word_msg.content.strip().lower() == "exitgame":
                                     lives[player.id] = 0
@@ -5436,6 +5464,8 @@ class Fun(commands.Cog):
                                 used_words.add(word_msg.content.strip().lower())
                                 await word_msg.add_reaction('✅')
                         except asyncio.TimeoutError:
+                            if not countdown_task.done():
+                                countdown_task.cancel()
                             lives[player.id] -= 1
                             if lives[player.id] > 0:
                                 await ctx.send(f"⌛ Sala lwe9t: -1 HP (Ba9i: **{lives[player.id]} HP**)")
@@ -5449,7 +5479,7 @@ class Fun(commands.Cog):
                     eco_msg = ""
                     if economy_cog:
                         match_words_count = len(used_words)
-                        gross = int(((len(players) * 50) + (match_words_count * 10)) * diff_mult)
+                        gross = (len(players) * 50) + int(round((match_words_count * 10) * diff_mult))
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="BlackTea Win")
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
@@ -5517,10 +5547,11 @@ class Fun(commands.Cog):
                 if not combo:
                     continue
 
-                await ctx.send(embed=discord.Embed(
+                round_msg = await ctx.send(embed=discord.Embed(
                     description=f"Kteb kelma fiha: **{combo.upper()}**\n⏱️ Round **{round_num}/10**",
                     color=0x000000
                 ))
+                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
 
                 def check(message):
                     if message.author.id not in player_ids or message.channel.id != ctx.channel.id:
@@ -5534,6 +5565,8 @@ class Fun(commands.Cog):
 
                 try:
                     word_msg = await self.bot.wait_for('message', check=check, timeout=round_duration)
+                    if not countdown_task.done():
+                        countdown_task.cancel()
                     if word_msg:
                         fast = word_msg.author
                         if word_msg.content.strip().lower() == "exitgame":
@@ -5552,6 +5585,8 @@ class Fun(commands.Cog):
                                 color=0x000000
                             ))
                 except asyncio.TimeoutError:
+                    if not countdown_task.done():
+                        countdown_task.cancel()
                     await ctx.send(embed=discord.Embed(
                         description="⌛ Sala lwe9t. 7ta wa7d ma 5da lpoint.",
                         color=0x000000
@@ -5567,8 +5602,7 @@ class Fun(commands.Cog):
                     economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
                     if economy_cog and maxpoints > 0:
-                        base_gross = (len(players) * 50) + (maxpoints * 20)
-                        gross = int(base_gross * diff_mult)
+                        gross = (len(players) * 50) + int(round((maxpoints * 20) * diff_mult))
                         net, tax = await economy_cog.apply_tax_and_add_balance(winners[0], gross, context="GreenTea Win")
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
@@ -6419,7 +6453,7 @@ class Fun(commands.Cog):
         else:
             if bet and bet > 0 and economy_cog:
                 await economy_cog.add_balance(ctx.author.id, bet, context="Coinflip Invalid Bet Refund")
-            await ctx.send("❌ Khtar `ras` (heads) wla `njma` (tails). Mital: `sat coinflip ras 100`")
+            await ctx.send("❌ Khtar `ras` (heads) wla `njma` (tails). Example: `sat coinflip ras 100`")
             return
 
         flip_msg = await ctx.send("🪙 *Kanlou7 derhem f sma...*")
@@ -6698,7 +6732,7 @@ class Fun(commands.Cog):
                     "• `1-18` (Low) / `19-36` (High) (2x payout)\n"
                     "• `green` (14x payout)\n"
                     "• Number direct `0` - `36` (36x payout)\n\n"
-                    f"Mital: `{ctx.clean_prefix}roulette 1 200` wla `{ctx.clean_prefix}roulette red 500`"
+                    f"Example: `{ctx.clean_prefix}roulette 1 200` wla `{ctx.clean_prefix}roulette red 500`"
                 ),
                 color=0x000000
             )
@@ -6759,7 +6793,7 @@ class Fun(commands.Cog):
                     "• **Alwan:** `red` 🔴 / `black` ⚫ (2x) wla `green` 🟢 (14x)\n"
                     "• **Zawji / Fardi:** `even` / `odd` (2x)\n"
                     "• **Nsf:** `1-18` (Low) / `19-36` (High) (2x)\n\n"
-                    f"Mital: `{ctx.clean_prefix}roulette 1 200` wla `{ctx.clean_prefix}roulette red 500`"
+                    f"Example: `{ctx.clean_prefix}roulette 1 200` wla `{ctx.clean_prefix}roulette red 500`"
                 ),
                 color=0x000000
             )

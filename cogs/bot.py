@@ -619,7 +619,7 @@ class Bot(commands.Cog):
             exists = await cursor.fetchone()
 
         if not exists:
-            await ctx.send(f"⚠️ Command `{canonical_name}` aslan mamsaktech / mamdesaktivyach f had server.")
+            await ctx.send(f"⚠️ Command `{canonical_name}` mamdisabliach f had server.")
             return
 
         await self.bot.db.execute(
@@ -630,7 +630,7 @@ class Bot(commands.Cog):
 
         embed = discord.Embed(
             title="✅ Command Enabled",
-            description=f"🟢 Re-aktiviti command `{canonical_name}` f had server b nja7!",
+            description=f"🟢 Re-enablit command `{canonical_name}` f had server!",
             color=0x000000
         )
         await ctx.send(embed=embed)
@@ -648,7 +648,7 @@ class Bot(commands.Cog):
         if not rows:
             embed = discord.Embed(
                 title="📋 Disabled Commands",
-                description="✨ Walo! Ga3 commands m-aktiviyn f had server.",
+                description="✨ Walo! Ga3 commands khdamin f had server.",
                 color=0x000000
             )
             await ctx.send(embed=embed)

@@ -242,8 +242,24 @@ class DiscordUtil(commands.Cog):
 
     @commands.command(aliases=["dm", "prv"], help="Sift message anonyme lchy wa7d mn server.")
     async def whisper(self, ctx, user: FuzzyMember = None, *, msg):
-        await ctx.message.delete()
-        await user.send(f"**Anonymous user:** {msg}")
+        try:
+            await ctx.message.delete()
+        except (discord.Forbidden, discord.HTTPException, discord.NotFound):
+            pass
+
+        if not user:
+            await ctx.send(f"❌ Khassek t7edded l user! Example: `{ctx.clean_prefix}whisper @user salam`", delete_after=5)
+            return
+
+        is_owner = await self.bot.is_owner(ctx.author)
+        content = msg if is_owner else f"**Anonymous user:** {msg}"
+
+        try:
+            await user.send(content)
+        except discord.Forbidden:
+            await ctx.send(f"❌ Ma9ditch nsift message l **{user.display_name}** (DMs dialo masdodin).", delete_after=6)
+        except Exception as e:
+            await ctx.send(f"❌ Tra mochkil: `{e}`", delete_after=6)
 
 
     @commands.command(help="Kteb b emojis blast text.")

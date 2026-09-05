@@ -21,6 +21,7 @@ import random
 import time
 import html
 import xml.etree.ElementTree as ET
+from bs4 import BeautifulSoup
 
 
 def _fetch_rl_sync(platform: str, username: str):
@@ -32,6 +33,12 @@ def _fetch_rl_sync(platform: str, username: str):
     if resp.status_code != 200:
         return resp.status_code, None
     return 200, resp.json()
+
+
+def _fetch_wikihow_sync(url: str):
+    from curl_cffi import requests
+    resp = requests.get(url, impersonate="chrome", timeout=15)
+    return resp.status_code, resp.text
 
 
 class RocketLeagueView(discord.ui.View):
@@ -2070,6 +2077,193 @@ class GlobUtil(commands.Cog):
             await wait.edit(embed=discord.Embed(description="❌ Ma9ditch n9esser had link. T2ked mn URL.", color=0x000000))
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="wikipedia", aliases=["wiki"], help="9elleb f Wikipedia 3la ayy article (sat wiki [query]).")
+    async def wikipedia(self, ctx: commands.Context, *, query: str = None):
+        if not query:
+            await ctx.send(f"❌ Kteb 3lach baghi t9elleb f Wikipedia! Example: `{ctx.clean_prefix}wikipedia Morocco` wla `{ctx.clean_prefix}wiki Python`")
+            return
+
+        headers = {
+            'User-Agent': 'SifdineBot/1.0 (Discord Bot; contact@sifdine.bot)'
+        }
+        search_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(query)}&utf8=&format=json"
+
+        async with ctx.typing():
+            try:
+                async with ReusableSession(self.bot.session) as session:
+                    async with session.get(search_url, headers=headers, timeout=10) as resp:
+                        if resp.status != 200:
+                            await ctx.send("❌ Tra mochkil f l'connexion m3a Wikipedia.")
+                            return
+                        data = await resp.json()
+
+                results = data.get("query", {}).get("search", [])
+                if not results:
+                    await ctx.send(f"❌ Mal9itch chi article f Wikipedia 3la `{query}`.")
+                    return
+
+                top_title = results[0]["title"]
+                summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(top_title)}"
+
+                async with ReusableSession(self.bot.session) as session:
+                    async with session.get(summary_url, headers=headers, timeout=10) as resp:
+                        if resp.status != 200:
+                            await ctx.send(f"❌ Ma9ditch njbed summary ta3 `{top_title}`.")
+                            return
+                        sum_data = await resp.json()
+
+                title = sum_data.get("title", top_title)
+                description = sum_data.get("description", "")
+                extract = sum_data.get("extract", "Walo content.")
+                if len(extract) > 2000:
+                    extract = extract[:1997] + "..."
+
+                desktop_url = sum_data.get("content_urls", {}).get("desktop", {}).get("page", f"https://en.wikipedia.org/wiki/{urllib.parse.quote(top_title)}")
+                thumb_url = sum_data.get("thumbnail", {}).get("source")
+
+                embed = discord.Embed(
+                    title=f"📖 {title}",
+                    url=desktop_url,
+                    description=f"*{description}*\n\n{extract}" if description else extract,
+                    color=0x000000
+                )
+                if thumb_url:
+                    embed.set_thumbnail(url=thumb_url)
+                embed.set_footer(text=f"Wikipedia • Requested by {ctx.author.display_name}", icon_url="https://en.wikipedia.org/static/images/icons/wikipedia.png")
+
+                view = discord.ui.View()
+                view.add_item(discord.ui.Button(label="Open on Wikipedia", url=desktop_url, style=discord.ButtonStyle.link, emoji="🔗"))
+                await ctx.send(embed=embed, view=view)
+
+            except Exception as e:
+                await ctx.send(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="wikihow", aliases=["how", "howto"], help="9elleb f wikiHow o chouf steps b tsawer (sat wikihow [query]).")
+    async def wikihow(self, ctx: commands.Context, *, query: str = None):
+        if not query:
+            await ctx.send(f"❌ Kteb 3lach baghi t9elleb f wikiHow! Example: `{ctx.clean_prefix}wikihow tie a tie` wla `{ctx.clean_prefix}how cook rice`")
+            return
+
+        async with ctx.typing():
+            try:
+                # 1. Search with curl_cffi to bypass Cloudflare protection
+                search_url = f"https://www.wikihow.com/wikiHowTo?search={urllib.parse.quote(query)}"
+                status, search_html = await asyncio.to_thread(_fetch_wikihow_sync, search_url)
+
+                if status != 200 or not search_html:
+                    await ctx.send("❌ Tra mochkil f l'connexion m3a wikiHow.")
+                    return
+
+                soup = BeautifulSoup(search_html, 'html.parser')
+                result_links = soup.select('a.result_link')
+
+                # If no direct result_links, try stripping leading "to " or "how to "
+                if not result_links:
+                    clean_q = re.sub(r'^(how\s+to\s+|to\s+)', '', query, flags=re.I).strip()
+                    if clean_q and clean_q.lower() != query.lower():
+                        search_url = f"https://www.wikihow.com/wikiHowTo?search={urllib.parse.quote(clean_q)}"
+                        status, search_html = await asyncio.to_thread(_fetch_wikihow_sync, search_url)
+                        if status == 200 and search_html:
+                            soup = BeautifulSoup(search_html, 'html.parser')
+                            result_links = soup.select('a.result_link')
+
+                if not result_links:
+                    await ctx.send(f"❌ Mal9itch chi article f wikiHow 3la `{query}`.")
+                    return
+
+                result_link = result_links[0]
+                article_url = result_link.get('href', '')
+                if not article_url.startswith('http'):
+                    article_url = 'https://www.wikihow.com' + article_url
+
+                status, article_html = await asyncio.to_thread(_fetch_wikihow_sync, article_url)
+                if status != 200 or not article_html:
+                    await ctx.send(f"❌ Ma9ditch n-charge l'article mn wikiHow: {article_url}")
+                    return
+
+                p_soup = BeautifulSoup(article_html, 'html.parser')
+                h1 = p_soup.find('h1', id='section_0') or p_soup.find('h1')
+                article_title = h1.text.strip() if h1 else result_link.text.strip().split('\n')[0]
+
+                step_lis = p_soup.find_all('li', id=re.compile(r'step-id-\d+'))
+
+                def extract_img(li):
+                    vid = li.find('video')
+                    if vid:
+                        for a in ['data-poster', 'poster', 'data-gifsrc', 'data-giffirstsrc']:
+                            v = vid.get(a)
+                            if v and 'wikihow.com/images' in v:
+                                if v.startswith('//'):
+                                    return 'https:' + v
+                                elif v.startswith('/'):
+                                    return 'https://www.wikihow.com' + v
+                                return v
+                    for img in li.find_all('img'):
+                        for a in ['data-src', 'src', 'data-original']:
+                            v = img.get(a)
+                            if v and 'wikihow.com/images' in v and not v.endswith('.svg') and 'WH_logo' not in v:
+                                if v.startswith('//'):
+                                    return 'https:' + v
+                                elif v.startswith('/'):
+                                    return 'https://www.wikihow.com' + v
+                                return v
+                    return None
+
+                embeds = []
+                total_steps = len(step_lis)
+
+                for i, li in enumerate(step_lis):
+                    b_tag = li.find('b')
+                    s_title = b_tag.text.strip() if b_tag else f"Step {i+1}"
+
+                    s_div = li.find('div', class_='step')
+                    body = ""
+                    if s_div:
+                        clone = BeautifulSoup(str(s_div), 'html.parser')
+                        for tag in clone(['script', 'style', 'sup', 'b', 'ul', 'ol']):
+                            tag.decompose()
+                        body = clone.text.strip().replace('\n', ' ')
+                        body = re.sub(r'\s+', ' ', body)
+                    else:
+                        body = li.text.strip().replace('\n', ' ')
+                        body = re.sub(r'\s+', ' ', body)
+
+                    if len(body) > 1000:
+                        body = body[:997] + "..."
+
+                    step_img = extract_img(li)
+
+                    embed = discord.Embed(
+                        title=f"📋 {article_title}",
+                        url=article_url,
+                        description=f"### Step {i+1}: {s_title}\n\n{body}",
+                        color=0x000000
+                    )
+                    if step_img:
+                        embed.set_image(url=step_img)
+                    embed.set_footer(text=f"wikiHow • Step {i+1}/{total_steps} • Requested by {ctx.author.display_name}", icon_url="https://www.wikihow.com/favicon.ico")
+                    embeds.append(embed)
+
+                if embeds:
+                    paginator = self.bot.Paginator(ctx, pages=embeds, per_page=1, title=article_title)
+                    await paginator.send()
+                else:
+                    intro = p_soup.find('div', id='intro') or p_soup.find('div', class_='intro')
+                    intro_text = intro.text.strip()[:1500] if intro else "Iftah l'link lte7t bach tchouf l'article kaml."
+                    embed = discord.Embed(
+                        title=f"📋 {article_title}",
+                        url=article_url,
+                        description=intro_text,
+                        color=0x000000
+                    )
+                    embed.set_footer(text=f"wikiHow • Requested by {ctx.author.display_name}", icon_url="https://www.wikihow.com/favicon.ico")
+                    view = discord.ui.View()
+                    view.add_item(discord.ui.Button(label="Open on wikiHow", url=article_url, style=discord.ButtonStyle.link, emoji="🔗"))
+                    await ctx.send(embed=embed, view=view)
+
+            except Exception as e:
+                await ctx.send(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
 
 
 async def setup(bot):

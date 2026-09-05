@@ -11,7 +11,7 @@ AllBotCommands = {
         "makegif", "image", "dictionary", "flag", "weather", "time", "translate", "youtube", "calculate", "rhyme",
         "locate", "reverse", "eightball", "gif", "kanyequote", "anime", "github", "reddit",
         "tiktok", "instagram", "twitter", "download", "username", "minecraft", "roblox", "chess",
-        "reminder", "qrcode", "ocr", "game", "steam", "osu", "rocketleague", "shortenurl"
+        "reminder", "qrcode", "ocr", "game", "steam", "osu", "rocketleague", "shortenurl", "wikipedia", "wikihow"
     ],
     "Fun": [
         "truth", "dare", "wouldyourather", "flags", "blacktea", "greentea",
@@ -32,7 +32,7 @@ AllBotCommands = {
         "buzzeverywhere", "customcaption", "dailystruggle", "gruplan", "isthis", "tuxedopooh", "nekofact", "magik", "trapcard", "transgender"
     ],
     "Economy": [
-        "wallet", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit", "wallets"
+        "wallet", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit", "wallets", "fraudlist"
     ],
     "Triggers": [
         "👀", "🧠", "🧽", "👎", "🚨", "🎤", "🤖", "🦅", "🐦", "📺", "🚀", "💡"

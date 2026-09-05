@@ -310,7 +310,7 @@ class Manipulation(commands.Cog):
     @commands.command(name="ship", aliases=["love", "crush"], help="Shippi jouj members.")
     async def ship(self, ctx, user1: Optional[str] = None, user2: Optional[str] = None):
         if not user1:
-            await ctx.reply("❌ Khassek t7ded au moins 1 user bach dir m3ah ship! Mital: `sat ship @user`", mention_author=False)
+            await ctx.reply("❌ Khassek t7ded au moins 1 user bach dir m3ah ship! Example: `sat ship @user`", mention_author=False)
             return
 
         if user2:
