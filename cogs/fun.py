@@ -4894,6 +4894,22 @@ def parse_minigame_args(*args, default_duration=15, default_difficulty="medium")
     return max(5, duration), difficulty
 
 
+async def countdown_reactions(msg: discord.Message, total_duration: float):
+    """Reacts with 3️⃣, 2️⃣, 1️⃣ when 3, 2, and 1 seconds remain on msg."""
+    try:
+        pre_wait = total_duration - 3.0
+        if pre_wait > 0:
+            await asyncio.sleep(pre_wait)
+        for emoji in ("3️⃣", "2️⃣", "1️⃣"):
+            try:
+                await msg.add_reaction(emoji)
+            except (discord.HTTPException, discord.NotFound, discord.Forbidden):
+                return
+            await asyncio.sleep(1.0)
+    except asyncio.CancelledError:
+        pass
+
+
 class MinigameDifficultyView(View):
     def __init__(self, host_id: int, initial_difficulty: str = "medium"):
         super().__init__(timeout=25)
@@ -5081,21 +5097,6 @@ class Fun(commands.Cog):
         async with self.bot.session.get(url) as resp:
             data = await resp.json()
         await ctx.send(data['question'])
-
-async def countdown_reactions(msg: discord.Message, total_duration: float):
-    """Reacts with 3️⃣, 2️⃣, 1️⃣ when 3, 2, and 1 seconds remain on msg."""
-    try:
-        pre_wait = total_duration - 3.0
-        if pre_wait > 0:
-            await asyncio.sleep(pre_wait)
-        for emoji in ("3️⃣", "2️⃣", "1️⃣"):
-            try:
-                await msg.add_reaction(emoji)
-            except (discord.HTTPException, discord.NotFound, discord.Forbidden):
-                return
-            await asyncio.sleep(1.0)
-    except asyncio.CancelledError:
-        pass
 
     @commands.command(name="flags", aliases=["gtf"], help="N3tik flag o goul lia chno smit dawla.")
     async def flags(self, ctx, *args):
