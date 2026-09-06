@@ -2,9 +2,10 @@ import time
 import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 import discord
 from discord.ext import commands
+from converters import FuzzyMember
 
 
 TAD_EMOJI = "<:TAD:1543808845728710686>"
@@ -153,7 +154,7 @@ class WalletsPaginationView(discord.ui.View):
 
 
 class WalletView(discord.ui.View):
-    def __init__(self, target_user: discord.Member, author: discord.Member, cog):
+    def __init__(self, target_user: Union[discord.Member, discord.User], author: Union[discord.Member, discord.User], cog):
         super().__init__(timeout=90)
         self.target_user = target_user
         self.author = author
@@ -329,7 +330,7 @@ class Economy(commands.Cog):
         await self.bot.db.commit()
         return True
 
-    async def get_wallet_embed(self, user: discord.Member) -> discord.Embed:
+    async def get_wallet_embed(self, user: Union[discord.Member, discord.User]) -> discord.Embed:
         w = await self.get_wallet(user.id)
         status_str = "🔒 **Frozen (Fraud)**" if w["is_fraud"] == 1 else "🟢 **Active**"
 
@@ -362,11 +363,15 @@ class Economy(commands.Cog):
         else:
             daily_val = f"⏳ Resets <t:{next_midnight_ts}:R>\n🔥 Streak: `{daily_streak}/7`"
 
-        if (now_ts - last_weekly) >= 604800:
+        current_week_start = (now_casa - timedelta(days=now_casa.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        current_week_start_ts = int(current_week_start.timestamp())
+        next_week_start = current_week_start + timedelta(days=7)
+        next_week_start_ts = int(next_week_start.timestamp())
+
+        if not last_weekly or last_weekly < current_week_start_ts:
             weekly_val = "✅ Available to claim"
         else:
-            next_weekly_ts = last_weekly + 604800
-            weekly_val = f"⏳ Resets <t:{next_weekly_ts}:R>"
+            weekly_val = f"⏳ Resets <t:{next_week_start_ts}:R>"
 
         embed = discord.Embed(
             title=f"💼 Bstam ta3 {user.display_name}",
@@ -379,7 +384,7 @@ class Economy(commands.Cog):
         embed.add_field(name="Weekly Reward", value=weekly_val, inline=False)
         return embed
 
-    async def get_transactions_embed(self, user: discord.Member, filter_mode: str = "all") -> discord.Embed:
+    async def get_transactions_embed(self, user: Union[discord.Member, discord.User], filter_mode: str = "all") -> discord.Embed:
         w = await self.get_wallet(user.id)
         if filter_mode == "plus":
             query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? AND amount > 0 ORDER BY created_at DESC LIMIT 6"
@@ -423,7 +428,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="wallet", aliases=["bstam", "money", "flous", "bztam", "balance", "bal", "cash", "wal"], help="Chouf ch7al 3ndek tlflous.")
     @not_fraud()
-    async def wallet(self, ctx: commands.Context, member: Optional[discord.Member] = None):
+    async def wallet(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         target = member or ctx.author
         embed = await self.get_wallet_embed(target)
         view = WalletView(target, ctx.author, self)
@@ -524,7 +529,8 @@ class Economy(commands.Cog):
         else:
             streak = 1
 
-        reward = 250 + (streak * 25)
+        streak_bonus = (streak - 1) * 250
+        reward = 1000 + streak_bonus
         new_bal = await self.add_balance(user_id, reward, context=f"Daily Reward (Streak {streak}x)")
 
         await self.bot.db.execute(
@@ -538,7 +544,7 @@ class Economy(commands.Cog):
             title="🎁 Daily Reward Claimed",
             description=(
                 f"Chediti {format_tad(reward)}!\n\n"
-                f"🔥 **Streak:** `{streak}/7` (+{streak*25} TAD)\n"
+                f"🔥 **Streak:** `{streak}/7` (+{streak_bonus} TAD)\n"
                 f"💰 **New Balance:** {format_tad(new_bal)}"
             ),
             color=0x000000
@@ -549,6 +555,7 @@ class Economy(commands.Cog):
     @not_fraud()
     async def weekly(self, ctx: commands.Context):
         now = int(time.time())
+        now_casa = datetime.now(CASA_TZ)
         user_id = ctx.author.id
 
         async with self.bot.db.execute(
@@ -558,20 +565,21 @@ class Economy(commands.Cog):
             row = await cursor.fetchone()
 
         last_weekly = row[0] if row else 0
-        diff = now - last_weekly
-        # 7 days = 604800s
-        if diff < 604800:
-            remaining = 604800 - diff
-            days = remaining // 86400
-            hours = (remaining % 86400) // 3600
-            next_weekly_ts = last_weekly + 604800
+
+        # Cooldown check: resets for everyone at Sunday midnight (00:00 Monday) Casablanca timezone
+        current_week_start = (now_casa - timedelta(days=now_casa.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        current_week_start_ts = int(current_week_start.timestamp())
+        next_week_start = current_week_start + timedelta(days=7)
+        next_week_start_ts = int(next_week_start.timestamp())
+
+        if last_weekly and last_weekly >= current_week_start_ts:
             await ctx.send(embed=discord.Embed(
-                description=f"⏳ Mazal ma wssl weekly ta3k!\nRje3 <t:{next_weekly_ts}:R> (**{days}d {hours}h**).",
+                description=f"⏳ Deja chditi weekly ta3 had simana.\nRje3 <t:{next_week_start_ts}:R>.",
                 color=0x000000
             ))
             return
 
-        reward = 1500
+        reward = 5000
         new_bal = await self.add_balance(user_id, reward, context="Weekly Reward")
 
         await self.bot.db.execute(

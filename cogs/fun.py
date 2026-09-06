@@ -15,6 +15,10 @@ from PIL import Image, ImageDraw, ImageFont
 import os
 import aiohttp
 import time
+import json
+import math
+import http.cookiejar
+import urllib.request
 
 from converters import FuzzyMember
 from assets.wordle_words import WORDLE_TARGETS
@@ -569,14 +573,14 @@ class ChessView(View):
         board_file = await self.generate_board_file()
         await interaction.response.edit_message(embed=self.build_embed(), attachments=[board_file], view=self)
 
-    @discord.ui.button(label="La3eb move", style=discord.ButtonStyle.primary, emoji="♟️")
+    @discord.ui.button(label="Move", style=discord.ButtonStyle.primary, emoji="♟️")
     async def move_button(self, interaction: discord.Interaction, button: Button):
         if not self.is_current_player(interaction.user):
             await interaction.response.send_message("Mashi nobtsek!", ephemeral=True)
             return
         await interaction.response.send_modal(MoveModal(self))
 
-    @discord.ui.button(label="Ta3adol", style=discord.ButtonStyle.secondary, emoji="🤝")
+    @discord.ui.button(label="Draw", style=discord.ButtonStyle.secondary, emoji="🤝")
     async def draw_button(self, interaction: discord.Interaction, button: Button):
         if interaction.user not in (self.player_white, self.player_black):
             await interaction.response.send_message("Nta mashi f had l match.", ephemeral=True)
@@ -600,7 +604,7 @@ class ChessView(View):
         else:
             await interaction.response.send_message("Deja drti l9tira7, tsnna lakhor ijawb.", ephemeral=True)
 
-    @discord.ui.button(label="Steslem", style=discord.ButtonStyle.danger, emoji="🏳️")
+    @discord.ui.button(label="Resign", style=discord.ButtonStyle.danger, emoji="🏳️")
     async def resign_button(self, interaction: discord.Interaction, button: Button):
         if interaction.user not in (self.player_white, self.player_black):
             await interaction.response.send_message("Nta mashi f had l match.", ephemeral=True)
@@ -2080,7 +2084,7 @@ class MinesweeperSoloView(View):
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             eco_msg = ""
             if economy_cog and len(self.revealed) > 0:
-                gross = min(15, max(5, len(self.revealed)))
+                gross = min(25, max(5, int(len(self.revealed) * 1.5)))
                 net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context="Minesweeper Participation")
                 eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD."
 
@@ -2105,8 +2109,8 @@ class MinesweeperSoloView(View):
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             eco_msg = ""
             if economy_cog:
-                net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 40, context="Minesweeper Clear")
-                eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 40 TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 150, context="Minesweeper Clear")
+                eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 150 TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                 if interaction.guild:
                     await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "minesweeper", earnings=net)
 
@@ -2192,11 +2196,11 @@ class MinesweeperMultiplayerView(View):
         if not economy_cog:
             return ""
 
-        winner_payout, tax_burned, draw_split = calculate_pvp_payout(self.bet)
+        winner_payout, tax_burned, _ = calculate_pvp_payout(self.bet)
         if is_draw or winner is None:
-            await economy_cog.add_balance(self.p1.id, draw_split, context="Minesweeper Draw Refund")
-            await economy_cog.add_balance(self.p2.id, draw_split, context="Minesweeper Draw Refund")
-            return f"\n\n🤝 **Draw Refund:** {format_tad(draw_split)} returned to each player."
+            await economy_cog.add_balance(self.p1.id, self.bet, context="Minesweeper Draw Refund")
+            await economy_cog.add_balance(self.p2.id, self.bet, context="Minesweeper Draw Refund")
+            return f"\n\n🤝 **Draw Refund:** {format_tad(self.bet)} returned to each player."
         else:
             loser = self.p2 if winner.id == self.p1.id else self.p1
             await economy_cog.add_balance(winner.id, winner_payout, context=f"Minesweeper Wager Win vs {loser.name}")
@@ -2516,14 +2520,14 @@ class WordleSoloView(View):
             if economy_cog:
                 if word == self.secret:
                     attempts = len(self.guesses)
-                    gross = 50 if attempts <= 2 else (35 if attempts <= 4 else 20)
+                    gross = 200 if attempts <= 2 else (100 if attempts <= 4 else 50)
                     net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Wordle Solo ({attempts}/6)")
                     eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "wordle", earnings=net)
                 else:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 5, context="Wordle Participation")
-                    eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD."
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 20, context="Wordle Participation")
+                    eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD (Gross: 20 TAD • 🔥 `{tax}` TAD burned)."
 
             content = self.get_content() + eco_msg
             await interaction.response.edit_message(content=content, view=self)
@@ -2616,11 +2620,11 @@ class WordleMultiplayerMatch:
         if not economy_cog:
             return ""
 
-        winner_payout, tax_burned, draw_split = calculate_pvp_payout(self.bet)
+        winner_payout, tax_burned, _ = calculate_pvp_payout(self.bet)
         if is_draw or winner is None:
-            await economy_cog.add_balance(self.p1.id, draw_split, context="Wordle Draw Refund")
-            await economy_cog.add_balance(self.p2.id, draw_split, context="Wordle Draw Refund")
-            return f"\n\n🤝 **Draw Refund:** {format_tad(draw_split)} returned to each player."
+            await economy_cog.add_balance(self.p1.id, self.bet, context="Wordle Draw Refund")
+            await economy_cog.add_balance(self.p2.id, self.bet, context="Wordle Draw Refund")
+            return f"\n\n🤝 **Draw Refund:** {format_tad(self.bet)} returned to each player."
         else:
             loser = self.p2 if winner.id == self.p1.id else self.p1
             await economy_cog.add_balance(winner.id, winner_payout, context=f"Wordle Wager Win vs {loser.name}")
@@ -3138,13 +3142,15 @@ class HangmanSoloView(View):
             eco_msg = ""
             if economy_cog:
                 if self.won:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 30, context="Hangman Solo Win")
-                    eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 30 TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                    lives_left = max(0, 6 - len(self.wrong_guesses))
+                    gross = 200 if lives_left >= 5 else (100 if lives_left >= 3 else 50)
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Hangman Solo ({lives_left}/6 HP)")
+                    eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "hangman", earnings=net)
                 else:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 5, context="Hangman Participation")
-                    eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD."
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 20, context="Hangman Participation")
+                    eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD (Gross: 20 TAD • 🔥 `{tax}` TAD burned)."
 
             content = self.get_content() + eco_msg
             await interaction.response.edit_message(content=content, view=self)
@@ -3234,11 +3240,11 @@ class HangmanMultiplayerMatch:
         if not economy_cog:
             return ""
 
-        winner_payout, tax_burned, draw_split = calculate_pvp_payout(self.bet)
+        winner_payout, tax_burned, _ = calculate_pvp_payout(self.bet)
         if is_draw or winner is None:
-            await economy_cog.add_balance(self.p1.id, draw_split, context="Hangman Draw Refund")
-            await economy_cog.add_balance(self.p2.id, draw_split, context="Hangman Draw Refund")
-            return f"\n\n🤝 **Draw Refund:** {format_tad(draw_split)} returned to each player."
+            await economy_cog.add_balance(self.p1.id, self.bet, context="Hangman Draw Refund")
+            await economy_cog.add_balance(self.p2.id, self.bet, context="Hangman Draw Refund")
+            return f"\n\n🤝 **Draw Refund:** {format_tad(self.bet)} returned to each player."
         else:
             loser = self.p2 if winner.id == self.p1.id else self.p1
             await economy_cog.add_balance(winner.id, winner_payout, context=f"Hangman Wager Win vs {loser.name}")
@@ -4707,6 +4713,8 @@ MINIGAME_DISPLAY_MAP = {
     "hangman": ("🪢 Hangman", ["hangman", "hm", "michna9a"]),
     "trivia": ("🧠 Trivia", ["trivia", "quiz", "as2ila"]),
     "typeracer": ("🏎️ TypeRacer", ["typeracer", "tr", "type", "monkeytype"]),
+    "geoguessr": ("🌍 GeoGuessr", ["geoguessr", "geo", "geoguesser", "geoguess"]),
+    "guesstherank": ("🎖️ GuessTheRank", ["guesstherank", "gtr", "guessrank"]),
 }
 
 class LeaderboardSelect(discord.ui.Select):
@@ -4955,6 +4963,416 @@ class MinigameDifficultyView(View):
             else:
                 await interaction.response.edit_message(view=self)
         return callback
+
+
+# ============ GEOGUESSR & GUESS THE RANK HELPERS ============
+
+GEOGUESSR_LOCATIONS = []
+COUNTRY_CENTROIDS = {}
+
+def _load_geoguessr_assets():
+    global GEOGUESSR_LOCATIONS, COUNTRY_CENTROIDS
+    if not GEOGUESSR_LOCATIONS:
+        loc_path = os.path.join("assets", "geoguessr_locations.json")
+        if os.path.exists(loc_path):
+            with open(loc_path, "r", encoding="utf-8") as f:
+                GEOGUESSR_LOCATIONS = json.load(f)
+    if not COUNTRY_CENTROIDS:
+        cent_path = os.path.join("assets", "country_centroids.json")
+        if os.path.exists(cent_path):
+            with open(cent_path, "r", encoding="utf-8") as f:
+                COUNTRY_CENTROIDS = json.load(f)
+
+def get_country_flag_emoji(code: str) -> str:
+    if not code or len(code) != 2:
+        return "🌍"
+    return "".join(chr(ord(c) + 127397) for c in code.upper())
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = math.sin(d_lat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+def resolve_country_guess(guess: str):
+    _load_geoguessr_assets()
+    if not guess:
+        return None
+    clean = normalize_country_text(guess)
+    if not clean:
+        return None
+    clean_no_spaces = clean.replace(" ", "")
+
+    # 1. Exact match on ISO code, country name, or alias
+    for code, data in COUNTRY_CENTROIDS.items():
+        if clean == code:
+            return {"code": code, "name": data["name"], "lat": data["lat"], "lon": data["lon"]}
+        c_name_norm = normalize_country_text(data.get("name", ""))
+        if clean == c_name_norm or clean_no_spaces == c_name_norm.replace(" ", ""):
+            return {"code": code, "name": data["name"], "lat": data["lat"], "lon": data["lon"]}
+        for alias in data.get("aliases", []):
+            norm_a = normalize_country_text(alias)
+            if clean == norm_a or clean_no_spaces == norm_a.replace(" ", ""):
+                return {"code": code, "name": data["name"], "lat": data["lat"], "lon": data["lon"]}
+
+    # 2. Fuzzy match across all country names and aliases
+    candidates = {}
+    for code, data in COUNTRY_CENTROIDS.items():
+        candidates[normalize_country_text(data["name"])] = code
+        for a in data.get("aliases", []):
+            candidates[normalize_country_text(a)] = code
+
+    best_match = None
+    best_ratio = 0.0
+    for cand_text, cand_code in candidates.items():
+        ratio = difflib.SequenceMatcher(None, clean, cand_text).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_match = cand_code
+
+    if best_ratio >= 0.82 and best_match:
+        cdata = COUNTRY_CENTROIDS[best_match]
+        return {"code": best_match, "name": cdata["name"], "lat": cdata["lat"], "lon": cdata["lon"]}
+
+    return None
+
+def calculate_geoguessr_proximity(target_code: str, target_lat: float, target_lon: float,
+                                   guessed_code: str, guessed_lat: float, guessed_lon: float):
+    if target_code.lower() == guessed_code.lower():
+        return 1.0, 0.0
+    dist = haversine_distance(target_lat, target_lon, guessed_lat, guessed_lon)
+    proximity = max(0.0, 1.0 - (dist / 5000.0))
+    return round(proximity, 4), dist
+
+async def get_geoguessr_round_location(pool: list, difficulty: str = None) -> dict:
+    if pool:
+        return pool.pop()
+    _load_geoguessr_assets()
+    filtered = [loc for loc in GEOGUESSR_LOCATIONS if difficulty is None or loc.get("difficulty") == difficulty]
+    if not filtered:
+        filtered = GEOGUESSR_LOCATIONS
+    return random.choice(filtered) if filtered else None
+
+GTR_GET_CLIP_ACTION = "65e6f3218d954bd1d692d0aeb3d80af7eb610f50"
+GTR_SUBMIT_ACTION = "a73bc4de975f06219fea583ec2d272901533bd75"
+
+GTR_GAMES = {
+    "rocketleague": {
+        "id": "rocketleague",
+        "name": "Rocket League",
+        "aliases": ["rl", "rocket"],
+        "emoji": "🚗",
+        "img_ext": "webp",
+        "rank_names": ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Champion", "Grand Champ", "SSL"]
+    },
+    "valorant": {
+        "id": "valorant",
+        "name": "Valorant",
+        "aliases": ["val", "valo"],
+        "emoji": "🎯",
+        "img_ext": "webp",
+        "rank_names": ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
+    },
+    "cs2": {
+        "id": "cs2",
+        "name": "Counter-Strike 2",
+        "aliases": ["cs", "csgo", "counterstrike"],
+        "emoji": "🔫",
+        "img_ext": "png",
+        "rank_names": ["0-4.9k", "5k-9.9k", "10k-14.9k", "15k-19.9k", "20k-24.9k", "25k-29.9k", "30k+"]
+    },
+    "leagueoflegends": {
+        "id": "leagueoflegends",
+        "name": "League of Legends",
+        "aliases": ["lol", "league"],
+        "emoji": "⚔️",
+        "img_ext": "webp",
+        "rank_names": ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Emerald", "Diamond", "Master", "Grandmaster"]
+    },
+    "overwatch": {
+        "id": "overwatch",
+        "name": "Overwatch",
+        "aliases": ["ow", "ow2"],
+        "emoji": "🛡️",
+        "img_ext": "webp",
+        "rank_names": ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master", "Grandmaster", "Champion"]
+    },
+    "apexlegends": {
+        "id": "apexlegends",
+        "name": "Apex Legends",
+        "aliases": ["apex"],
+        "emoji": "⚡",
+        "img_ext": "webp",
+        "rank_names": ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master", "Predator"]
+    },
+    "r6": {
+        "id": "r6",
+        "name": "Rainbow Six Siege",
+        "aliases": ["siege", "rainbowsix"],
+        "emoji": "💣",
+        "img_ext": "png",
+        "rank_names": ["Copper", "Bronze", "Silver", "Gold", "Platinum", "Emerald", "Diamond", "Champion"]
+    },
+    "fortnite": {
+        "id": "fortnite",
+        "name": "Fortnite",
+        "aliases": ["fn"],
+        "emoji": "🪂",
+        "img_ext": "webp",
+        "rank_names": ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Elite", "Champion", "Unreal"]
+    }
+}
+
+def _gtr_session_sync(game_id: str):
+    cj = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+    req0 = urllib.request.Request(
+        f"https://guesstherank.org/{game_id}",
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    )
+    opener.open(req0, timeout=10)
+    return opener
+
+def _gtr_get_clip_sync(opener, game_id: str):
+    req = urllib.request.Request(
+        f"https://guesstherank.org/{game_id}",
+        data=json.dumps([game_id]).encode("utf-8"),
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Next-Action": GTR_GET_CLIP_ACTION,
+            "Content-Type": "text/plain;charset=UTF-8",
+            "Accept": "text/x-component"
+        }
+    )
+    with opener.open(req, timeout=10) as resp:
+        text = resp.read().decode("utf-8", errors="ignore")
+        for line in text.split("\n"):
+            if line.startswith("1:"):
+                return json.loads(line[2:])
+    return None
+
+def _gtr_submit_guess_sync(opener, game_id: str, clip_id: str, guessed_rank: int, time_taken: int = 10):
+    payload = [{
+        "clipId": clip_id,
+        "guessedRank": guessed_rank,
+        "gameId": game_id,
+        "timeTaken": time_taken
+    }]
+    req = urllib.request.Request(
+        f"https://guesstherank.org/{game_id}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Next-Action": GTR_SUBMIT_ACTION,
+            "Content-Type": "text/plain;charset=UTF-8",
+            "Accept": "text/x-component"
+        }
+    )
+    with opener.open(req, timeout=10) as resp:
+        text = resp.read().decode("utf-8", errors="ignore")
+        for line in text.split("\n"):
+            if line.startswith("1:"):
+                return json.loads(line[2:])
+    return None
+
+class GuessTheRankView(discord.ui.View):
+    def __init__(self, author: discord.User, cog, game_info: dict, opener, clip_data: dict):
+        super().__init__(timeout=90)
+        self.author = author
+        self.cog = cog
+        self.game_info = game_info
+        self.opener = opener
+        self.clip_data = clip_data
+        self.message = None
+        self.guessed = False
+        self._build_buttons()
+
+    def _build_buttons(self):
+        self.clear_items()
+        ranks = self.game_info["rank_names"]
+        row_split = 4 if len(ranks) == 8 else 5
+        for idx, rank_name in enumerate(ranks, start=1):
+            row_idx = 0 if (idx - 1) < row_split else 1
+            btn = discord.ui.Button(
+                label=rank_name,
+                style=discord.ButtonStyle.secondary,
+                custom_id=f"gtr_{idx}",
+                row=row_idx
+            )
+            btn.callback = self._make_guess_callback(idx, rank_name)
+            self.add_item(btn)
+
+    def _make_guess_callback(self, rank_idx: int, rank_label: str):
+        async def callback(interaction: discord.Interaction):
+            if interaction.user.id != self.author.id:
+                await interaction.response.send_message("❌ Gher li lana had lgame li y9ed yguessi!", ephemeral=True)
+                return
+            if self.guessed:
+                return
+            self.guessed = True
+            await interaction.response.defer()
+
+            res = await asyncio.to_thread(
+                _gtr_submit_guess_sync,
+                self.opener,
+                self.game_info["id"],
+                self.clip_data["clipId"],
+                rank_idx,
+                10
+            )
+
+            if not res:
+                await interaction.followup.send("❌ Tra chy mochkil f submit dial guess.", ephemeral=True)
+                return
+
+            actual_rank_idx = res.get("actualRank", 0)
+            points_earned = res.get("pointsEarned", 0)
+            ranks = self.game_info["rank_names"]
+            actual_rank_name = ranks[actual_rank_idx - 1] if (1 <= actual_rank_idx <= len(ranks)) else f"Rank {actual_rank_idx}"
+
+            eco_msg = ""
+            economy_cog = self.cog.bot.get_cog("Economy")
+            if points_earned > 0 and economy_cog:
+                tad_payout = 100 if points_earned == 100 else 50
+                net, tax = await economy_cog.apply_tax_and_add_balance(
+                    self.author.id,
+                    tad_payout,
+                    context=f"GuessTheRank ({self.game_info['name']}) Win"
+                )
+                eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (🔥 `{tax:,}` TAD tax burned)!"
+                if interaction.guild:
+                    await self.cog.record_minigame_win(interaction.guild.id, self.author.id, "guesstherank", earnings=net)
+
+            if points_earned == 100:
+                outcome_header = f"🎯 **EXACT GUESS! Mhyeeeb! (+100 pts)**"
+            elif points_earned == 50:
+                outcome_header = f"🤏 **CLOSE! Gher b rank w7da! (+50 pts)**"
+            else:
+                outcome_header = f"❌ **WRONG GUESS! Majbtihach.**"
+
+            rank_icon_ext = self.game_info.get("img_ext", "webp")
+            rank_icon_url = f"https://guesstherank.org/images/ranks/{self.game_info['id']}/{self.game_info['id']}_{actual_rank_idx}.{rank_icon_ext}"
+
+            embed = discord.Embed(
+                title=f"{self.game_info['emoji']} Guess The Rank — {self.game_info['name']}",
+                description=(
+                    f"{outcome_header}{eco_msg}\n\n"
+                    f"🎮 Lkhtiyar dialek: **{rank_label}**\n"
+                    f"🏆 Actual Rank: **{actual_rank_name}**"
+                ),
+                color=0x000000
+            )
+            embed.set_thumbnail(url=rank_icon_url)
+            embed.set_footer(text="GuessTheRank.org • Clicki ▶️ Next Clip bach tkemmel")
+
+            self.clear_items()
+            next_btn = discord.ui.Button(label="▶️ Next Clip", style=discord.ButtonStyle.success)
+            quit_btn = discord.ui.Button(label="❌ Quit", style=discord.ButtonStyle.danger)
+
+            async def next_callback(next_interaction: discord.Interaction):
+                if next_interaction.user.id != self.author.id:
+                    await next_interaction.response.send_message("❌ Gher mol lgame li y9ed ykemmel!", ephemeral=True)
+                    return
+                await next_interaction.response.defer()
+                new_clip = await asyncio.to_thread(_gtr_get_clip_sync, self.opener, self.game_info["id"])
+                if not new_clip:
+                    await next_interaction.followup.send("❌ Mal9itch clip jdid f had lwe9t.", ephemeral=True)
+                    return
+                new_view = GuessTheRankView(self.author, self.cog, self.game_info, self.opener, new_clip)
+                new_content = (
+                    f"**{self.game_info['emoji']} Guess The Rank — {self.game_info['name']}**\n"
+                    f"https://www.youtube.com/watch?v={new_clip['youtubeId']}\n\n"
+                    f"-# Exact Guess: **+100** TAD, 1 Rank Off: **+50** TAD"
+                )
+                msg = await next_interaction.edit_original_response(
+                    content=new_content,
+                    embed=None,
+                    view=new_view
+                )
+                new_view.message = msg
+
+            async def quit_callback(quit_interaction: discord.Interaction):
+                if quit_interaction.user.id != self.author.id:
+                    return
+                self.clear_items()
+                await quit_interaction.response.edit_message(view=None)
+                self.stop()
+
+            next_btn.callback = next_callback
+            quit_btn.callback = quit_callback
+            self.add_item(next_btn)
+            self.add_item(quit_btn)
+
+            await interaction.edit_original_response(content=None, embed=embed, view=self)
+
+        return callback
+
+class GuessTheRankSelectView(discord.ui.View):
+    def __init__(self, author: discord.User, cog):
+        super().__init__(timeout=60)
+        self.author = author
+        self.cog = cog
+        self.message = None
+
+        options = []
+        for gid, gdata in GTR_GAMES.items():
+            options.append(
+                discord.SelectOption(
+                    label=gdata["name"],
+                    value=gid,
+                    emoji=gdata["emoji"],
+                    description=f"Guess the {gdata['name']} rank."
+                )
+            )
+
+        select = discord.ui.Select(
+            placeholder="🎮 Khtar game bach tl3b...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+        select.callback = self._select_callback
+        self.add_item(select)
+
+    async def _select_callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Gher li lana had l'amr li y9ed yakhtar lgame!", ephemeral=True)
+            return
+
+        selected_gid = interaction.data["values"][0]
+        target_game = GTR_GAMES.get(selected_gid)
+        if not target_game:
+            await interaction.response.send_message("❌ Game invalid.", ephemeral=True)
+            return
+
+        self.clear_items()
+        await interaction.response.edit_message(
+            content=f"⏳ Kansift request l **GuessTheRank.org** bach njib clip dial **{target_game['name']}**...",
+            embed=None,
+            view=None
+        )
+
+        try:
+            opener = await asyncio.to_thread(_gtr_session_sync, target_game["id"])
+            clip = await asyncio.to_thread(_gtr_get_clip_sync, opener, target_game["id"])
+        except Exception as e:
+            await interaction.followup.send(f"❌ Tra chy mochkil f fetching dial clip: `{e}`")
+            return
+
+        if not clip:
+            await interaction.followup.send("❌ Mal9itch clip f had lwe9t. 3awed jereb mn b3d.")
+            return
+
+        view = GuessTheRankView(self.author, self.cog, target_game, opener, clip)
+        content = (
+            f"**{target_game['emoji']} Guess The Rank — {target_game['name']}**\n"
+            f"https://www.youtube.com/watch?v={clip['youtubeId']}\n\n"
+            f"-# Exact Guess: **+100** TAD, 1 Rank Off: **+50** TAD"
+        )
+        msg = await interaction.edit_original_response(content=content, embed=None, view=view)
+        view.message = msg
 
 
 # ============ MAIN COG ============
@@ -6908,6 +7326,371 @@ class Fun(commands.Cog):
         else:
             msg = await ctx.send(embed=embed, view=view)
         view.message = msg
+
+    @commands.command(name="geoguessr", aliases=["geo", "geoguesser", "geoguess"], help="Khssk t3rf dawla mn tswira.")
+    async def geoguessr(self, ctx: commands.Context, *args):
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=40, default_difficulty="medium")
+        diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
+
+        _load_geoguessr_assets()
+        if not GEOGUESSR_LOCATIONS:
+            await ctx.send("❌ Mal9itch locations database dial GeoGuessr.")
+            return
+
+        pool = [loc for loc in GEOGUESSR_LOCATIONS if loc.get("difficulty") == difficulty]
+        if not pool:
+            pool = list(GEOGUESSR_LOCATIONS)
+        random.shuffle(pool)
+
+        join_emoji = "✅"
+        start_ts = int(time.time() + 21)
+        signup_embed = discord.Embed(
+            title="🌍 GeoGuessr Challenge!",
+            description=(
+                f"Clicki 3la {join_emoji} bach tdkhel lgame.\n"
+                f"• Minimum 1 player (Solo wla Multiplayer!)\n"
+                f"• Guess the **Country**: Kteb gher smit ddawla f chat!\n"
+                f"• Proximity system: `round_stake = proximity * 50 TAD`\n\n"
+                f"Starts: <t:{start_ts}:R>\n"
+                f"Time per round: **{round_duration}s**\n"
+                f"Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)"
+            ),
+            color=0x000000
+        )
+        diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
+        signup_msg = await ctx.send(embed=signup_embed, view=diff_view)
+        await signup_msg.add_reaction(join_emoji)
+
+        await asyncio.sleep(19)
+
+        difficulty = diff_view.difficulty
+        diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
+        diff_view.stop()
+
+        signup_msg = await ctx.channel.fetch_message(signup_msg.id)
+        reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
+
+        players = []
+        if reaction:
+            async for user in reaction.users():
+                if not user.bot:
+                    players.append(user)
+
+        if not players:
+            await ctx.send("❌ 7ed madkhel l GeoGuessr. Game t'annula.")
+            return
+
+        total_rounds = min(5, len(pool))
+        is_solo = (len(players) == 1)
+
+        if is_solo:
+            player = players[0]
+            await ctx.send(f"🎮 **Solo GeoGuessr:** {player.mention} 3ndek **{total_rounds} rounds**! Kteb smit **dawla** f chat!.")
+            total_round_stakes = 0.0
+            round_history = []
+
+            for r in range(1, total_rounds + 1):
+                loc = await get_geoguessr_round_location(pool, difficulty)
+                if not loc:
+                    break
+                target_code = loc.get("code", "")
+                target_country = loc["country"]
+                target_lat = loc["lat"]
+                target_lon = loc["lon"]
+                target_flag = get_country_flag_emoji(target_code)
+
+                round_embed = discord.Embed(
+                    title=f"🌍 Round {r}/{total_rounds} — Guess the country!",
+                    description=(
+                        f"Kteb smit **dawla** f chat!\n"
+                        f"⌛ Time: **{round_duration}s**"
+                    ),
+                    color=0x000000
+                )
+                round_embed.set_image(url=loc["image_url"])
+                round_embed.set_footer(text=f"GeoGuessr Solo • Round {r}/{total_rounds} • Difficulty: {difficulty.upper()}")
+                round_msg = await ctx.send(embed=round_embed)
+
+                def check(m):
+                    return m.author.id == player.id and m.channel.id == ctx.channel.id
+
+                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+                start_time = time.time()
+                guessed = False
+                guess_data = None
+
+                while time.time() - start_time < round_duration:
+                    time_left = round_duration - (time.time() - start_time)
+                    if time_left <= 0:
+                        break
+                    try:
+                        m = await self.bot.wait_for("message", check=check, timeout=time_left)
+                        if m.content.strip().lower() == "exitgame":
+                            if not countdown_task.done():
+                                countdown_task.cancel()
+                            await ctx.send(f"🚪 {player.mention} khrej mn lgame.")
+                            return
+
+                        cguess = resolve_country_guess(m.content)
+                        if cguess:
+                            proximity, dist = calculate_geoguessr_proximity(
+                                target_code, target_lat, target_lon,
+                                cguess["code"], cguess["lat"], cguess["lon"]
+                            )
+                            round_stake = proximity * 50
+                            guess_data = (cguess, proximity, dist, round_stake)
+                            guessed = True
+                            if not countdown_task.done():
+                                countdown_task.cancel()
+                            await m.add_reaction("📍")
+                            break
+                        else:
+                            await m.reply("❌ Mal9itch had ddawla :/.", delete_after=4)
+                    except asyncio.TimeoutError:
+                        break
+
+                if not countdown_task.done():
+                    countdown_task.cancel()
+
+                maps_link = f"https://www.google.com/maps/@{target_lat},{target_lon},6z"
+                if guessed and guess_data:
+                    cguess, proximity, dist, round_stake = guess_data
+                    total_round_stakes += round_stake
+                    round_history.append((loc, cguess["name"], proximity, dist, round_stake))
+
+                    if proximity >= 1.0:
+                        header = f"🎯 **EXACT COUNTRY! Nta Naadi!**"
+                        prox_str = "**100%** (Dawla s7i7a!)"
+                    else:
+                        header = f"📍 **Target: {target_flag} {target_country}**"
+                        prox_str = f"**{proximity*100:.1f}%** ({dist:,.0f} km b3id)"
+
+                    res_embed = discord.Embed(
+                        title=f"{target_flag} Round {r} Result — {target_country}",
+                        description=(
+                            f"{header}\n\n"
+                            f"🎮 Lkhtiyar dialek: **{cguess['name']}**\n"
+                            f"📏 Proximity: {prox_str}\n"
+                            f"💰 Round Stake: **+{round_stake:.1f} TAD**\n\n"
+                            f"🗺️ **[Choufha f Google Maps]({maps_link})**"
+                        ),
+                        color=0x000000
+                    )
+                else:
+                    round_history.append((loc, "None", 0.0, 20000, 0.0))
+                    res_embed = discord.Embed(
+                        title=f"⏰ Time Out! Real Country: {target_flag} {target_country}",
+                        description=(
+                            f"Majawbtich f lwe9t! Proximity: **0%**\n"
+                            f"💰 Round Stake: **+0 TAD**\n\n"
+                            f"🗺️ **[Choufha f Google Maps]({maps_link})**"
+                        ),
+                        color=0x000000
+                    )
+                res_embed.set_thumbnail(url=loc["image_url"])
+                await ctx.send(embed=res_embed)
+                await asyncio.sleep(4)
+
+            economy_cog = self.bot.get_cog("Economy")
+            eco_msg = ""
+            gross = int(round(50 * 1 + total_round_stakes * diff_mult))
+            if economy_cog and total_round_stakes > 0:
+                net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="GeoGuessr Solo")
+                eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (Gross: {gross:,} TAD • 🔥 `{tax:,}` TAD tax burned)!"
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, player.id, "geoguessr", earnings=net)
+
+            summary_embed = discord.Embed(
+                title="🏆 GeoGuessr Solo Results!",
+                description=(
+                    f"Bravo {player.mention}! Total Stakes: **{total_round_stakes:.1f} TAD** (Difficulty: **{difficulty.upper()} {diff_mult}x**)!{eco_msg}\n\n"
+                    f"**Round Breakdown:**\n"
+                    + "\n".join([f"• Round {idx+1}: **{h[0]['country']}** — {h[1]} ({h[2]*100:.0f}% prox, +{h[4]:.1f} TAD)" for idx, h in enumerate(round_history)])
+                ),
+                color=0x000000
+            )
+            await ctx.send(embed=summary_embed)
+
+        else:
+            player_mentions = ", ".join(p.mention for p in players)
+            await ctx.send(f"🎮 **Multiplayer GeoGuessr:** {player_mentions}!\n• **{total_rounds} rounds**\n• Kul wa7ed 3ndo **1 guess** f round (smit **dawla**!)\n• L9rib l dawla kaydi a3la round stake (max 50 TAD)!")
+
+            player_stakes = {p.id: 0.0 for p in players}
+
+            for r in range(1, total_rounds + 1):
+                loc = await get_geoguessr_round_location(pool, difficulty)
+                if not loc:
+                    break
+                target_code = loc.get("code", "")
+                target_country = loc["country"]
+                target_lat = loc["lat"]
+                target_lon = loc["lon"]
+                target_flag = get_country_flag_emoji(target_code)
+
+                round_embed = discord.Embed(
+                    title=f"🌍 Round {r}/{total_rounds} — Guess the country!",
+                    description=(
+                        f"Kul wa7ed 3ndo **1 guess**! Kteb smit **dawla** f chat.\n"
+                        f"⌛ Time: **{round_duration}s**"
+                    ),
+                    color=0x000000
+                )
+                round_embed.set_image(url=loc["image_url"])
+                round_embed.set_footer(text=f"GeoGuessr Multi • Round {r}/{total_rounds} • Difficulty: {difficulty.upper()}")
+                round_msg = await ctx.send(embed=round_embed)
+
+                guesses = {}
+                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+                start_time = time.time()
+
+                while time.time() - start_time < round_duration:
+                    time_left = round_duration - (time.time() - start_time)
+                    if time_left <= 0:
+                        break
+                    try:
+                        def check_m(m):
+                            return (
+                                any(m.author.id == p.id for p in players)
+                                and m.author.id not in guesses
+                                and m.channel.id == ctx.channel.id
+                            )
+                        m = await self.bot.wait_for("message", check=check_m, timeout=time_left)
+                        cguess = resolve_country_guess(m.content)
+                        if cguess:
+                            proximity, dist = calculate_geoguessr_proximity(
+                                target_code, target_lat, target_lon,
+                                cguess["code"], cguess["lat"], cguess["lon"]
+                            )
+                            round_stake = proximity * 50
+                            guesses[m.author.id] = (cguess, proximity, dist, round_stake)
+                            player_stakes[m.author.id] += round_stake
+                            await m.add_reaction("✅")
+                            if len(guesses) >= len(players):
+                                if not countdown_task.done():
+                                    countdown_task.cancel()
+                                break
+                        else:
+                            await m.reply("❌ Mal9itch had ddawla, 3awed kteb smia n9iya!", delete_after=4)
+                    except asyncio.TimeoutError:
+                        break
+
+                if not countdown_task.done():
+                    countdown_task.cancel()
+
+                maps_link = f"https://www.google.com/maps/@{target_lat},{target_lon},6z"
+
+                if guesses:
+                    sorted_guesses = sorted(guesses.items(), key=lambda item: item[1][1], reverse=True)
+                    round_winner_id, round_winner_data = sorted_guesses[0]
+                    round_winner_user = discord.utils.get(players, id=round_winner_id)
+
+                    guess_lines = []
+                    for rank_num, (pid, pdata) in enumerate(sorted_guesses, 1):
+                        puser = discord.utils.get(players, id=pid)
+                        pname = puser.display_name if puser else f"Player {pid}"
+                        cguess, prox, dist, stake = pdata
+                        guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (`{prox*100:.1f}% prox`, +{stake:.1f} TAD)")
+
+                    res_embed = discord.Embed(
+                        title=f"{target_flag} Round {r} Target: {target_country}",
+                        description=(
+                            f"🏆 **Top Guess f had round:** {round_winner_user.mention if round_winner_user else 'Unknown'}!\n\n"
+                            f"📊 **All Guesses:**\n" + "\n".join(guess_lines) + f"\n\n🗺️ **[Google Maps]({maps_link})**"
+                        ),
+                        color=0x000000
+                    )
+                else:
+                    res_embed = discord.Embed(
+                        title=f"⏰ Round {r} Real Country: {target_flag} {target_country}",
+                        description=f"7ed majawb f had round!\n\n🗺️ **[Google Maps]({maps_link})**",
+                        color=0x000000
+                    )
+                res_embed.set_thumbnail(url=loc["image_url"])
+                await ctx.send(embed=res_embed)
+                await asyncio.sleep(4)
+
+            sorted_stakes = sorted(player_stakes.items(), key=lambda x: x[1], reverse=True)
+            top_winner_id, top_stake = sorted_stakes[0]
+            top_winner = discord.utils.get(players, id=top_winner_id)
+
+            economy_cog = self.bot.get_cog("Economy")
+            eco_msg = ""
+            gross = int(round(50 * len(players) + top_stake * diff_mult))
+            if economy_cog and top_stake > 0 and top_winner:
+                net, tax = await economy_cog.apply_tax_and_add_balance(top_winner.id, gross, context="GeoGuessr Multiplayer Win")
+                eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (Gross: {gross:,} TAD • 🔥 `{tax:,}` TAD tax burned)!"
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, top_winner.id, "geoguessr", earnings=net)
+
+            leaderboard_lines = []
+            for rank_pos, (pid, pstake) in enumerate(sorted_stakes, 1):
+                puser = discord.utils.get(players, id=pid)
+                pname = puser.display_name if puser else f"Player {pid}"
+                leaderboard_lines.append(f"**#{rank_pos}** {pname}: **{pstake:.1f} TAD stakes**")
+
+            final_embed = discord.Embed(
+                title="🏆 GeoGuessr Match Ended!",
+                description=(
+                    f"🥇 **Lba6al:** {top_winner.mention if top_winner else 'Unknown'} b **{top_stake:.1f} TAD stakes**!{eco_msg}\n\n"
+                    f"📈 **Final Scoreboard:**\n" + "\n".join(leaderboard_lines)
+                ),
+                color=0x000000
+            )
+            await ctx.send(embed=final_embed)
+
+
+    @commands.command(name="guesstherank", aliases=["gtr", "guessrank"], help="9edder rank dial clip f games bhal Rocket League, Valorant, CS2, etc.")
+    async def guesstherank(self, ctx: commands.Context, *, game: str = None):
+        if not game:
+            embed = discord.Embed(
+                title="🎖️ Guess The Rank — Khtar Game",
+                description=(
+                    "Khtar lgame li bghiti tguessi fiha rank mn dropdown lte7t! 🎮\n\n"
+                    "• Exact Guess: **+100 TAD**\n"
+                    "• 1 Rank Off: **+50 TAD**"
+                ),
+                color=0x000000
+            )
+            embed.set_footer(text="GuessTheRank.org • Khtar game bach tbda")
+            select_view = GuessTheRankSelectView(ctx.author, self)
+            msg = await ctx.send(embed=embed, view=select_view)
+            select_view.message = msg
+            return
+
+        g_clean = game.strip().lower().replace(" ", "").replace("-", "")
+        target_game = None
+
+        for gid, gdata in GTR_GAMES.items():
+            if g_clean == gid or g_clean in gdata["aliases"] or g_clean == gdata["name"].lower().replace(" ", ""):
+                target_game = gdata
+                break
+
+        if not target_game:
+            valid_list = " • ".join([f"{g['emoji']} `{g['id']}` ({g['name']})" for g in GTR_GAMES.values()])
+            await ctx.send(f"❌ Makaynch had lgame. Games li kaynin:\n{valid_list}")
+            return
+
+        wait_msg = await ctx.send(f"⏳ Kansift request l **GuessTheRank.org** bach njib clip dial **{target_game['name']}**...")
+
+        try:
+            opener = await asyncio.to_thread(_gtr_session_sync, target_game["id"])
+            clip = await asyncio.to_thread(_gtr_get_clip_sync, opener, target_game["id"])
+        except Exception as e:
+            await wait_msg.edit(content=f"❌ Tra chy mochkil f fetching dial clip: `{e}`")
+            return
+
+        if not clip:
+            await wait_msg.edit(content="❌ Mal9itch clip f had lwe9t. 3awed jereb mn b3d.")
+            return
+
+        view = GuessTheRankView(ctx.author, self, target_game, opener, clip)
+        content = (
+            f"**{target_game['emoji']} Guess The Rank — {target_game['name']}**\n"
+            f"https://www.youtube.com/watch?v={clip['youtubeId']}\n\n"
+            f"-# Exact Guess: **+100** TAD, 1 Rank Off: **+50** TAD"
+        )
+        await wait_msg.edit(content=content, embed=None, view=view)
+        view.message = wait_msg
 
 
 async def setup(bot):

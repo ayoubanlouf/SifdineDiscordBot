@@ -1,0 +1,4855 @@
+{
+  "aw": {
+    "name": "Aruba",
+    "lat": 12.5,
+    "lon": -69.9667,
+    "aliases": [
+      "abw",
+      "aru",
+      "aruba",
+      "aw"
+    ]
+  },
+  "af": {
+    "name": "Afghanistan",
+    "lat": 33.0,
+    "lon": 65.0,
+    "aliases": [
+      "af",
+      "afeganisto",
+      "afg",
+      "afganistn",
+      "afghanistan",
+      "afnistn",
+      "islamic republic of afghanistan",
+      "islamische republik afghanistan",
+      "repubblica islamica dellafghanistan",
+      "repblica islmica de afganistn",
+      "repblica islmica do afeganisto",
+      "rpublique islamique dafghanistan"
+    ]
+  },
+  "ao": {
+    "name": "Angola",
+    "lat": -12.5,
+    "lon": 18.5,
+    "aliases": [
+      "ago",
+      "ang",
+      "angola",
+      "ao",
+      "repubblica dellangola",
+      "republic of angola",
+      "republik angola",
+      "repblica de angola",
+      "rpublique dangola",
+      "publika de anla"
+    ]
+  },
+  "ai": {
+    "name": "Anguilla",
+    "lat": 18.25,
+    "lon": -63.1667,
+    "aliases": [
+      "ai",
+      "aia",
+      "anguila",
+      "anguilla"
+    ]
+  },
+  "ax": {
+    "name": "Åland Islands",
+    "lat": 60.1167,
+    "lon": 19.9,
+    "aliases": [
+      "aaland",
+      "ahvenanmaa",
+      "ala",
+      "aland",
+      "alandia",
+      "alndia",
+      "ax",
+      "ilhas land",
+      "islas land",
+      "isole aland",
+      "isole land",
+      "land",
+      "land islands",
+      "landinseln"
+    ]
+  },
+  "al": {
+    "name": "Albania",
+    "lat": 41.0,
+    "lon": 20.0,
+    "aliases": [
+      "al",
+      "alb",
+      "albania",
+      "albanie",
+      "albanien",
+      "albnia",
+      "repubblica dalbania",
+      "republic of albania",
+      "republik albanien",
+      "repblica da albnia",
+      "repblica de albania",
+      "rpublique dalbanie",
+      "shqipnia",
+      "shqipri",
+      "shqipria"
+    ]
+  },
+  "ad": {
+    "name": "Andorra",
+    "lat": 42.5,
+    "lon": 1.5,
+    "aliases": [
+      "ad",
+      "and",
+      "andorra",
+      "andorre",
+      "frstentum andorra",
+      "principado de andorra",
+      "principality of andorra",
+      "principat dandorra",
+      "principato di andorra",
+      "principaut dandorre"
+    ]
+  },
+  "ae": {
+    "name": "United Arab Emirates",
+    "lat": 24.0,
+    "lon": 54.0,
+    "aliases": [
+      "abu dhabi",
+      "ae",
+      "al imarat",
+      "are",
+      "dubai",
+      "emarate",
+      "emirados rabes unidos",
+      "emirates",
+      "emirati arabi uniti",
+      "emiratos rabes unidos",
+      "imarat",
+      "limarat",
+      "uae",
+      "united arab emirates",
+      "vereinigte arabische emirate",
+      "mirats arabes unis"
+    ]
+  },
+  "ar": {
+    "name": "Argentina",
+    "lat": -34.0,
+    "lon": -64.0,
+    "aliases": [
+      "ar",
+      "arg",
+      "argentina",
+      "argentine",
+      "argentine republic",
+      "argentinien",
+      "argentinische republik",
+      "larjantin",
+      "repubblica argentina",
+      "repblica argentina",
+      "rpublique argentine"
+    ]
+  },
+  "am": {
+    "name": "Armenia",
+    "lat": 40.0,
+    "lon": 45.0,
+    "aliases": [
+      "am",
+      "arm",
+      "armenia",
+      "armenien",
+      "armnia",
+      "armnie",
+      "hayastan",
+      "repubblica di armenia",
+      "republic of armenia",
+      "republik armenien",
+      "repblica da armnia",
+      "repblica de armenia",
+      "rpublique darmnie"
+    ]
+  },
+  "as": {
+    "name": "American Samoa",
+    "lat": -14.3333,
+    "lon": -170.0,
+    "aliases": [
+      "amelika smoa",
+      "american samoa",
+      "amerika smoa",
+      "amerikanischsamoa",
+      "as",
+      "asa",
+      "asm",
+      "samoa americana",
+      "samoa americane",
+      "samoa amricaines",
+      "smoa amelika"
+    ]
+  },
+  "aq": {
+    "name": "Antarctica",
+    "lat": -90.0,
+    "lon": 0.0,
+    "aliases": [
+      "antarctica",
+      "antarctique",
+      "antarktika",
+      "antarktis",
+      "antartide",
+      "antrtica",
+      "antrtida",
+      "aq",
+      "ata"
+    ]
+  },
+  "tf": {
+    "name": "French Southern and Antarctic Lands",
+    "lat": -49.25,
+    "lon": 69.167,
+    "aliases": [
+      "atf",
+      "franzsische sd und antarktisgebiete",
+      "french southern and antarctic lands",
+      "french southern territories",
+      "gebiet der franzsisch sd und antarktisgebiete",
+      "terras austrais e antrticas francesas",
+      "terres australes et antarctiques franaises",
+      "territoire des terres australes et antarctiques franaises",
+      "territori francesi del sud",
+      "territorio del francs tierras australes y antrticas",
+      "territorio della australi e antartiche francesi terre",
+      "territory of the french southern and antarctic lands",
+      "territrio do sul e antrtica francesa",
+      "tf",
+      "tierras australes y antrticas francesas"
+    ]
+  },
+  "ag": {
+    "name": "Antigua and Barbuda",
+    "lat": 17.05,
+    "lon": -61.8,
+    "aliases": [
+      "ag",
+      "ant",
+      "antigua etbarbuda",
+      "antigua and barbuda",
+      "antigua e barbuda",
+      "antigua und barbuda",
+      "antigua y barbuda",
+      "antiguaetbarbuda",
+      "antgua e barbuda",
+      "atg"
+    ]
+  },
+  "au": {
+    "name": "Australia",
+    "lat": -27.0,
+    "lon": 133.0,
+    "aliases": [
+      "au",
+      "aus",
+      "australia",
+      "australie",
+      "australien",
+      "austrlia",
+      "commonwealth australien",
+      "commonwealth dellaustralia",
+      "commonwealth of australia",
+      "comunidade da austrlia",
+      "mancomunidad de australia",
+      "ostralia"
+    ]
+  },
+  "at": {
+    "name": "Austria",
+    "lat": 47.3333,
+    "lon": 13.3333,
+    "aliases": [
+      "at",
+      "austria",
+      "aut",
+      "autriche",
+      "namsa",
+      "nnamsa",
+      "oesterreich",
+      "osterreich",
+      "repubblica daustria",
+      "republic of austria",
+      "republik sterreich",
+      "repblica da ustria",
+      "repblica de austria",
+      "rpublique dautriche",
+      "ustria",
+      "sterreich"
+    ]
+  },
+  "az": {
+    "name": "Azerbaijan",
+    "lat": 40.5,
+    "lon": 47.5,
+    "aliases": [
+      "aserbaidschan",
+      "az",
+      "aze",
+      "azerbaijan",
+      "azerbaiyn",
+      "azerbadjan",
+      "azerbeijo",
+      "azrbaycan respublikas",
+      "repubblica dellazerbaigian",
+      "republic of azerbaijan",
+      "republik aserbaidschan",
+      "repblica de azerbaiyn",
+      "repblica do azerbaijo",
+      "rpublique dazerbadjan"
+    ]
+  },
+  "bi": {
+    "name": "Burundi",
+    "lat": -3.5,
+    "lon": 30.0,
+    "aliases": [
+      "bdi",
+      "bi",
+      "burundi",
+      "repubblica del burundi",
+      "republic of burundi",
+      "republik burundi",
+      "republika yuburundi",
+      "repblica de burundi",
+      "repblica do burundi",
+      "rpublique du burundi"
+    ]
+  },
+  "be": {
+    "name": "Belgium",
+    "lat": 50.8333,
+    "lon": 4.0,
+    "aliases": [
+      "be",
+      "bel",
+      "belgie",
+      "belgien",
+      "belgio",
+      "belgique",
+      "belgium",
+      "belgi",
+      "beljika",
+      "blgica",
+      "kingdom of belgium",
+      "koninkrijk belgi",
+      "knigreich belgien",
+      "regno del belgio",
+      "reino da blgica",
+      "reino de blgica",
+      "royaume de belgique"
+    ]
+  },
+  "bj": {
+    "name": "Benin",
+    "lat": 9.5,
+    "lon": 2.25,
+    "aliases": [
+      "ben",
+      "benin",
+      "benn",
+      "bj",
+      "bnin",
+      "repubblica del benin",
+      "republic of benin",
+      "republik benin",
+      "repblica de benin",
+      "repblica do benin",
+      "rpublique du bnin"
+    ]
+  },
+  "bf": {
+    "name": "Burkina Faso",
+    "lat": 13.0,
+    "lon": -2.0,
+    "aliases": [
+      "bf",
+      "bfa",
+      "bur",
+      "burkina faso",
+      "rpublique du burkina"
+    ]
+  },
+  "bd": {
+    "name": "Bangladesh",
+    "lat": 24.0,
+    "lon": 90.0,
+    "aliases": [
+      "ban",
+      "bangladesch",
+      "bangladesh",
+      "bd",
+      "bgd",
+      "gnprjatntri bangladesh",
+      "la rpublique populaire du bangladesh",
+      "peoples republic of bangladesh",
+      "repubblica popolare del bangladesh",
+      "repblica popular de bangladesh",
+      "repblica popular do bangladesh",
+      "volksrepublik bangladesch"
+    ]
+  },
+  "bg": {
+    "name": "Bulgaria",
+    "lat": 43.0,
+    "lon": 25.0,
+    "aliases": [
+      "bg",
+      "bgr",
+      "bul",
+      "bulgaria",
+      "bulgarie",
+      "bulgarien",
+      "bulgria",
+      "repubblica di bulgaria",
+      "republic of bulgaria",
+      "republik bulgarien",
+      "repblica da bulgria",
+      "repblica de bulgaria",
+      "rpublique de bulgarie"
+    ]
+  },
+  "bh": {
+    "name": "Bahrain",
+    "lat": 26.0,
+    "lon": 50.55,
+    "aliases": [
+      "bahrain",
+      "bahrein",
+      "bahren",
+      "bh",
+      "bhr",
+      "brn",
+      "kingdom of bahrain",
+      "knigreich bahrain",
+      "mamlakat albarayn",
+      "regno del bahrain",
+      "reino de bahrein",
+      "reino do bahrein",
+      "royaume de bahren"
+    ]
+  },
+  "bs": {
+    "name": "Bahamas",
+    "lat": 24.25,
+    "lon": -76.0,
+    "aliases": [
+      "bah",
+      "bahamas",
+      "bhs",
+      "bs",
+      "commonwealth de las bahamas",
+      "commonwealth delle bahamas",
+      "commonwealth der bahamas",
+      "commonwealth des bahamas",
+      "commonwealth of the bahamas",
+      "comunidade das bahamas"
+    ]
+  },
+  "ba": {
+    "name": "Bosnia and Herzegovina",
+    "lat": 44.0,
+    "lon": 18.0,
+    "aliases": [
+      "ba",
+      "bih",
+      "bosnia and herzegovina",
+      "bosnia ed erzegovina",
+      "bosnia y herzegovina",
+      "bosniaerzegovina",
+      "bosniaherzegovina",
+      "bosnieetherzgovine",
+      "bosnieherzgovine",
+      "bosnien und herzegowina",
+      "bsnia e herzegovina"
+    ]
+  },
+  "bl": {
+    "name": "Saint Barthélemy",
+    "lat": 18.5,
+    "lon": -63.4167,
+    "aliases": [
+      "antille francesi",
+      "bl",
+      "blm",
+      "colectividad de san barthlemy",
+      "coletividade de saint barthlemy",
+      "collectivity of saint barthlemy",
+      "collectivit de saintbarthlemy",
+      "collettivit di saint barthlemy",
+      "gebietskrperschaft saintbarthlemy",
+      "saint barthlemy",
+      "saintbarthlemy",
+      "san bartolom",
+      "st barthelemy",
+      "so bartolomeu"
+    ]
+  },
+  "sh": {
+    "name": "Saint Helena, Ascension and Tristan da Cunha",
+    "lat": -15.95,
+    "lon": -5.72,
+    "aliases": [
+      "saint helena",
+      "saint helena ascension and tristan da cunha",
+      "saintehlne ascension et tristan da cunha",
+      "sankt helena ascension und tristan da cunha",
+      "santelena ascensione e tristan da cunha",
+      "santa elena ascensin y tristn de acua",
+      "santa helena ascenso e tristo da cunha",
+      "sh",
+      "shn",
+      "st helena ascension and tristan da cunha",
+      "st helena ascension und tristan da cunha"
+    ]
+  },
+  "by": {
+    "name": "Belarus",
+    "lat": 53.0,
+    "lon": 28.0,
+    "aliases": [
+      "belarus",
+      "bielaru",
+      "bielorrusia",
+      "bielorussia",
+      "bielorssia",
+      "bilorussie",
+      "blr",
+      "by",
+      "repubblica di belarus",
+      "republic of belarus",
+      "republik belarus",
+      "repblica da bielorrssia",
+      "repblica de belars",
+      "rpublique de bilorussie"
+    ]
+  },
+  "bz": {
+    "name": "Belize",
+    "lat": 17.25,
+    "lon": -88.75,
+    "aliases": [
+      "belice",
+      "belize",
+      "biz",
+      "blz",
+      "bz"
+    ]
+  },
+  "bm": {
+    "name": "Bermuda",
+    "lat": 32.3333,
+    "lon": -64.75,
+    "aliases": [
+      "ber",
+      "bermuda",
+      "bermudas",
+      "bermudes",
+      "bm",
+      "bmu",
+      "somers isles",
+      "the bermudas",
+      "the islands of bermuda"
+    ]
+  },
+  "bo": {
+    "name": "Bolivia",
+    "lat": -17.0,
+    "lon": -65.0,
+    "aliases": [
+      "bo",
+      "bol",
+      "bolivia",
+      "bolivia plurinational state of",
+      "bolivie",
+      "bolivien",
+      "bolvia",
+      "buliwya",
+      "buliwya mamallaqta",
+      "estado plurinacional da bolvia",
+      "estado plurinacional de bolivia",
+      "plurinational state of bolivia",
+      "plurinationaler staat bolivien",
+      "stato plurinazionale della bolivia",
+      "tet volvia",
+      "wuliwya",
+      "wuliwya suyu",
+      "tat plurinational de bolivie"
+    ]
+  },
+  "bq": {
+    "name": "Caribbean Netherlands",
+    "lat": 12.18,
+    "lon": -68.25,
+    "aliases": [
+      "bes",
+      "bes islands",
+      "bonaire sint eustatius and saba",
+      "bonaire saba e santo eustquio",
+      "bonaire sainteustache et saba",
+      "bonaire san eustaquio y saba",
+      "bonaire sint eustatius e saba",
+      "bonaire sint eustatius und saba",
+      "bq",
+      "caribbean netherlands",
+      "caribe neerlands",
+      "karibische niederlande",
+      "paesi bassi caraibici",
+      "paysbas caribens",
+      "pases baixos caribenhos"
+    ]
+  },
+  "br": {
+    "name": "Brazil",
+    "lat": -10.0,
+    "lon": -55.0,
+    "aliases": [
+      "br",
+      "bra",
+      "brasil",
+      "brasile",
+      "brasilien",
+      "brazil",
+      "bresil",
+      "brizil",
+      "brsil",
+      "federative republic of brazil",
+      "fderative republik brasilien",
+      "lbrazil",
+      "repubblica federativa del brasile",
+      "repblica federativa del brasil",
+      "repblica federativa do brasil",
+      "rpublique fdrative du brsil"
+    ]
+  },
+  "bb": {
+    "name": "Barbados",
+    "lat": 13.1667,
+    "lon": -59.5333,
+    "aliases": [
+      "bar",
+      "barbade",
+      "barbados",
+      "bb",
+      "brb"
+    ]
+  },
+  "bn": {
+    "name": "Brunei",
+    "lat": 4.5,
+    "lon": 114.6667,
+    "aliases": [
+      "bn",
+      "brn",
+      "bru",
+      "brunei",
+      "brunei darussalam",
+      "nacin de brunei morada de la paz",
+      "nation of brunei",
+      "nation of brunei abode of peace",
+      "nazione di brunei dimora della pace",
+      "nao do brunei morada da paz",
+      "sultanat brunei darussalam",
+      "the abode of peace",
+      "tat de brunei darussalam"
+    ]
+  },
+  "bt": {
+    "name": "Bhutan",
+    "lat": 27.5,
+    "lon": 90.5,
+    "aliases": [
+      "bhoutan",
+      "bhu",
+      "bhutan",
+      "bt",
+      "btn",
+      "butn",
+      "buto",
+      "kingdom of bhutan",
+      "knigreich bhutan",
+      "regno del bhutan",
+      "reino de butn",
+      "reino do buto",
+      "royaume du bhoutan"
+    ]
+  },
+  "bv": {
+    "name": "Bouvet Island",
+    "lat": -54.4333,
+    "lon": 3.4,
+    "aliases": [
+      "bouvet island",
+      "bouvetya",
+      "bouvetinsel",
+      "bv",
+      "bvt",
+      "ilha bouvet",
+      "isla bouvet",
+      "isola bouvet",
+      "le bouvet"
+    ]
+  },
+  "bw": {
+    "name": "Botswana",
+    "lat": -22.0,
+    "lon": 24.0,
+    "aliases": [
+      "bot",
+      "botswana",
+      "bw",
+      "bwa",
+      "lefatshe la botswana",
+      "repubblica del botswana",
+      "republic of botswana",
+      "republik botsuana",
+      "repblica de botswana",
+      "repblica do botswana",
+      "rpublique du botswana"
+    ]
+  },
+  "cf": {
+    "name": "Central African Republic",
+    "lat": 7.0,
+    "lon": 21.0,
+    "aliases": [
+      "caf",
+      "central african republic",
+      "cf",
+      "repubblica centrafricana",
+      "repblica centroafricana",
+      "repblica centroafricano",
+      "rpublique centrafricaine",
+      "zentralafrikanische republik"
+    ]
+  },
+  "ca": {
+    "name": "Canada",
+    "lat": 60.0,
+    "lon": -95.0,
+    "aliases": [
+      "ca",
+      "can",
+      "canada",
+      "canad",
+      "kanada"
+    ]
+  },
+  "cc": {
+    "name": "Cocos (Keeling) Islands",
+    "lat": -12.5,
+    "lon": 96.8333,
+    "aliases": [
+      "cc",
+      "cck",
+      "cocos keeling islands",
+      "cocos islands",
+      "gebiet der kokos keeling inseln",
+      "ilhas cocos keeling",
+      "islas cocos o islas keeling",
+      "isole cocos e keeling",
+      "keeling islands",
+      "kokosinseln",
+      "territoire des les cocos keeling",
+      "territorio de los keeling islas cocos",
+      "territorio della keeling isole cocos",
+      "territory of the cocos keeling islands",
+      "territrio dos cocos keeling",
+      "les cocos"
+    ]
+  },
+  "ch": {
+    "name": "Switzerland",
+    "lat": 47.0,
+    "lon": 8.0,
+    "aliases": [
+      "ch",
+      "che",
+      "confederacin suiza",
+      "confederazione svizzera",
+      "confederao sua",
+      "confdration suisse",
+      "schweiz",
+      "schweizerische eidgenossenschaft",
+      "sui",
+      "suisse",
+      "suiza",
+      "sua",
+      "svizra",
+      "svizzera",
+      "swisra",
+      "swiss confederation",
+      "switzerland"
+    ]
+  },
+  "cl": {
+    "name": "Chile",
+    "lat": -30.0,
+    "lon": -71.0,
+    "aliases": [
+      "chi",
+      "chile",
+      "chili",
+      "chl",
+      "cile",
+      "cl",
+      "repubblica del cile",
+      "republic of chile",
+      "republik chile",
+      "repblica de chile",
+      "repblica do chile",
+      "rpublique du chili",
+      "tchili"
+    ]
+  },
+  "cn": {
+    "name": "China",
+    "lat": 35.0,
+    "lon": 105.0,
+    "aliases": [
+      "al sin",
+      "cchinwa",
+      "china",
+      "chine",
+      "chinwa",
+      "chn",
+      "cina",
+      "cn",
+      "peoples republic of china",
+      "repubblica popolare cinese",
+      "repblica popular da china",
+      "repblica popular de china",
+      "rpublique populaire de chine",
+      "sin",
+      "volksrepublik china",
+      "zhongguo",
+      "zhonghua",
+      "zhnggu",
+      "zhnghu rnmn gnghgu"
+    ]
+  },
+  "ci": {
+    "name": "Ivory Coast",
+    "lat": 8.0,
+    "lon": -5.0,
+    "aliases": [
+      "ci",
+      "civ",
+      "costa davorio",
+      "costa de marfil",
+      "costa do marfim",
+      "cote d ivoire",
+      "cote divoire",
+      "cte divoire",
+      "ivory coast",
+      "repubblica della costa davorio",
+      "republic of cte divoire",
+      "republik cte divoire",
+      "repblica da cte divoire",
+      "repblica de cte divoire",
+      "rpublique de cte d ivoire",
+      "rpublique de cte divoire"
+    ]
+  },
+  "cm": {
+    "name": "Cameroon",
+    "lat": 6.0,
+    "lon": 12.0,
+    "aliases": [
+      "camares",
+      "cameroon",
+      "cameroun",
+      "camerun",
+      "camern",
+      "cm",
+      "cmr",
+      "kamerun",
+      "repubblica del camerun",
+      "republic of cameroon",
+      "republik kamerun",
+      "repblica de camern",
+      "repblica dos camares",
+      "rpublique du cameroun"
+    ]
+  },
+  "cd": {
+    "name": "DR Congo",
+    "lat": 0.0,
+    "lon": 25.0,
+    "aliases": [
+      "cd",
+      "cod",
+      "congo rep dem",
+      "congo rp dm",
+      "congo the democratic republic of the",
+      "congokinshasa",
+      "democratic republic of congo",
+      "democratic republic of the congo",
+      "demokratische republik kongo",
+      "dr congo",
+      "drc",
+      "kongo dem rep",
+      "repubblica democratica del congo",
+      "repblica democrtica del congo",
+      "repblica democrtica do congo",
+      "rpublique dmocratique du congo"
+    ]
+  },
+  "cg": {
+    "name": "Congo",
+    "lat": -1.0,
+    "lon": 15.0,
+    "aliases": [
+      "cg",
+      "cgo",
+      "cog",
+      "congo",
+      "congobrazzaville",
+      "kongo",
+      "repubblica del congo",
+      "republic of the congo",
+      "republik kongo",
+      "repblica del congo",
+      "repblica do congo",
+      "rpublique du congo"
+    ]
+  },
+  "ck": {
+    "name": "Cook Islands",
+    "lat": -21.2333,
+    "lon": -159.7667,
+    "aliases": [
+      "ck",
+      "cok",
+      "cook islands",
+      "cookinseln",
+      "ilhas cook",
+      "islas cook",
+      "isole cook",
+      "kki irani",
+      "les cook"
+    ]
+  },
+  "co": {
+    "name": "Colombia",
+    "lat": 4.0,
+    "lon": -72.0,
+    "aliases": [
+      "co",
+      "col",
+      "colombia",
+      "colombie",
+      "colmbia",
+      "kolombia",
+      "kolumbien",
+      "repubblica di colombia",
+      "republic of colombia",
+      "republik kolumbien",
+      "repblica da colmbia",
+      "repblica de colombia",
+      "rpublique de colombie"
+    ]
+  },
+  "km": {
+    "name": "Comoros",
+    "lat": -12.1667,
+    "lon": 44.25,
+    "aliases": [
+      "alittid alqumur",
+      "com",
+      "comoras",
+      "comore",
+      "comores",
+      "comoros",
+      "km",
+      "komoren",
+      "udzima wa komori",
+      "union der komoren",
+      "union des comores",
+      "union of the comoros",
+      "unione delle comore",
+      "unio das comores",
+      "unin de las comoras"
+    ]
+  },
+  "cv": {
+    "name": "Cape Verde",
+    "lat": 16.0,
+    "lon": -24.0,
+    "aliases": [
+      "cabo verde",
+      "cape verde",
+      "capo verde",
+      "cpv",
+      "cv",
+      "kap verde",
+      "repubblica di capo verde",
+      "republic of cabo verde",
+      "republik cabo verde",
+      "repblica de cabo verde",
+      "rpublique du capvert",
+      "les du capvert"
+    ]
+  },
+  "cr": {
+    "name": "Costa Rica",
+    "lat": 10.0,
+    "lon": -84.0,
+    "aliases": [
+      "costa rica",
+      "cr",
+      "crc",
+      "cri",
+      "repubblica di costa rica",
+      "republic of costa rica",
+      "republik costa rica",
+      "repblica da costa rica",
+      "repblica de costa rica",
+      "rpublique du costa rica"
+    ]
+  },
+  "cu": {
+    "name": "Cuba",
+    "lat": 21.5,
+    "lon": -80.0,
+    "aliases": [
+      "cu",
+      "cub",
+      "cuba",
+      "kuba",
+      "repubblica di cuba",
+      "republic of cuba",
+      "republik kuba",
+      "repblica de cuba",
+      "rpublique de cuba"
+    ]
+  },
+  "cw": {
+    "name": "Curaçao",
+    "lat": 12.1167,
+    "lon": -68.9333,
+    "aliases": [
+      "country of curaao",
+      "curacao",
+      "curazao",
+      "curaao",
+      "cuw",
+      "cw",
+      "ilha da curao",
+      "krsou",
+      "land curaao",
+      "paese di curaao",
+      "pais krsou",
+      "pays de curaao",
+      "pas de curazao",
+      "pas de curaao"
+    ]
+  },
+  "cx": {
+    "name": "Christmas Island",
+    "lat": -10.5,
+    "lon": 105.6667,
+    "aliases": [
+      "christmas island",
+      "cx",
+      "cxr",
+      "gebiet der weihnachtsinsel",
+      "ilha do natal",
+      "isla de navidad",
+      "isola di natale",
+      "territoire de lle christmas",
+      "territorio de la isla de navidad",
+      "territorio di christmas island",
+      "territory of christmas island",
+      "territrio da ilha christmas",
+      "weihnachtsinsel",
+      "le christmas"
+    ]
+  },
+  "ky": {
+    "name": "Cayman Islands",
+    "lat": 19.5,
+    "lon": -80.5,
+    "aliases": [
+      "cay",
+      "cayman islands",
+      "caymaninseln",
+      "cym",
+      "ilhas caimo",
+      "ilhas cayman",
+      "islas caimn",
+      "isole cayman",
+      "kaimaninseln",
+      "ky",
+      "les camans"
+    ]
+  },
+  "cy": {
+    "name": "Cyprus",
+    "lat": 35.0,
+    "lon": 33.0,
+    "aliases": [
+      "chipre",
+      "chypre",
+      "cipro",
+      "cy",
+      "cyp",
+      "cyprus",
+      "kpros",
+      "kbrs",
+      "kbrs cumhuriyeti",
+      "repubblica di cipro",
+      "republic of cyprus",
+      "republik zypern",
+      "repblica de chipre",
+      "rpublique de chypre",
+      "zypern"
+    ]
+  },
+  "cz": {
+    "name": "Czechia",
+    "lat": 49.75,
+    "lon": 15.5,
+    "aliases": [
+      "cechia",
+      "chequia",
+      "chquia",
+      "cz",
+      "cze",
+      "czech republic",
+      "czechia",
+      "repubblica ceca",
+      "republique tcheque",
+      "repblica checa",
+      "rpublique tchque",
+      "tcheque",
+      "tchquie",
+      "tschechien",
+      "tschechische republik",
+      "esko",
+      "esk republika"
+    ]
+  },
+  "de": {
+    "name": "Germany",
+    "lat": 51.0,
+    "lon": 9.0,
+    "aliases": [
+      "alemanha",
+      "alemania",
+      "allemagne",
+      "almania",
+      "bundesrepublik deutschland",
+      "de",
+      "deu",
+      "deutschland",
+      "federal republic of germany",
+      "ger",
+      "germania",
+      "germany",
+      "lalman",
+      "repubblica federale di germania",
+      "repblica federal da alemanha",
+      "repblica federal de alemania",
+      "rpublique fdrale dallemagne"
+    ]
+  },
+  "dj": {
+    "name": "Djibouti",
+    "lat": 11.5,
+    "lon": 43.0,
+    "aliases": [
+      "dj",
+      "dji",
+      "djibouti",
+      "dschibuti",
+      "gabuuti",
+      "gabuutih ummuuno",
+      "gibuti",
+      "jabuuti",
+      "jamhuuriyadda jabuuti",
+      "repubblica di gibuti",
+      "republic of djibouti",
+      "republik dschibuti",
+      "repblica de djibouti",
+      "repblica do djibouti",
+      "rpublique de djibouti"
+    ]
+  },
+  "dm": {
+    "name": "Dominica",
+    "lat": 15.4167,
+    "lon": -61.3333,
+    "aliases": [
+      "commonwealth de la dominique",
+      "commonwealth di dominica",
+      "commonwealth of dominica",
+      "commonwealth von dominica",
+      "comunidade da dominica",
+      "dm",
+      "dma",
+      "dominica",
+      "dominique",
+      "mancomunidad de dominica",
+      "waitu kubuli"
+    ]
+  },
+  "dk": {
+    "name": "Denmark",
+    "lat": 56.0,
+    "lon": 10.0,
+    "aliases": [
+      "danemark",
+      "danimarca",
+      "danmark",
+      "den",
+      "denmark",
+      "dinamarca",
+      "dk",
+      "dnk",
+      "dnemark",
+      "kingdom of denmark",
+      "kongeriget danmark",
+      "knigreich dnemark",
+      "regno di danimarca",
+      "reino da dinamarca",
+      "reino de dinamarca",
+      "royaume du danemark"
+    ]
+  },
+  "do": {
+    "name": "Dominican Republic",
+    "lat": 19.0,
+    "lon": -70.6667,
+    "aliases": [
+      "do",
+      "dom",
+      "dominican republic",
+      "dominikanische republik",
+      "repubblica dominicana",
+      "repblica dominicana",
+      "rpublique dominicaine"
+    ]
+  },
+  "dz": {
+    "name": "Algeria",
+    "lat": 28.0,
+    "lon": 3.0,
+    "aliases": [
+      "al jazair",
+      "alg",
+      "algeria",
+      "algerie",
+      "algerien",
+      "algrie",
+      "argelia",
+      "arglia",
+      "demokratische volksrepublik algerien",
+      "djazaer",
+      "dz",
+      "dza",
+      "dzayer",
+      "lzzayer",
+      "peoples democratic republic of algeria",
+      "repubblica popolare democratica di algeria",
+      "repblica argelina democrtica e popular",
+      "repblica argelina democrtica y popular",
+      "rpublique dmocratique et populaire dalgrie"
+    ]
+  },
+  "ec": {
+    "name": "Ecuador",
+    "lat": -2.0,
+    "lon": -77.5,
+    "aliases": [
+      "ec",
+      "ecu",
+      "ecuador",
+      "equador",
+      "repubblica dellecuador",
+      "republic of ecuador",
+      "republik ecuador",
+      "repblica del ecuador",
+      "repblica do equador",
+      "rpublique de lquateur",
+      "quateur"
+    ]
+  },
+  "eg": {
+    "name": "Egypt",
+    "lat": 27.0,
+    "lon": 30.0,
+    "aliases": [
+      "arab republic of egypt",
+      "arabische republik gypten",
+      "eg",
+      "egipto",
+      "egito",
+      "egitto",
+      "egy",
+      "egypt",
+      "egypte",
+      "masr",
+      "massr",
+      "misr",
+      "repubblica araba degitto",
+      "repblica rabe de egipto",
+      "repblica rabe do egipto",
+      "rpublique arabe dgypte",
+      "gypten",
+      "gypte"
+    ]
+  },
+  "er": {
+    "name": "Eritrea",
+    "lat": 15.0,
+    "lon": 39.0,
+    "aliases": [
+      "dawlat iritriy",
+      "er",
+      "eri",
+      "eritrea",
+      "eritreia",
+      "estado da eritreia",
+      "estado de eritrea",
+      "iritriy",
+      "staat eritrea",
+      "state of eritrea",
+      "stato di eritrea",
+      "rythre",
+      "tat drythre",
+      "ertr"
+    ]
+  },
+  "eh": {
+    "name": "Western Sahara",
+    "lat": 24.5,
+    "lon": -13.0,
+    "aliases": [
+      "demokratische arabische republik sahara",
+      "eh",
+      "esh",
+      "repubblica araba saharawi democratica",
+      "repblica rabe saharaui democrtica",
+      "rpublique arabe sahraouie dmocratique",
+      "saara ocidental",
+      "sahara occidental",
+      "sahara occidentale",
+      "sahrawi arab democratic republic",
+      "taneroft tutrimt",
+      "western sahara",
+      "westsahara"
+    ]
+  },
+  "es": {
+    "name": "Spain",
+    "lat": 40.0,
+    "lon": -4.0,
+    "aliases": [
+      "es",
+      "esp",
+      "espagne",
+      "espana",
+      "espanha",
+      "espaa",
+      "isbania",
+      "isbanya",
+      "kingdom of spain",
+      "knigreich spanien",
+      "regno di spagna",
+      "reino de espanha",
+      "reino de espaa",
+      "royaume despagne",
+      "sbanya",
+      "spagna",
+      "spain",
+      "spanien"
+    ]
+  },
+  "ee": {
+    "name": "Estonia",
+    "lat": 59.0,
+    "lon": 26.0,
+    "aliases": [
+      "ee",
+      "eesti",
+      "eesti vabariik",
+      "est",
+      "estland",
+      "estonia",
+      "estonie",
+      "estnia",
+      "repubblica di estonia",
+      "republic of estonia",
+      "republik estland",
+      "repblica da estnia",
+      "repblica de estonia",
+      "rpublique destonie"
+    ]
+  },
+  "et": {
+    "name": "Ethiopia",
+    "lat": 8.0,
+    "lon": 38.0,
+    "aliases": [
+      "demokratische bundesrepublik thiopien",
+      "et",
+      "eth",
+      "ethiopia",
+      "etiopia",
+      "etiopa",
+      "etipia",
+      "federal democratic republic of ethiopia",
+      "repubblica federale democratica di etiopia",
+      "repblica democrtica federal de etiopa",
+      "repblica federal democrtica da etipia",
+      "rpublique fdrale dmocratique dthiopie",
+      "thiopien",
+      "thiopie",
+      "tyy"
+    ]
+  },
+  "fi": {
+    "name": "Finland",
+    "lat": 64.0,
+    "lon": 26.0,
+    "aliases": [
+      "fi",
+      "fin",
+      "finland",
+      "finlanda",
+      "finlande",
+      "finlandia",
+      "finlndia",
+      "finnland",
+      "repubblica di finlandia",
+      "republic of finland",
+      "republik finnland",
+      "republiken finland",
+      "repblica da finlndia",
+      "repblica de finlandia",
+      "rpublique de finlande",
+      "suomen tasavalta",
+      "suomi"
+    ]
+  },
+  "fj": {
+    "name": "Fiji",
+    "lat": -18.0,
+    "lon": 175.0,
+    "aliases": [
+      "fidji",
+      "fidschi",
+      "figi",
+      "fij",
+      "fiji",
+      "fij gaarjya",
+      "fiyi",
+      "fj",
+      "fji",
+      "matanitu ko viti",
+      "repubblica di figi",
+      "republic of fiji",
+      "republik fidschi",
+      "repblica de fiji",
+      "rpublique des fidji",
+      "viti"
+    ]
+  },
+  "fk": {
+    "name": "Falkland Islands",
+    "lat": -51.75,
+    "lon": -59.0,
+    "aliases": [
+      "falkland islands",
+      "falkland islands malvinas",
+      "falklandinseln",
+      "fk",
+      "flk",
+      "ilhas malvinas",
+      "islas malvinas",
+      "isole falkland",
+      "isole falkland o isole malvine",
+      "les malouines"
+    ]
+  },
+  "fr": {
+    "name": "France",
+    "lat": 46.0,
+    "lon": 2.0,
+    "aliases": [
+      "fr",
+      "fra",
+      "france",
+      "francia",
+      "frankreich",
+      "fransa",
+      "franzsische republik",
+      "frana",
+      "french republic",
+      "la france",
+      "repubblica francese",
+      "repblica francesa",
+      "repblica francs",
+      "rpublique franaise"
+    ]
+  },
+  "fo": {
+    "name": "Faroe Islands",
+    "lat": 62.0,
+    "lon": -7.0,
+    "aliases": [
+      "faeroe islands",
+      "faroe islands",
+      "fo",
+      "fro",
+      "frer",
+      "frerinseln",
+      "frerne",
+      "froyar",
+      "ilhas faroe",
+      "ilhas faro",
+      "islas faroe",
+      "islas feroe",
+      "isole far oer",
+      "isole faroe",
+      "les fro"
+    ]
+  },
+  "fm": {
+    "name": "Micronesia",
+    "lat": 6.9167,
+    "lon": 158.25,
+    "aliases": [
+      "estados federados da micronsia",
+      "estados federados de micronesia",
+      "federated states of micronesia",
+      "fm",
+      "fsm",
+      "fderierte staaten von mikronesien",
+      "micronesia",
+      "micronesia federated states of",
+      "micronsia",
+      "micronsie",
+      "mikronesien",
+      "stati federati di micronesia",
+      "tats fdrs de micronsie"
+    ]
+  },
+  "ga": {
+    "name": "Gabon",
+    "lat": -1.0,
+    "lon": 11.75,
+    "aliases": [
+      "ga",
+      "gab",
+      "gabon",
+      "gabonese republic",
+      "gabun",
+      "gabunische republik",
+      "gabo",
+      "gabn",
+      "repubblica gabonese",
+      "repblica de gabn",
+      "repblica do gabo",
+      "rpublique gabonaise"
+    ]
+  },
+  "gb": {
+    "name": "United Kingdom",
+    "lat": 54.0,
+    "lon": -2.0,
+    "aliases": [
+      "angleterre",
+      "britain",
+      "england",
+      "gb",
+      "gbr",
+      "great britain",
+      "langleterre",
+      "lengliz",
+      "negriz",
+      "nglize",
+      "regno unito",
+      "regno unito di gran bretagna e irlanda del nord",
+      "reino unido",
+      "reino unido da grbretanha e irlanda do norte",
+      "reino unido de gran bretaa e irlanda del norte",
+      "royaumeuni",
+      "royaumeuni de grandebretagne et dirlande du nord",
+      "uk",
+      "united kingdom",
+      "united kingdom of great britain and northern ireland",
+      "vereinigtes knigreich",
+      "vereinigtes knigreich grobritannien und nordirland"
+    ]
+  },
+  "ge": {
+    "name": "Georgia",
+    "lat": 42.0,
+    "lon": 43.5,
+    "aliases": [
+      "ge",
+      "geo",
+      "georgia",
+      "georgien",
+      "gergia",
+      "gorgie",
+      "rpublique de gorgie",
+      "sakartvelo"
+    ]
+  },
+  "gg": {
+    "name": "Guernsey",
+    "lat": 49.4667,
+    "lon": -2.5833,
+    "aliases": [
+      "bailiado de guernsey",
+      "bailiwick of guernsey",
+      "bailliage de guernesey",
+      "baila de guernsey",
+      "baliato di guernsey",
+      "gg",
+      "ggy",
+      "guernesey",
+      "guernsey",
+      "vogtei guernsey"
+    ]
+  },
+  "gh": {
+    "name": "Ghana",
+    "lat": 8.0,
+    "lon": -2.0,
+    "aliases": [
+      "gana",
+      "gh",
+      "gha",
+      "ghana",
+      "repubblica del ghana",
+      "republic of ghana",
+      "republik ghana",
+      "repblica de ghana",
+      "repblica do gana",
+      "rpublique du ghana"
+    ]
+  },
+  "gi": {
+    "name": "Gibraltar",
+    "lat": 36.1333,
+    "lon": -5.35,
+    "aliases": [
+      "gi",
+      "gib",
+      "gibilterra",
+      "gibraltar"
+    ]
+  },
+  "gn": {
+    "name": "Guinea",
+    "lat": 11.0,
+    "lon": -10.0,
+    "aliases": [
+      "gin",
+      "gn",
+      "gui",
+      "guinea",
+      "guin",
+      "guine",
+      "repubblica di guinea",
+      "republic of guinea",
+      "republik guinea",
+      "repblica da guin",
+      "repblica de guinea",
+      "rpublique de guine"
+    ]
+  },
+  "gp": {
+    "name": "Guadeloupe",
+    "lat": 16.25,
+    "lon": -61.5833,
+    "aliases": [
+      "glp",
+      "gp",
+      "guadalupe",
+      "guadeloupa",
+      "guadeloupe",
+      "gwadloup"
+    ]
+  },
+  "gm": {
+    "name": "Gambia",
+    "lat": 13.4667,
+    "lon": -16.5667,
+    "aliases": [
+      "gam",
+      "gambia",
+      "gambie",
+      "gm",
+      "gmb",
+      "gmbia",
+      "repubblica del gambia",
+      "republic of the gambia",
+      "republik gambia",
+      "repblica da gmbia",
+      "repblica de gambia",
+      "rpublique de gambie"
+    ]
+  },
+  "gw": {
+    "name": "Guinea-Bissau",
+    "lat": 12.0,
+    "lon": -15.0,
+    "aliases": [
+      "gbs",
+      "gnb",
+      "guineabissau",
+      "guineabisu",
+      "guinbissau",
+      "guinebissau",
+      "gw",
+      "repubblica di guineabissau",
+      "republic of guineabissau",
+      "republik guineabissau",
+      "repblica da guinbissau",
+      "repblica de guineabissau",
+      "rpublique de guinebissau"
+    ]
+  },
+  "gq": {
+    "name": "Equatorial Guinea",
+    "lat": 2.0,
+    "lon": 10.0,
+    "aliases": [
+      "equatorial guinea",
+      "geq",
+      "gnq",
+      "gq",
+      "guinea ecuatorial",
+      "guinea equatoriale",
+      "guin equatorial",
+      "guine quatoriale",
+      "repubblica della guinea equatoriale",
+      "republic of equatorial guinea",
+      "republik quatorialguinea",
+      "repblica da guin equatorial",
+      "repblica de guinea ecuatorial",
+      "rpublique de guine quatoriale",
+      "quatorialguinea"
+    ]
+  },
+  "gr": {
+    "name": "Greece",
+    "lat": 39.0,
+    "lon": 22.0,
+    "aliases": [
+      "ellda",
+      "gr",
+      "grc",
+      "gre",
+      "grece",
+      "grecia",
+      "greece",
+      "griechenland",
+      "grce",
+      "grcia",
+      "hellas",
+      "hellenic republic",
+      "hellenische republik",
+      "lyonan",
+      "lyounan",
+      "repubblica ellenica",
+      "repblica helnica",
+      "rpublique hellnique",
+      "younan"
+    ]
+  },
+  "gd": {
+    "name": "Grenada",
+    "lat": 12.1167,
+    "lon": -61.6667,
+    "aliases": [
+      "gd",
+      "granada",
+      "grd",
+      "grenada",
+      "grenade",
+      "grn"
+    ]
+  },
+  "gl": {
+    "name": "Greenland",
+    "lat": 72.0,
+    "lon": -40.0,
+    "aliases": [
+      "gl",
+      "greenland",
+      "grl",
+      "groenland",
+      "groenlandia",
+      "groenlndia",
+      "gronelndia",
+      "grnland"
+    ]
+  },
+  "gt": {
+    "name": "Guatemala",
+    "lat": 15.5,
+    "lon": -90.25,
+    "aliases": [
+      "gt",
+      "gtm",
+      "gua",
+      "guatemala",
+      "repubblica del guatemala",
+      "republic of guatemala",
+      "republik guatemala",
+      "repblica da guatemala",
+      "repblica de guatemala",
+      "rpublique du guatemala"
+    ]
+  },
+  "gf": {
+    "name": "French Guiana",
+    "lat": 4.0,
+    "lon": -53.0,
+    "aliases": [
+      "franzsischguayana",
+      "french guiana",
+      "gf",
+      "guayana",
+      "guayana francesa",
+      "guf",
+      "guiana",
+      "guiana francesa",
+      "guyana francese",
+      "guyane"
+    ]
+  },
+  "gu": {
+    "name": "Guam",
+    "lat": 13.4667,
+    "lon": 144.7833,
+    "aliases": [
+      "gu",
+      "guam",
+      "gum",
+      "guhn"
+    ]
+  },
+  "gy": {
+    "name": "Guyana",
+    "lat": 5.0,
+    "lon": -59.0,
+    "aliases": [
+      "co operative republic of guyana",
+      "co operative repblica da guiana",
+      "cooperative republic of guyana",
+      "guiana",
+      "guy",
+      "guyana",
+      "gy",
+      "kooperative republik guyana",
+      "repblica cooperativa de guyana",
+      "rpublique cooprative de guyana"
+    ]
+  },
+  "hk": {
+    "name": "Hong Kong",
+    "lat": 22.267,
+    "lon": 114.188,
+    "aliases": [
+      "hk",
+      "hkg",
+      "hong kong",
+      "hong kong regione amministrativa speciale della repubblica popolare cinese",
+      "hong kong regio administrativa especial da repblica popular da china",
+      "hong kong regin administrativa especial de la repblica popular china",
+      "hong kong special administrative region of the peoples republic of china",
+      "hongkong",
+      "rgion administrative spciale de hong kong de la rpublique populaire de chine",
+      "sonderverwaltungszone hongkong der volksrepublik china"
+    ]
+  },
+  "hm": {
+    "name": "Heard Island and McDonald Islands",
+    "lat": -53.1,
+    "lon": 72.5167,
+    "aliases": [
+      "heard island and mcdonald islands",
+      "heard und die mcdonaldinseln",
+      "heard und mcdonaldinseln",
+      "hm",
+      "hmd",
+      "ilha heard e ilhas mcdonald",
+      "islas heard y mcdonald",
+      "isole heard e mcdonald",
+      "les heardetmacdonald"
+    ]
+  },
+  "hn": {
+    "name": "Honduras",
+    "lat": 15.0,
+    "lon": -86.5,
+    "aliases": [
+      "hn",
+      "hnd",
+      "hon",
+      "honduras",
+      "repubblica di honduras",
+      "republic of honduras",
+      "republik honduras",
+      "repblica de honduras",
+      "rpublique du honduras"
+    ]
+  },
+  "hr": {
+    "name": "Croatia",
+    "lat": 45.1667,
+    "lon": 15.5,
+    "aliases": [
+      "cro",
+      "croacia",
+      "croatia",
+      "croatie",
+      "croazia",
+      "crocia",
+      "hr",
+      "hrv",
+      "hrvatska",
+      "kroatien",
+      "repubblica di croazia",
+      "republic of croatia",
+      "republik kroatien",
+      "republika hrvatska",
+      "repblica da crocia",
+      "repblica de croacia",
+      "rpublique de croatie"
+    ]
+  },
+  "ht": {
+    "name": "Haiti",
+    "lat": 19.0,
+    "lon": -72.4167,
+    "aliases": [
+      "hai",
+      "haiti",
+      "hait",
+      "hati",
+      "ht",
+      "hti",
+      "repiblik ayiti",
+      "repubblica di haiti",
+      "republic of haiti",
+      "republik haiti",
+      "repblica de hait",
+      "repblica do haiti",
+      "rpublique dhati"
+    ]
+  },
+  "hu": {
+    "name": "Hungary",
+    "lat": 47.0,
+    "lon": 20.0,
+    "aliases": [
+      "hongrie",
+      "hu",
+      "hun",
+      "hungary",
+      "hungria",
+      "hungra",
+      "ungarn",
+      "ungheria"
+    ]
+  },
+  "id": {
+    "name": "Indonesia",
+    "lat": -5.0,
+    "lon": 120.0,
+    "aliases": [
+      "id",
+      "idn",
+      "ina",
+      "indonesia",
+      "indonesie",
+      "indonesien",
+      "indonisia",
+      "indonisiya",
+      "indonsia",
+      "indonsie",
+      "repubblica di indonesia",
+      "republic of indonesia",
+      "republik indonesia",
+      "republik indonesien",
+      "repblica da indonsia",
+      "repblica de indonesia",
+      "rpublique dindonsie"
+    ]
+  },
+  "im": {
+    "name": "Isle of Man",
+    "lat": 54.25,
+    "lon": -4.5,
+    "aliases": [
+      "ellan vannin",
+      "ilha de man",
+      "im",
+      "imn",
+      "insel man",
+      "isla de man",
+      "isle of man",
+      "isola di man",
+      "mann",
+      "mannin",
+      "le de man"
+    ]
+  },
+  "in": {
+    "name": "India",
+    "lat": 20.0,
+    "lon": 77.0,
+    "aliases": [
+      "al hind",
+      "alhind",
+      "bharat ganrajya",
+      "bhrat",
+      "hind",
+      "in",
+      "ind",
+      "inde",
+      "india",
+      "indien",
+      "lhend",
+      "repubblica dellindia",
+      "republic of india",
+      "republik indien",
+      "repblica da ndia",
+      "repblica de la india",
+      "rpublique de linde",
+      "ndia"
+    ]
+  },
+  "io": {
+    "name": "British Indian Ocean Territory",
+    "lat": -6.0,
+    "lon": 71.5,
+    "aliases": [
+      "britisches territorium im indischen ozean",
+      "british indian ocean territory",
+      "io",
+      "iot",
+      "territoire britannique de l ocan indien",
+      "territoire britannique de locan indien",
+      "territorio britannico delloceano indiano",
+      "territorio britnico del ocano ndico",
+      "territrio britnico do oceano ndico"
+    ]
+  },
+  "ie": {
+    "name": "Ireland",
+    "lat": 53.0,
+    "lon": -8.0,
+    "aliases": [
+      "ie",
+      "ireland",
+      "irl",
+      "irland",
+      "irlanda",
+      "irlande",
+      "poblacht na hireann",
+      "repubblica dirlanda",
+      "republic of ireland",
+      "republik irland",
+      "repblica da irlanda",
+      "repblica de irlanda",
+      "rpublique dirlande",
+      "ire"
+    ]
+  },
+  "ir": {
+    "name": "Iran",
+    "lat": 32.0,
+    "lon": 53.0,
+    "aliases": [
+      "ir",
+      "iran",
+      "iran islamic republic of",
+      "iri",
+      "irn",
+      "iro",
+      "islamic republic of iran",
+      "islamische republik iran",
+      "jomhuriye eslmiye irn",
+      "repubblica islamica delliran",
+      "repblica islmica de irn",
+      "repblica islmica do ir",
+      "rpublique islamique diran"
+    ]
+  },
+  "iq": {
+    "name": "Iraq",
+    "lat": 33.0,
+    "lon": 44.0,
+    "aliases": [
+      "3iraq",
+      "iq",
+      "irak",
+      "iraq",
+      "iraque",
+      "irq",
+      "jumhriyyat alirq",
+      "repubblica delliraq",
+      "republic of iraq",
+      "republik irak",
+      "repblica de irak",
+      "repblica do iraque",
+      "rpublique dirak"
+    ]
+  },
+  "is": {
+    "name": "Iceland",
+    "lat": 65.0,
+    "lon": -18.0,
+    "aliases": [
+      "iceland",
+      "is",
+      "isl",
+      "island",
+      "islanda",
+      "islande",
+      "islandia",
+      "islndia",
+      "lveldi sland",
+      "republic of iceland",
+      "rpublique dislande"
+    ]
+  },
+  "il": {
+    "name": "Israel",
+    "lat": 31.47,
+    "lon": 35.13,
+    "aliases": [
+      "estado de israel",
+      "il",
+      "isr",
+      "israel",
+      "israele",
+      "isral",
+      "mednat yisrel",
+      "staat israel",
+      "state of israel",
+      "stato di israele",
+      "tat disral"
+    ]
+  },
+  "it": {
+    "name": "Italy",
+    "lat": 42.8333,
+    "lon": 12.8333,
+    "aliases": [
+      "it",
+      "ita",
+      "italia",
+      "italian republic",
+      "italie",
+      "italien",
+      "italienische republik",
+      "italy",
+      "itlia",
+      "repubblica italiana",
+      "repblica italiana",
+      "rpublique italienne",
+      "talyan",
+      "telyan"
+    ]
+  },
+  "jm": {
+    "name": "Jamaica",
+    "lat": 18.25,
+    "lon": -77.5,
+    "aliases": [
+      "giamaica",
+      "jam",
+      "jamaica",
+      "jamaika",
+      "jamaque",
+      "jm"
+    ]
+  },
+  "je": {
+    "name": "Jersey",
+    "lat": 49.25,
+    "lon": -2.1667,
+    "aliases": [
+      "bailiado de jersey",
+      "bailiwick of jersey",
+      "bailliage de jersey",
+      "bailliage d jrri",
+      "baila de jersey",
+      "baliato di jersey",
+      "isola di jersey",
+      "je",
+      "jersey",
+      "jey",
+      "vogtei jersey"
+    ]
+  },
+  "jo": {
+    "name": "Jordan",
+    "lat": 31.0,
+    "lon": 36.0,
+    "aliases": [
+      "al urdun",
+      "almamlakah alurdunyah alhshimyah",
+      "giordania",
+      "haschemitisches knigreich jordanien",
+      "hashemite kingdom of jordan",
+      "jo",
+      "jor",
+      "jordan",
+      "jordania",
+      "jordanie",
+      "jordanien",
+      "jordnia",
+      "lordun",
+      "regno hascemita di giordania",
+      "reino hachemita da jordnia",
+      "reino hachemita de jordania",
+      "royaume hachmite de jordanie",
+      "urdun"
+    ]
+  },
+  "jp": {
+    "name": "Japan",
+    "lat": 36.0,
+    "lon": 138.0,
+    "aliases": [
+      "giappone",
+      "japan",
+      "japon",
+      "japo",
+      "japn",
+      "jp",
+      "jpn",
+      "nihon",
+      "nippon",
+      "yaban"
+    ]
+  },
+  "kz": {
+    "name": "Kazakhstan",
+    "lat": 48.0,
+    "lon": 68.0,
+    "aliases": [
+      "cazaquisto",
+      "kasachstan",
+      "kaz",
+      "kazajistn",
+      "kazakhstan",
+      "kazakistan",
+      "kz",
+      "qazaqstan",
+      "qazaqstan respublkas",
+      "repubblica del kazakhstan",
+      "republic of kazakhstan",
+      "republik kasachstan",
+      "repblica de kazajstn",
+      "repblica do cazaquisto",
+      "respublika kazakhstan",
+      "rpublique du kazakhstan"
+    ]
+  },
+  "ke": {
+    "name": "Kenya",
+    "lat": 1.0,
+    "lon": 38.0,
+    "aliases": [
+      "jamhuri ya kenya",
+      "ke",
+      "ken",
+      "kenia",
+      "kenya",
+      "kinya",
+      "qunia",
+      "repubblica del kenya",
+      "republic of kenya",
+      "republik kenia",
+      "repblica de kenya",
+      "repblica do qunia",
+      "rpublique du kenya"
+    ]
+  },
+  "kg": {
+    "name": "Kyrgyzstan",
+    "lat": 41.0,
+    "lon": 75.0,
+    "aliases": [
+      "kg",
+      "kgz",
+      "kirghizistan",
+      "kirgisische republik",
+      "kirgisistan",
+      "kirguizistn",
+      "kyrgyz republic",
+      "kyrgyz respublikasy",
+      "kyrgyzstan",
+      "quirguisto",
+      "repblica do quirguisto",
+      "repblica kirguisa",
+      "rpublique kirghize"
+    ]
+  },
+  "kh": {
+    "name": "Cambodia",
+    "lat": 13.0,
+    "lon": 105.0,
+    "aliases": [
+      "cam",
+      "cambodge",
+      "cambodia",
+      "cambogia",
+      "camboja",
+      "camboya",
+      "kambodscha",
+      "kh",
+      "khm",
+      "kingdom of cambodia",
+      "knigreich kambodscha",
+      "regno di cambogia",
+      "reino de camboya",
+      "reino do camboja",
+      "royaume du cambodge"
+    ]
+  },
+  "ki": {
+    "name": "Kiribati",
+    "lat": 1.4167,
+    "lon": 173.0,
+    "aliases": [
+      "independent and sovereign republic of kiribati",
+      "independente e soberano repblica de kiribati",
+      "ki",
+      "kir",
+      "kiribati",
+      "repubblica indipendente e sovrano di kiribati",
+      "republic of kiribati",
+      "republik kiribati",
+      "repblica independiente y soberano de kiribati",
+      "ribaberiki kiribati",
+      "rpublique de kiribati"
+    ]
+  },
+  "kn": {
+    "name": "Saint Kitts and Nevis",
+    "lat": 17.3333,
+    "lon": -62.75,
+    "aliases": [
+      "federacin de san cristbal y nevis",
+      "federation of saint christopher and nevis",
+      "federazione di saint christopher e nevis",
+      "federao de so cristvo e nevis",
+      "fdration de saintchristopheetnivs",
+      "fderation von st kitts und nevis",
+      "kn",
+      "kna",
+      "saint kitts and nevis",
+      "saint kitts e nevis",
+      "saintchristopheetnivs",
+      "san cristbal y nieves",
+      "skn",
+      "st kitts und nevis",
+      "so cristvo e nevis"
+    ]
+  },
+  "kr": {
+    "name": "South Korea",
+    "lat": 37.0,
+    "lon": 127.5,
+    "aliases": [
+      "corea del sud",
+      "corea del sur",
+      "coree",
+      "coree du sud",
+      "coreia do sul",
+      "core du sud",
+      "kor",
+      "korea",
+      "korea republic of",
+      "korya",
+      "kr",
+      "repubblica di corea",
+      "republic of korea",
+      "republik korea",
+      "repblica da coreia",
+      "repblica de corea",
+      "rpublique de core",
+      "south korea",
+      "sdkorea"
+    ]
+  },
+  "xk": {
+    "name": "Kosovo",
+    "lat": 42.6667,
+    "lon": 21.1667,
+    "aliases": [
+      "kos",
+      "kosovo",
+      "repubblica del kosovo",
+      "republic of kosovo",
+      "republik kosovo",
+      "repblica de kosovo",
+      "repblica do kosovo",
+      "rpublique du kosovo",
+      "unk",
+      "xk"
+    ]
+  },
+  "kw": {
+    "name": "Kuwait",
+    "lat": 29.5,
+    "lon": 45.75,
+    "aliases": [
+      "dawlat alkuwait",
+      "estado de kuwait",
+      "estado do kuwait",
+      "koweit",
+      "kowet",
+      "kuw",
+      "kuwait",
+      "kw",
+      "kwt",
+      "lkowayt",
+      "lkwit",
+      "staat kuwait",
+      "state of kuwait",
+      "stato del kuwait",
+      "tat du kowet"
+    ]
+  },
+  "la": {
+    "name": "Laos",
+    "lat": 18.0,
+    "lon": 105.0,
+    "aliases": [
+      "demokratische volksrepublik laos",
+      "la",
+      "lao",
+      "lao peoples democratic republic",
+      "laos",
+      "laos repblica democrtica",
+      "repubblica democratica popolare del laos",
+      "repblica democrtica popular lao",
+      "rpublique dmocratique populaire lao",
+      "sathalanalat paxathipatai paxaxon lao"
+    ]
+  },
+  "lb": {
+    "name": "Lebanon",
+    "lat": 33.8333,
+    "lon": 35.8333,
+    "aliases": [
+      "aljumhryah allibnnyah",
+      "lb",
+      "lbn",
+      "lebanese republic",
+      "lebanon",
+      "liban",
+      "libanesische republik",
+      "libano",
+      "libanon",
+      "lobnan",
+      "lbano",
+      "repubblica libanese",
+      "repblica libanesa",
+      "rpublique libanaise"
+    ]
+  },
+  "lr": {
+    "name": "Liberia",
+    "lat": 6.5,
+    "lon": -9.5,
+    "aliases": [
+      "lbr",
+      "liberia",
+      "libria",
+      "lr",
+      "repubblica di liberia",
+      "republic of liberia",
+      "republik liberia",
+      "repblica da libria",
+      "repblica de liberia",
+      "rpublique du libria"
+    ]
+  },
+  "ly": {
+    "name": "Libya",
+    "lat": 25.0,
+    "lon": 17.0,
+    "aliases": [
+      "dawlat libya",
+      "estado da lbia",
+      "estado de libia",
+      "grande rpublique arabe libyenne populaire et socialiste",
+      "lba",
+      "lby",
+      "libia",
+      "libya",
+      "libye",
+      "libyen",
+      "ly",
+      "lbia",
+      "staat libyen",
+      "state of libya",
+      "stato della libia"
+    ]
+  },
+  "lc": {
+    "name": "Saint Lucia",
+    "lat": 13.8833,
+    "lon": -60.9667,
+    "aliases": [
+      "lc",
+      "lca",
+      "saint lucia",
+      "saintelucie",
+      "santa lucia",
+      "santa luca",
+      "santa lcia",
+      "st lucia"
+    ]
+  },
+  "li": {
+    "name": "Liechtenstein",
+    "lat": 47.2667,
+    "lon": 9.5333,
+    "aliases": [
+      "frstentum liechtenstein",
+      "li",
+      "lie",
+      "liechtenstein",
+      "principado de liechtenstein",
+      "principality of liechtenstein",
+      "principato del liechtenstein",
+      "principaut du liechtenstein"
+    ]
+  },
+  "lk": {
+    "name": "Sri Lanka",
+    "lat": 7.0,
+    "lon": 81.0,
+    "aliases": [
+      "democratic socialist republic of sri lanka",
+      "demokratische sozialistische republik sri lanka",
+      "ilakai",
+      "lk",
+      "lka",
+      "repubblica democratica socialista dello sri lanka",
+      "repblica democrtica socialista de sri lanka",
+      "repblica democrtica socialista do sri lanka",
+      "rpublique dmocratique socialiste du sri lanka",
+      "sri",
+      "sri lanka"
+    ]
+  },
+  "ls": {
+    "name": "Lesotho",
+    "lat": -29.5,
+    "lon": 28.5,
+    "aliases": [
+      "kingdom of lesotho",
+      "knigreich lesotho",
+      "les",
+      "lesotho",
+      "lesoto",
+      "ls",
+      "lso",
+      "muso oa lesotho",
+      "regno del lesotho",
+      "reino de lesotho",
+      "reino do lesoto",
+      "royaume du lesotho"
+    ]
+  },
+  "lt": {
+    "name": "Lithuania",
+    "lat": 56.0,
+    "lon": 24.0,
+    "aliases": [
+      "lietuvos respublika",
+      "litauen",
+      "lithuania",
+      "lituania",
+      "lituanie",
+      "litunia",
+      "lt",
+      "ltu",
+      "repubblica di lituania",
+      "republic of lithuania",
+      "republik litauen",
+      "repblica da litunia",
+      "repblica de lituania",
+      "rpublique de lituanie"
+    ]
+  },
+  "lu": {
+    "name": "Luxembourg",
+    "lat": 49.75,
+    "lon": 6.1667,
+    "aliases": [
+      "gran ducado de luxemburgo",
+      "grand duchy of luxembourg",
+      "grandduch de luxembourg",
+      "granducato di lussemburgo",
+      "groussherzogtum ltzebuerg",
+      "groherzogtum luxemburg",
+      "groducado do luxemburgo",
+      "lu",
+      "lussemburgo",
+      "lux",
+      "luxembourg",
+      "luxemburg",
+      "luxemburgo"
+    ]
+  },
+  "lv": {
+    "name": "Latvia",
+    "lat": 57.0,
+    "lon": 25.0,
+    "aliases": [
+      "lat",
+      "latvia",
+      "latvijas republika",
+      "letonia",
+      "lettland",
+      "lettonia",
+      "lettonie",
+      "letnia",
+      "lv",
+      "lva",
+      "repubblica di lettonia",
+      "republic of latvia",
+      "republik lettland",
+      "repblica da letnia",
+      "repblica de letonia",
+      "rpublique de lettonie"
+    ]
+  },
+  "mo": {
+    "name": "Macau",
+    "lat": 22.1667,
+    "lon": 113.55,
+    "aliases": [
+      "mac",
+      "macao",
+      "macao regione amministrativa speciale della repubblica popolare cinese",
+      "macao special administrative region of the peoples republic of china",
+      "macao regin administrativa especial de la repblica popular china",
+      "macau",
+      "macau regio administrativa especial da repblica popular da china",
+      "mo",
+      "regio administrativa especial de macau da repblica popular da china",
+      "rgion administrative spciale de macao de la rpublique populaire de chine",
+      "sonderverwaltungsregion macau der volksrepublik china"
+    ]
+  },
+  "mf": {
+    "name": "Saint Martin",
+    "lat": 18.0833,
+    "lon": -63.95,
+    "aliases": [
+      "collectivity of saint martin",
+      "collectivit de saintmartin",
+      "maf",
+      "mf",
+      "saint martin",
+      "saint martin french part",
+      "saintmartin",
+      "so martinho"
+    ]
+  },
+  "ma": {
+    "name": "Morocco",
+    "lat": 32.0,
+    "lon": -5.0,
+    "aliases": [
+      "almamlakah almaribiyah",
+      "kingdom of morocco",
+      "knigreich marokko",
+      "lmaghrib",
+      "lmerrok",
+      "lmghrib",
+      "ma",
+      "maghrib",
+      "mar",
+      "maroc",
+      "marocco",
+      "marokko",
+      "marrocos",
+      "marruecos",
+      "morocco",
+      "regno del marocco",
+      "reino de marrocos",
+      "reino de marruecos",
+      "royaume du maroc"
+    ]
+  },
+  "mc": {
+    "name": "Monaco",
+    "lat": 43.7333,
+    "lon": 7.4,
+    "aliases": [
+      "frstentum monaco",
+      "mc",
+      "mco",
+      "mon",
+      "monaco",
+      "mnaco",
+      "principado de mnaco",
+      "principado do mnaco",
+      "principality of monaco",
+      "principato di monaco",
+      "principaut de monaco"
+    ]
+  },
+  "md": {
+    "name": "Moldova",
+    "lat": 47.0,
+    "lon": 29.0,
+    "aliases": [
+      "md",
+      "mda",
+      "moldavia",
+      "moldavie",
+      "moldawien",
+      "moldova",
+      "moldova republic of",
+      "moldvia",
+      "repubblica di moldova",
+      "republic of moldova",
+      "republica moldova",
+      "republik moldau",
+      "repblica da moldvia",
+      "repblica de moldova",
+      "rpublique de moldavie"
+    ]
+  },
+  "mg": {
+    "name": "Madagascar",
+    "lat": -20.0,
+    "lon": 47.0,
+    "aliases": [
+      "mad",
+      "madagascar",
+      "madagaskar",
+      "madagscar",
+      "mdg",
+      "mg",
+      "repoblikani madagasikara",
+      "repubblica del madagascar",
+      "republic of madagascar",
+      "republik madagaskar",
+      "repblica de madagascar",
+      "repblica de madagscar",
+      "rpublique de madagascar"
+    ]
+  },
+  "mv": {
+    "name": "Maldives",
+    "lat": 3.25,
+    "lon": 73.0,
+    "aliases": [
+      "dhivehi raajjeyge jumhooriyya",
+      "maldivas",
+      "maldive",
+      "maldive islands",
+      "maldives",
+      "malediven",
+      "mdv",
+      "mv",
+      "repubblica delle maldive",
+      "republic of the maldives",
+      "republik malediven",
+      "repblica das maldivas",
+      "repblica de las maldivas",
+      "rpublique des maldives"
+    ]
+  },
+  "mx": {
+    "name": "Mexico",
+    "lat": 23.0,
+    "lon": -102.0,
+    "aliases": [
+      "el maksik",
+      "estados unidos mexicanos",
+      "lmaxik",
+      "lmiksik",
+      "messico",
+      "mex",
+      "mexicanos",
+      "mexico",
+      "mexiko",
+      "mexique",
+      "mx",
+      "mxico",
+      "stati uniti del messico",
+      "united mexican states",
+      "vereinigte mexikanische staaten",
+      "tatsunis du mexique"
+    ]
+  },
+  "mh": {
+    "name": "Marshall Islands",
+    "lat": 9.0,
+    "lon": 168.0,
+    "aliases": [
+      "aolepn aorkin maje",
+      "ilhas marshall",
+      "islas marshall",
+      "isole marshall",
+      "marshall islands",
+      "marshallinseln",
+      "mh",
+      "mhl",
+      "repubblica delle isole marshall",
+      "republic of the marshall islands",
+      "republik marshallinseln",
+      "repblica das ilhas marshall",
+      "repblica de las islas marshall",
+      "rpublique des les marshall",
+      "les marshall"
+    ]
+  },
+  "mk": {
+    "name": "North Macedonia",
+    "lat": 41.8333,
+    "lon": 22.0,
+    "aliases": [
+      "macedonia",
+      "macedonia del nord",
+      "macedonia del norte",
+      "macedonia the former yugoslav republic of",
+      "macednia do norte",
+      "macdoine du nord",
+      "mk",
+      "mkd",
+      "nordmazedonien",
+      "north macedonia",
+      "repubblica di macedonia del nord",
+      "republic of north macedonia",
+      "republik nordmazedonien",
+      "repblica da macednia do norte",
+      "repblica de macedonia del norte",
+      "rpublique de macdoine du nord",
+      "the former yugoslav republic of macedonia"
+    ]
+  },
+  "ml": {
+    "name": "Mali",
+    "lat": 17.0,
+    "lon": -4.0,
+    "aliases": [
+      "mali",
+      "ml",
+      "mli",
+      "repubblica del mali",
+      "republic of mali",
+      "republik mali",
+      "repblica de mal",
+      "repblica do mali",
+      "rpublique du mali"
+    ]
+  },
+  "mt": {
+    "name": "Malta",
+    "lat": 35.8333,
+    "lon": 14.5833,
+    "aliases": [
+      "malta",
+      "malte",
+      "mlt",
+      "mt",
+      "repubblica di malta",
+      "repubblika ta malta",
+      "republic of malta",
+      "republik malta",
+      "repblica de malta",
+      "rpublique de malte"
+    ]
+  },
+  "mm": {
+    "name": "Myanmar",
+    "lat": 22.0,
+    "lon": 98.0,
+    "aliases": [
+      "birmania",
+      "birmanie",
+      "burma",
+      "mm",
+      "mmr",
+      "mya",
+      "myanmar",
+      "pyidaunzu thanmda myma nainngandaw",
+      "repubblica dellunione di myanmar",
+      "republic of the union of myanmar",
+      "republik der union myanmar",
+      "repblica da unio de myanmar",
+      "repblica de la unin de myanmar",
+      "rpublique de lunion du myanmar"
+    ]
+  },
+  "me": {
+    "name": "Montenegro",
+    "lat": 42.5,
+    "lon": 19.3,
+    "aliases": [
+      "crna gora",
+      "me",
+      "mne",
+      "montenegro",
+      "montngro"
+    ]
+  },
+  "mn": {
+    "name": "Mongolia",
+    "lat": 46.0,
+    "lon": 105.0,
+    "aliases": [
+      "mgl",
+      "mn",
+      "mng",
+      "mongolei",
+      "mongolia",
+      "mongolie",
+      "mongolya",
+      "monglia"
+    ]
+  },
+  "mp": {
+    "name": "Northern Mariana Islands",
+    "lat": 15.2,
+    "lon": 145.75,
+    "aliases": [
+      "commonwealth delle isole marianne settentrionali",
+      "commonwealth der nrdlichen marianen",
+      "commonwealth des les mariannes du nord",
+      "commonwealth of the northern mariana islands",
+      "comunidade das ilhas marianas do norte",
+      "islas marianas del norte",
+      "isole marianne settentrionali",
+      "mancomunidad de las islas marianas del norte",
+      "marianas setentrionais",
+      "mnp",
+      "mp",
+      "northern mariana islands",
+      "nrdliche marianen",
+      "sankattan siha na islas marinas",
+      "les mariannes du nord"
+    ]
+  },
+  "mz": {
+    "name": "Mozambique",
+    "lat": -18.25,
+    "lon": 35.0,
+    "aliases": [
+      "mosambik",
+      "moz",
+      "mozambico",
+      "mozambique",
+      "moambique",
+      "mz",
+      "repubblica del mozambico",
+      "republic of mozambique",
+      "republik mosambik",
+      "repblica de mozambique",
+      "repblica de moambique",
+      "rpublique du mozambique"
+    ]
+  },
+  "mr": {
+    "name": "Mauritania",
+    "lat": 20.0,
+    "lon": -12.0,
+    "aliases": [
+      "aljumhriyyah alislmiyyah almrtniyyah",
+      "islamic republic of mauritania",
+      "islamische republik mauretanien",
+      "mauretanien",
+      "mauritania",
+      "mauritanie",
+      "mauritnia",
+      "mouritania",
+      "mr",
+      "mrt",
+      "mtn",
+      "repubblica islamica di mauritania",
+      "repblica islmica de mauritania",
+      "repblica islmica da mauritnia",
+      "rpublique islamique de mauritanie"
+    ]
+  },
+  "ms": {
+    "name": "Montserrat",
+    "lat": 16.75,
+    "lon": -62.2,
+    "aliases": [
+      "montserrat",
+      "ms",
+      "msr"
+    ]
+  },
+  "mq": {
+    "name": "Martinique",
+    "lat": 14.6667,
+    "lon": -61.0,
+    "aliases": [
+      "martinica",
+      "martinique",
+      "mq",
+      "mtq"
+    ]
+  },
+  "mu": {
+    "name": "Mauritius",
+    "lat": -20.2833,
+    "lon": 57.55,
+    "aliases": [
+      "mauricio",
+      "mauritius",
+      "maurcio",
+      "mri",
+      "mu",
+      "mus",
+      "repubblica di mauritius",
+      "republic of mauritius",
+      "republik mauritius",
+      "repblica das maurcias",
+      "repblica de mauricio",
+      "rpublique de maurice",
+      "le maurice"
+    ]
+  },
+  "mw": {
+    "name": "Malawi",
+    "lat": -13.5,
+    "lon": 34.0,
+    "aliases": [
+      "malawi",
+      "maw",
+      "mw",
+      "mwi",
+      "repubblica del malawi",
+      "republic of malawi",
+      "republik malawi",
+      "repblica de malawi",
+      "repblica do malawi",
+      "rpublique du malawi"
+    ]
+  },
+  "my": {
+    "name": "Malaysia",
+    "lat": 2.5,
+    "lon": 112.5,
+    "aliases": [
+      "fdration de malaisie",
+      "malaisie",
+      "malasia",
+      "malaysia",
+      "malesia",
+      "malizya",
+      "malsia",
+      "mas",
+      "my",
+      "mys"
+    ]
+  },
+  "yt": {
+    "name": "Mayotte",
+    "lat": -12.8333,
+    "lon": 45.1667,
+    "aliases": [
+      "departamento de mayotte",
+      "department of mayotte",
+      "dipartimento di mayotte",
+      "dpartement de mayotte",
+      "mayotte",
+      "myt",
+      "yt",
+      "berseedpartement mayotte"
+    ]
+  },
+  "na": {
+    "name": "Namibia",
+    "lat": -22.0,
+    "lon": 17.0,
+    "aliases": [
+      "na",
+      "nam",
+      "namibia",
+      "namibie",
+      "namibi",
+      "nambia",
+      "repubblica di namibia",
+      "republic of namibia",
+      "republik namibia",
+      "repblica da nambia",
+      "repblica de namibia",
+      "rpublique de namibie"
+    ]
+  },
+  "nc": {
+    "name": "New Caledonia",
+    "lat": -21.5,
+    "lon": 165.5,
+    "aliases": [
+      "nc",
+      "ncl",
+      "neukaledonien",
+      "new caledonia",
+      "nouvellecaldonie",
+      "nova calednia",
+      "nueva caledonia",
+      "nuova caledonia"
+    ]
+  },
+  "ne": {
+    "name": "Niger",
+    "lat": 16.0,
+    "lon": 8.0,
+    "aliases": [
+      "ne",
+      "ner",
+      "nig",
+      "niger",
+      "nijar",
+      "nger",
+      "repubblica del niger",
+      "republic of niger",
+      "republik niger",
+      "repblica de nger",
+      "repblica do nger",
+      "rpublique du niger"
+    ]
+  },
+  "nf": {
+    "name": "Norfolk Island",
+    "lat": -29.0333,
+    "lon": 167.95,
+    "aliases": [
+      "gebiet der norfolkinsel",
+      "ilha norfolk",
+      "isla de norfolk",
+      "isola norfolk",
+      "nf",
+      "nfk",
+      "norfolk island",
+      "norfolkinsel",
+      "teratri of norfk ailen",
+      "territoire de lle norfolk",
+      "territorio de la isla norfolk",
+      "territorio di norfolk island",
+      "territory of norfolk island",
+      "territrio da ilha norfolk",
+      "le norfolk"
+    ]
+  },
+  "ng": {
+    "name": "Nigeria",
+    "lat": 10.0,
+    "lon": 8.0,
+    "aliases": [
+      "bundesrepublik nigeria",
+      "federal republic of nigeria",
+      "najr",
+      "ng",
+      "nga",
+      "ngr",
+      "nigeria",
+      "nigria",
+      "nijeriya",
+      "nijiria",
+      "repubblica federale di nigeria",
+      "repblica federal da nigria",
+      "repblica federal de nigeria",
+      "rpublique fdrale du nigeria"
+    ]
+  },
+  "ni": {
+    "name": "Nicaragua",
+    "lat": 13.0,
+    "lon": -85.0,
+    "aliases": [
+      "nca",
+      "ni",
+      "nic",
+      "nicaragua",
+      "nicargua",
+      "repubblica del nicaragua",
+      "republic of nicaragua",
+      "republik nicaragua",
+      "repblica da nicargua",
+      "repblica de nicaragua",
+      "rpublique du nicaragua"
+    ]
+  },
+  "nu": {
+    "name": "Niue",
+    "lat": -19.0333,
+    "lon": -169.8667,
+    "aliases": [
+      "niu",
+      "niue",
+      "nu"
+    ]
+  },
+  "nl": {
+    "name": "Netherlands",
+    "lat": 52.5,
+    "lon": 5.75,
+    "aliases": [
+      "holanda",
+      "holland",
+      "hollanda",
+      "kingdom of the netherlands",
+      "ned",
+      "nederland",
+      "netherlands",
+      "niederlande",
+      "nl",
+      "nld",
+      "paesi bassi",
+      "pays bas",
+      "paysbas",
+      "pases bajos",
+      "the netherlands"
+    ]
+  },
+  "no": {
+    "name": "Norway",
+    "lat": 62.0,
+    "lon": 10.0,
+    "aliases": [
+      "kingdom of norway",
+      "kongeriket noreg",
+      "kongeriket norge",
+      "knigreich norwegen",
+      "no",
+      "nor",
+      "noreg",
+      "norge",
+      "noruega",
+      "norvege",
+      "norvegia",
+      "norvge",
+      "norway",
+      "norwegen",
+      "norwij",
+      "regno di norvegia",
+      "reino da noruega",
+      "reino de noruega",
+      "royaume de norvge"
+    ]
+  },
+  "np": {
+    "name": "Nepal",
+    "lat": 28.0,
+    "lon": 84.0,
+    "aliases": [
+      "demokratische bundesrepublik nepal",
+      "federal democratic republic of nepal",
+      "loktntrik ganatantra nepl",
+      "nep",
+      "nepal",
+      "np",
+      "npl",
+      "npal",
+      "repubblica federale democratica del nepal",
+      "repblica democrtica federal de nepal",
+      "repblica democrtica federal do nepal",
+      "rpublique du npal"
+    ]
+  },
+  "nr": {
+    "name": "Nauru",
+    "lat": -0.5333,
+    "lon": 166.9167,
+    "aliases": [
+      "naoero",
+      "nauru",
+      "nr",
+      "nru",
+      "pleasant island",
+      "repubblica di nauru",
+      "republic of nauru",
+      "republik nauru",
+      "repblica de nauru",
+      "ripublik naoero",
+      "rpublique de nauru"
+    ]
+  },
+  "nz": {
+    "name": "New Zealand",
+    "lat": -41.0,
+    "lon": 174.0,
+    "aliases": [
+      "aotearoa",
+      "neuseeland",
+      "new zealand",
+      "niwzilanda",
+      "nouvelle zelande",
+      "nouvellezlande",
+      "nova zelndia",
+      "nueva zelanda",
+      "nuova zelanda",
+      "nz",
+      "nzl"
+    ]
+  },
+  "om": {
+    "name": "Oman",
+    "lat": 21.0,
+    "lon": 57.0,
+    "aliases": [
+      "3oman",
+      "om",
+      "oma",
+      "oman",
+      "omn",
+      "salanat umn",
+      "sultanat doman",
+      "sultanat oman",
+      "sultanate of oman",
+      "sultanato de omn",
+      "sultanato de om",
+      "sultanato delloman"
+    ]
+  },
+  "pk": {
+    "name": "Pakistan",
+    "lat": 30.0,
+    "lon": 70.0,
+    "aliases": [
+      "islamic republic of pakistan",
+      "islamische republik pakistan",
+      "islm jumhriyaeh pkistn",
+      "pak",
+      "pakistan",
+      "pakistn",
+      "paquisto",
+      "pk",
+      "pkistn",
+      "repubblica islamica del pakistan",
+      "repblica islmica de pakistn",
+      "repblica islmica do paquisto",
+      "rpublique islamique du pakistan"
+    ]
+  },
+  "pa": {
+    "name": "Panama",
+    "lat": 9.0,
+    "lon": -80.0,
+    "aliases": [
+      "pa",
+      "pan",
+      "panama",
+      "panam",
+      "repubblica di panama",
+      "republic of panama",
+      "republik panama",
+      "repblica de panam",
+      "repblica do panam",
+      "rpublique du panama"
+    ]
+  },
+  "pn": {
+    "name": "Pitcairn Islands",
+    "lat": -25.0667,
+    "lon": -130.1,
+    "aliases": [
+      "groupe dles pitcairn",
+      "grupo de islas pitcairn",
+      "ilhas pitcairn",
+      "islas pitcairn",
+      "isole pitcairn",
+      "pcn",
+      "pitcairn",
+      "pitcairn group of islands",
+      "pitcairn grupo de ilhas",
+      "pitcairn gruppo di isole",
+      "pitcairn henderson ducie and oeno islands",
+      "pitcairn islands",
+      "pitcairninseln",
+      "pn",
+      "les pitcairn"
+    ]
+  },
+  "pe": {
+    "name": "Peru",
+    "lat": -10.0,
+    "lon": -76.0,
+    "aliases": [
+      "biro",
+      "pe",
+      "per",
+      "perou",
+      "peru",
+      "prou",
+      "repubblica del per",
+      "republic of peru",
+      "republik peru",
+      "repblica de per",
+      "repblica del per",
+      "repblica do peru",
+      "rpublique du prou"
+    ]
+  },
+  "ph": {
+    "name": "Philippines",
+    "lat": 13.0,
+    "lon": 122.0,
+    "aliases": [
+      "filibin",
+      "filipin",
+      "filipinas",
+      "filipine",
+      "filippine",
+      "ph",
+      "phi",
+      "philippinen",
+      "philippines",
+      "phl",
+      "repubblica delle filippine",
+      "republic of the philippines",
+      "republik der philippinen",
+      "repblica das filipinas",
+      "repblica de las filipinas",
+      "repblika ng pilipinas",
+      "rpublique des philippines"
+    ]
+  },
+  "pw": {
+    "name": "Palau",
+    "lat": 7.5,
+    "lon": 134.5,
+    "aliases": [
+      "beluu er a belau",
+      "palaos palau",
+      "palau",
+      "plw",
+      "pw",
+      "repubblica di palau",
+      "republic of palau",
+      "republik palau",
+      "repblica de palau",
+      "rpublique des palaos palau"
+    ]
+  },
+  "pg": {
+    "name": "Papua New Guinea",
+    "lat": -6.0,
+    "lon": 147.0,
+    "aliases": [
+      "estado independente da papua nova guin",
+      "estado independiente de papa nueva guinea",
+      "independen stet bilong papua niugini",
+      "independent state of papua new guinea",
+      "papouasienouvelleguine",
+      "papua new guinea",
+      "papua nova guin",
+      "papua nuova guinea",
+      "papuaneuguinea",
+      "papa nueva guinea",
+      "pg",
+      "png",
+      "stato indipendente di papua nuova guinea",
+      "unabhngiger staat papuaneuguinea",
+      "tat indpendant de papouasienouvelleguine"
+    ]
+  },
+  "pl": {
+    "name": "Poland",
+    "lat": 52.0,
+    "lon": 20.0,
+    "aliases": [
+      "bolonia",
+      "pl",
+      "pol",
+      "poland",
+      "polen",
+      "pologne",
+      "polonia",
+      "polnia",
+      "repubblica di polonia",
+      "republic of poland",
+      "republik polen",
+      "repblica da polnia",
+      "repblica de polonia",
+      "rzeczpospolita polska",
+      "rpublique de pologne"
+    ]
+  },
+  "pr": {
+    "name": "Puerto Rico",
+    "lat": 18.25,
+    "lon": -66.5,
+    "aliases": [
+      "asociado de puerto rico",
+      "commonwealth di porto rico",
+      "commonwealth of puerto rico",
+      "estado libre asociado de puerto rico",
+      "freistaat puerto rico",
+      "porto rico",
+      "pr",
+      "pri",
+      "puerto rico",
+      "pur"
+    ]
+  },
+  "kp": {
+    "name": "North Korea",
+    "lat": 40.0,
+    "lon": 127.0,
+    "aliases": [
+      "chosn minjujui inmin konghwaguk",
+      "corea del nord",
+      "corea del norte",
+      "coreia do norte",
+      "core du nord",
+      "democratic peoples republic of korea",
+      "demokratische volksrepublik korea",
+      "dprk",
+      "korea democratic peoples republic of",
+      "kp",
+      "nordkorea",
+      "north korea",
+      "prk",
+      "repubblica democratica popolare di corea",
+      "repblica popular democrtica da coreia",
+      "repblica popular democrtica de corea",
+      "rpublique populaire dmocratique de core"
+    ]
+  },
+  "pt": {
+    "name": "Portugal",
+    "lat": 39.5,
+    "lon": -8.0,
+    "aliases": [
+      "borto9al",
+      "bortoghal",
+      "por",
+      "portogallo",
+      "portoghal",
+      "portugal",
+      "portugiesische republik",
+      "portuguesa",
+      "portuguese republic",
+      "prt",
+      "pt",
+      "repubblica portoghese",
+      "repblica portuguesa",
+      "repblica portugus",
+      "rpublique portugaise"
+    ]
+  },
+  "py": {
+    "name": "Paraguay",
+    "lat": -23.0,
+    "lon": -58.0,
+    "aliases": [
+      "par",
+      "paraguai",
+      "paraguay",
+      "pry",
+      "py",
+      "repubblica del paraguay",
+      "republic of paraguay",
+      "republik paraguay",
+      "repblica de paraguay",
+      "repblica del paraguay",
+      "repblica do paraguai",
+      "rpublique du paraguay",
+      "tet paragui"
+    ]
+  },
+  "ps": {
+    "name": "Palestine",
+    "lat": 31.9,
+    "lon": 35.2,
+    "aliases": [
+      "dawlat filasin",
+      "estado da palestina",
+      "estado de palestina",
+      "falasteen",
+      "falastin",
+      "filastin",
+      "palestina",
+      "palestine",
+      "palestine state of",
+      "palstina",
+      "ple",
+      "ps",
+      "pse",
+      "staat palstina",
+      "state of palestine",
+      "stato di palestina",
+      "tat de palestine"
+    ]
+  },
+  "pf": {
+    "name": "French Polynesia",
+    "lat": -15.0,
+    "lon": -140.0,
+    "aliases": [
+      "franzsischpolynesien",
+      "french polynesia",
+      "pf",
+      "polinesia francesa",
+      "polinesia francese",
+      "polinesia francs",
+      "polinsia francesa",
+      "polynsie franaise",
+      "pyf",
+      "prnetia farni"
+    ]
+  },
+  "qa": {
+    "name": "Qatar",
+    "lat": 25.5,
+    "lon": 51.25,
+    "aliases": [
+      "9atar",
+      "catar",
+      "dawlat qaar",
+      "estado de qatar",
+      "estado do qatar",
+      "katar",
+      "qa",
+      "qat",
+      "qatar",
+      "staat katar",
+      "state of qatar",
+      "stato del qatar",
+      "tat du qatar"
+    ]
+  },
+  "re": {
+    "name": "Réunion",
+    "lat": -21.15,
+    "lon": 55.5,
+    "aliases": [
+      "ile de la runion",
+      "ilha da reunio",
+      "isla de la reunin",
+      "re",
+      "reu",
+      "reunion",
+      "reunio",
+      "reunin",
+      "riunione",
+      "runion",
+      "runion island"
+    ]
+  },
+  "ro": {
+    "name": "Romania",
+    "lat": 46.0,
+    "lon": 25.0,
+    "aliases": [
+      "ro",
+      "romania",
+      "romnia",
+      "rou",
+      "roumania",
+      "roumanie",
+      "rumania",
+      "rumnien"
+    ]
+  },
+  "ru": {
+    "name": "Russia",
+    "lat": 60.0,
+    "lon": 100.0,
+    "aliases": [
+      "federacin de rusia",
+      "federazione russa",
+      "federao russa",
+      "fdration de russie",
+      "rossia",
+      "roussya",
+      "ru",
+      "rus",
+      "rusia",
+      "russia",
+      "russian federation",
+      "russie",
+      "russische fderation",
+      "russland",
+      "rssia"
+    ]
+  },
+  "rw": {
+    "name": "Rwanda",
+    "lat": -2.0,
+    "lon": 30.0,
+    "aliases": [
+      "repubblica del ruanda",
+      "republic of rwanda",
+      "republik ruanda",
+      "repubulika yu rwanda",
+      "repblica de rwanda",
+      "repblica do ruanda",
+      "ruanda",
+      "rw",
+      "rwa",
+      "rwanda",
+      "rpublique du rwanda",
+      "rpublique rwandaise"
+    ]
+  },
+  "sa": {
+    "name": "Saudi Arabia",
+    "lat": 25.0,
+    "lon": 45.0,
+    "aliases": [
+      "almamlakah alarabiyyah assudiyyah",
+      "arabia saudita",
+      "arabia saud",
+      "arabie saoudite",
+      "arbia saudita",
+      "kingdom of saudi arabia",
+      "ksa",
+      "knigreich saudiarabien",
+      "reino da arbia saudita",
+      "reino de arabia saudita",
+      "royaume darabie saoudite",
+      "sa",
+      "saoudia",
+      "sau",
+      "saudi",
+      "saudi arabia",
+      "saudiarabien",
+      "sou3oudia",
+      "ss3odia"
+    ]
+  },
+  "sd": {
+    "name": "Sudan",
+    "lat": 15.0,
+    "lon": 30.0,
+    "aliases": [
+      "jumhryat assdn",
+      "repubblica del sudan",
+      "republic of the sudan",
+      "republik sudan",
+      "repblica de sudn",
+      "repblica do sudo",
+      "rpublique du soudan",
+      "sd",
+      "sdn",
+      "soudan",
+      "soudane",
+      "sud",
+      "sudan",
+      "sudn",
+      "sudo"
+    ]
+  },
+  "sn": {
+    "name": "Senegal",
+    "lat": 14.0,
+    "lon": -14.0,
+    "aliases": [
+      "repubblica del senegal",
+      "republic of senegal",
+      "republik senegal",
+      "repblica de senegal",
+      "repblica do senegal",
+      "rpublique du sngal",
+      "sen",
+      "senegal",
+      "sinighal",
+      "sn",
+      "sngal"
+    ]
+  },
+  "sg": {
+    "name": "Singapore",
+    "lat": 1.3667,
+    "lon": 103.8,
+    "aliases": [
+      "repubblica di singapore",
+      "republic of singapore",
+      "republik singapur",
+      "republik singapura",
+      "repblica de singapur",
+      "repblica de singapura",
+      "rpublique de singapour",
+      "sg",
+      "sgp",
+      "singapore",
+      "singapour",
+      "singapur",
+      "singapura",
+      "singhafoura"
+    ]
+  },
+  "gs": {
+    "name": "South Georgia",
+    "lat": -54.5,
+    "lon": -37.0,
+    "aliases": [
+      "georgia del sud e isole sandwich del sud",
+      "georgia del sud e isole sandwich meridionali",
+      "georgia del sur y las islas sandwich del sur",
+      "gergia do sul e sandwich do sul",
+      "gs",
+      "gorgie du sud et les les sandwich du sud",
+      "gorgie du sudetles les sandwich du sud",
+      "ilhas gergia do sul e sandwich do sul",
+      "islas georgias del sur y sandwich del sur",
+      "sgs",
+      "south georgia",
+      "south georgia and the south sandwich islands",
+      "sdgeorgien und die sdlichen sandwichinseln"
+    ]
+  },
+  "sj": {
+    "name": "Svalbard and Jan Mayen",
+    "lat": 78.0,
+    "lon": 20.0,
+    "aliases": [
+      "ilhas svalbard e jan mayen",
+      "islas svalbard y jan mayen",
+      "jan mayen svalbard",
+      "sj",
+      "sjm",
+      "spitzbergen und jan mayen",
+      "svalbard and jan mayen",
+      "svalbard and jan mayen islands",
+      "svalbard e jan mayen",
+      "svalbard et jan mayen",
+      "svalbard og jan mayen"
+    ]
+  },
+  "sb": {
+    "name": "Solomon Islands",
+    "lat": -8.0,
+    "lon": 159.0,
+    "aliases": [
+      "ilhas salomo",
+      "islas salomn",
+      "isole salomone",
+      "salomonen",
+      "sb",
+      "slb",
+      "sol",
+      "solomon islands",
+      "les salomon"
+    ]
+  },
+  "sl": {
+    "name": "Sierra Leone",
+    "lat": 8.5,
+    "lon": -11.5,
+    "aliases": [
+      "repubblica della sierra leone",
+      "republic of sierra leone",
+      "republik sierra leone",
+      "repblica da serra leoa",
+      "repblica de sierra leona",
+      "rpublique de sierra leone",
+      "serra leoa",
+      "sierra leone",
+      "sl",
+      "sle"
+    ]
+  },
+  "sv": {
+    "name": "El Salvador",
+    "lat": 13.8333,
+    "lon": -88.9167,
+    "aliases": [
+      "el salvador",
+      "esa",
+      "repubblica di el salvador",
+      "republic of el salvador",
+      "republik el salvador",
+      "repblica de el salvador",
+      "rpublique du salvador",
+      "salvador",
+      "slv",
+      "sv"
+    ]
+  },
+  "sm": {
+    "name": "San Marino",
+    "lat": 43.7667,
+    "lon": 12.4167,
+    "aliases": [
+      "most serene republic of san marino",
+      "repubblica di san marino",
+      "republic of san marino",
+      "republik san marino",
+      "rpublique de saintmarin",
+      "saintmarin",
+      "san marino",
+      "serenissima repubblica di san marino",
+      "serensima repblica de san marino",
+      "serenssima repblica de san marino",
+      "sm",
+      "smr"
+    ]
+  },
+  "so": {
+    "name": "Somalia",
+    "lat": 10.0,
+    "lon": 49.0,
+    "aliases": [
+      "aml",
+      "bundesrepublik somalia",
+      "federal republic of somalia",
+      "jamhuuriyadda federaalka soomaaliya",
+      "jumhriyyat aml alfiderliyya",
+      "repubblica federale di somalia",
+      "repblica federal da somlia",
+      "repblica federal de somalia",
+      "rpublique fdrale de somalie",
+      "so",
+      "som",
+      "somalia",
+      "somalie",
+      "somlia",
+      "soumal"
+    ]
+  },
+  "pm": {
+    "name": "Saint Pierre and Miquelon",
+    "lat": 46.8333,
+    "lon": -56.3333,
+    "aliases": [
+      "collectivit territoriale de saintpierreetmiquelon",
+      "pm",
+      "saint pierre and miquelon",
+      "saint pierre e miquelon",
+      "saintpierre e miquelon",
+      "saintpierreetmiquelon",
+      "san pedro y miqueln",
+      "spm",
+      "st pierre und miquelon"
+    ]
+  },
+  "rs": {
+    "name": "Serbia",
+    "lat": 44.0,
+    "lon": 21.0,
+    "aliases": [
+      "repubblica di serbia",
+      "republic of serbia",
+      "republik serbien",
+      "republika srbija",
+      "repblica da srvia",
+      "repblica de serbia",
+      "rs",
+      "rpublique de serbie",
+      "serbia",
+      "serbie",
+      "serbien",
+      "srb",
+      "srbija",
+      "srvia"
+    ]
+  },
+  "ss": {
+    "name": "South Sudan",
+    "lat": 7.0,
+    "lon": 30.0,
+    "aliases": [
+      "repubblica del sudan del sud",
+      "republic of south sudan",
+      "republik sdsudan",
+      "repblica de sudn del sur",
+      "repblica do sudo do sul",
+      "rpublique du soudan du sud",
+      "soudan du sud",
+      "south sudan",
+      "ss",
+      "ssd",
+      "sudan del sud",
+      "sudn del sur",
+      "sudo do sul",
+      "sdsudan"
+    ]
+  },
+  "st": {
+    "name": "São Tomé and Príncipe",
+    "lat": 1.0,
+    "lon": 7.0,
+    "aliases": [
+      "democratic republic of so tom and prncipe",
+      "demokratische republik so tom und prncipe",
+      "repubblica democratica di so tom e prncipe",
+      "repblica democrtica de santo tom y prncipe",
+      "repblica democrtica de so tom e prncipe",
+      "rpublique dmocratique de so tom et prncipe",
+      "santo tom y prncipe",
+      "sao tome and principe",
+      "st",
+      "stp",
+      "so tom and prncipe",
+      "so tom e prncipe",
+      "so tom et prncipe",
+      "so tom und prncipe"
+    ]
+  },
+  "sr": {
+    "name": "Suriname",
+    "lat": 4.0,
+    "lon": -56.0,
+    "aliases": [
+      "repubblica del suriname",
+      "republic of suriname",
+      "republiek suriname",
+      "republik suriname",
+      "repblica de suriname",
+      "repblica do suriname",
+      "rpublique du suriname",
+      "sarnam",
+      "sr",
+      "sranangron",
+      "sur",
+      "surinam",
+      "suriname"
+    ]
+  },
+  "sk": {
+    "name": "Slovakia",
+    "lat": 48.6667,
+    "lon": 19.5,
+    "aliases": [
+      "eslovaquia",
+      "eslovquia",
+      "repubblica slovacca",
+      "repblica eslovaca",
+      "rpublique slovaque",
+      "sk",
+      "slovacchia",
+      "slovak republic",
+      "slovakia",
+      "slovaquie",
+      "slovensk republika",
+      "slowakei",
+      "slowakische republik",
+      "svk"
+    ]
+  },
+  "si": {
+    "name": "Slovenia",
+    "lat": 46.1167,
+    "lon": 14.8167,
+    "aliases": [
+      "eslovenia",
+      "eslovnia",
+      "repubblica di slovenia",
+      "republic of slovenia",
+      "republik slowenien",
+      "republika slovenija",
+      "repblica da eslovnia",
+      "repblica de eslovenia",
+      "rpublique de slovnie",
+      "si",
+      "slo",
+      "slovenia",
+      "slovnie",
+      "slowenien",
+      "svn"
+    ]
+  },
+  "se": {
+    "name": "Sweden",
+    "lat": 62.0,
+    "lon": 15.0,
+    "aliases": [
+      "kingdom of sweden",
+      "konungariket sverige",
+      "knigreich schweden",
+      "regno di svezia",
+      "reino da sucia",
+      "reino de suecia",
+      "royaume de sude",
+      "schweden",
+      "se",
+      "sswid",
+      "suecia",
+      "suede",
+      "sude",
+      "sucia",
+      "svezia",
+      "swe",
+      "sweden",
+      "swid"
+    ]
+  },
+  "sz": {
+    "name": "Eswatini",
+    "lat": -26.5,
+    "lon": 31.5,
+    "aliases": [
+      "essuatni",
+      "esuatini",
+      "eswatini",
+      "kingdom of eswatini",
+      "knigreich eswatini",
+      "ngwane",
+      "regno di eswatini",
+      "reino de eswatini",
+      "royaume deswatini",
+      "swatini",
+      "swaziland",
+      "swz",
+      "sz",
+      "umbuso weswatini",
+      "weswatini"
+    ]
+  },
+  "sx": {
+    "name": "Sint Maarten",
+    "lat": 18.0333,
+    "lon": -63.05,
+    "aliases": [
+      "saintmartin",
+      "sint maarten",
+      "sint maarten dutch part",
+      "sx",
+      "sxm",
+      "so martinho"
+    ]
+  },
+  "sc": {
+    "name": "Seychelles",
+    "lat": -4.5833,
+    "lon": 55.6667,
+    "aliases": [
+      "repiblik sesel",
+      "repubblica delle seychelles",
+      "republic of seychelles",
+      "republik der seychellen",
+      "repblica das seychelles",
+      "repblica de las seychelles",
+      "rpublique des seychelles",
+      "sc",
+      "seicheles",
+      "sey",
+      "seychellen",
+      "seychelles",
+      "syc"
+    ]
+  },
+  "sy": {
+    "name": "Syria",
+    "lat": 35.0,
+    "lon": 38.0,
+    "aliases": [
+      "aljumhryah alarabyah assryah",
+      "arabische republik syrien",
+      "repubblica araba siriana",
+      "repblica rabe siria",
+      "repblica rabe sria",
+      "rpublique arabe syrienne",
+      "siria",
+      "souriya",
+      "suria",
+      "sy",
+      "syr",
+      "syria",
+      "syrian arab republic",
+      "syrie",
+      "syrien",
+      "sria"
+    ]
+  },
+  "tc": {
+    "name": "Turks and Caicos Islands",
+    "lat": 21.75,
+    "lon": -71.5833,
+    "aliases": [
+      "ilhas turks e caicos",
+      "islas turcas y caicos",
+      "islas turks y caicos",
+      "isole turks e caicos",
+      "tc",
+      "tca",
+      "turks and caicos islands",
+      "turks e caicos",
+      "turks und caicos inseln",
+      "turksund caicosinseln",
+      "les turques et caques",
+      "les turquesetcaques"
+    ]
+  },
+  "td": {
+    "name": "Chad",
+    "lat": 15.0,
+    "lon": 19.0,
+    "aliases": [
+      "cha",
+      "chad",
+      "chade",
+      "ciad",
+      "repubblica del ciad",
+      "republic of chad",
+      "republik tschad",
+      "repblica de chad",
+      "repblica do chade",
+      "rpublique du tchad",
+      "tcd",
+      "tchad",
+      "td",
+      "tschad"
+    ]
+  },
+  "tg": {
+    "name": "Togo",
+    "lat": 8.0,
+    "lon": 1.1667,
+    "aliases": [
+      "repubblica del togo",
+      "republik togo",
+      "repblica de togo",
+      "repblica do togo",
+      "rpublique togolaise",
+      "tg",
+      "tgo",
+      "tog",
+      "togo",
+      "togolese",
+      "togolese republic"
+    ]
+  },
+  "th": {
+    "name": "Thailand",
+    "lat": 15.0,
+    "lon": 100.0,
+    "aliases": [
+      "kingdom of thailand",
+      "knigreich thailand",
+      "prathet",
+      "ratcha anachak thai",
+      "regno di thailandia",
+      "reino da tailndia",
+      "reino de tailandia",
+      "royaume de thalande",
+      "tailandia",
+      "tailndia",
+      "tayland",
+      "th",
+      "tha",
+      "thai",
+      "thailand",
+      "thailande",
+      "thalande"
+    ]
+  },
+  "tj": {
+    "name": "Tajikistan",
+    "lat": 39.0,
+    "lon": 71.0,
+    "aliases": [
+      "repubblica del tajikistan",
+      "republic of tajikistan",
+      "republik tadschikistan",
+      "repblica de tayikistn",
+      "repblica do tajiquisto",
+      "rpublique du tadjikistan",
+      "tadjikistan",
+      "tadschikistan",
+      "tagikistan",
+      "tajikistan",
+      "tajiquisto",
+      "tayikistn",
+      "tj",
+      "tjk",
+      "toikiston",
+      "umhuriyi toikiston"
+    ]
+  },
+  "tk": {
+    "name": "Tokelau",
+    "lat": -9.0,
+    "lon": -172.0,
+    "aliases": [
+      "islas tokelau",
+      "isole tokelau",
+      "tk",
+      "tkl",
+      "tokelau",
+      "les tokelau"
+    ]
+  },
+  "tm": {
+    "name": "Turkmenistan",
+    "lat": 40.0,
+    "lon": 60.0,
+    "aliases": [
+      "tkm",
+      "tm",
+      "turcomenisto",
+      "turkmenistan",
+      "turkmenistn",
+      "turkmnistan",
+      "turquemenisto"
+    ]
+  },
+  "tl": {
+    "name": "Timor-Leste",
+    "lat": -8.8333,
+    "lon": 125.9167,
+    "aliases": [
+      "democratic republic of timorleste",
+      "demokratische republik timorleste",
+      "east timor",
+      "osttimor",
+      "repubblica democratica di timor est",
+      "repblica democrtica de timorleste",
+      "repblika demokrtika timrleste",
+      "rpublique dmocratique du timor oriental",
+      "timor",
+      "timor est",
+      "timor lorosae",
+      "timor oriental",
+      "timorleste",
+      "timr lorosae",
+      "tl",
+      "tls"
+    ]
+  },
+  "to": {
+    "name": "Tonga",
+    "lat": -20.0,
+    "lon": -175.0,
+    "aliases": [
+      "kingdom of tonga",
+      "knigreich tonga",
+      "regno di tonga",
+      "reino de tonga",
+      "royaume des tonga",
+      "tga",
+      "to",
+      "ton",
+      "tonga"
+    ]
+  },
+  "tt": {
+    "name": "Trinidad and Tobago",
+    "lat": 11.0,
+    "lon": -61.0,
+    "aliases": [
+      "repubblica di trinidad e tobago",
+      "republic of trinidad and tobago",
+      "republik trinidad und tobago",
+      "repblica de trinidad e tobago",
+      "repblica de trinidad y tobago",
+      "rpublique de trinitettobago",
+      "trinidad and tobago",
+      "trinidad e tobago",
+      "trinidad und tobago",
+      "trinidad y tobago",
+      "trinidade e tobago",
+      "trinitettobago",
+      "tt",
+      "tto"
+    ]
+  },
+  "tn": {
+    "name": "Tunisia",
+    "lat": 34.0,
+    "lon": 9.0,
+    "aliases": [
+      "aljumhriyyah attnisiyyah",
+      "repubblica tunisina",
+      "republic of tunisia",
+      "repblica da tunsia",
+      "repblica de tnez",
+      "rpublique tunisienne",
+      "tn",
+      "tounes",
+      "tounis",
+      "touns",
+      "tun",
+      "tunesien",
+      "tunesische republik",
+      "tunisia",
+      "tunisian republic",
+      "tunisie",
+      "tunsia",
+      "tnez"
+    ]
+  },
+  "tr": {
+    "name": "Türkiye",
+    "lat": 39.0,
+    "lon": 35.0,
+    "aliases": [
+      "repubblica di turchia",
+      "republic of turkey",
+      "republic of trkiye",
+      "republik trkei",
+      "repblica da turquia",
+      "repblica de turqua",
+      "rpublique de turquie",
+      "torkia",
+      "tourkya",
+      "tr",
+      "tur",
+      "turchia",
+      "turkey",
+      "turkiye",
+      "turquia",
+      "turquie",
+      "turqua",
+      "trkei",
+      "trkiye",
+      "trkiye cumhuriyeti"
+    ]
+  },
+  "tv": {
+    "name": "Tuvalu",
+    "lat": -8.0,
+    "lon": 178.0,
+    "aliases": [
+      "tuv",
+      "tuvalu",
+      "tv"
+    ]
+  },
+  "tw": {
+    "name": "Taiwan",
+    "lat": 23.5,
+    "lon": 121.0,
+    "aliases": [
+      "chinese taipei",
+      "ilha formosa",
+      "repubblica cinese taiwan",
+      "republic of china",
+      "republic of china taiwan",
+      "republik china taiwan",
+      "repblica da china",
+      "repblica de china en taiwn",
+      "rpublique de chine tawan",
+      "taiwan",
+      "taiwn",
+      "tawan",
+      "tpe",
+      "tw",
+      "twn",
+      "tiwn",
+      "zhnghu mngu"
+    ]
+  },
+  "tz": {
+    "name": "Tanzania",
+    "lat": -6.0,
+    "lon": 35.0,
+    "aliases": [
+      "jamhuri ya muungano wa tanzania",
+      "repubblica unita di tanzania",
+      "repblica unida da tanznia",
+      "repblica unida de tanzania",
+      "rpublique unie de tanzanie",
+      "tan",
+      "tansania",
+      "tanzania",
+      "tanzania united republic of",
+      "tanzanie",
+      "tanznia",
+      "tz",
+      "tza",
+      "united republic of tanzania",
+      "vereinigte republik tansania"
+    ]
+  },
+  "ug": {
+    "name": "Uganda",
+    "lat": 1.0,
+    "lon": 32.0,
+    "aliases": [
+      "jamhuri ya uganda",
+      "ouganda",
+      "repubblica di uganda",
+      "republic of uganda",
+      "republik uganda",
+      "repblica de uganda",
+      "repblica do uganda",
+      "rpublique de louganda",
+      "ug",
+      "uga",
+      "uganda"
+    ]
+  },
+  "ua": {
+    "name": "Ukraine",
+    "lat": 49.0,
+    "lon": 32.0,
+    "aliases": [
+      "okrania",
+      "ua",
+      "ucraina",
+      "ucrania",
+      "ucrnia",
+      "ukr",
+      "ukraine",
+      "ukrayina"
+    ]
+  },
+  "um": {
+    "name": "United States Minor Outlying Islands",
+    "lat": 19.3,
+    "lon": 166.6333,
+    "aliases": [
+      "estados unidos ilhas menores distantes",
+      "estados unidos islas menores alejadas de",
+      "ilhas menores distantes dos estados unidos",
+      "islas ultramarinas menores de estados unidos",
+      "isole minori esterne degli stati uniti damerica",
+      "kleinere inselbesitzungen der vereinigten staaten",
+      "stati uniti isole minori",
+      "um",
+      "umi",
+      "united states minor outlying islands",
+      "usa kleinere ausgelagerte inseln",
+      "les mineures loignes des tatsunis"
+    ]
+  },
+  "uy": {
+    "name": "Uruguay",
+    "lat": -33.0,
+    "lon": -56.0,
+    "aliases": [
+      "oriental republic of uruguay",
+      "repubblica orientale delluruguay",
+      "republik stlich des uruguay",
+      "repblica oriental del uruguay",
+      "repblica oriental do uruguai",
+      "rpublique orientale de luruguay",
+      "uru",
+      "uruguai",
+      "uruguay",
+      "ury",
+      "uy"
+    ]
+  },
+  "us": {
+    "name": "United States",
+    "lat": 38.0,
+    "lon": -97.0,
+    "aliases": [
+      "america",
+      "estados unidos",
+      "estados unidos da amrica",
+      "estados unidos de amrica",
+      "etats unis",
+      "les tatsunis damrique",
+      "lmarikan",
+      "marikan",
+      "mirikan",
+      "stati uniti damerica",
+      "united states",
+      "united states of america",
+      "us",
+      "usa",
+      "vereinigte staaten",
+      "vereinigte staaten von amerika",
+      "tatsunis"
+    ]
+  },
+  "uz": {
+    "name": "Uzbekistan",
+    "lat": 41.0,
+    "lon": 64.0,
+    "aliases": [
+      "ouzbkistan",
+      "ozbekiston respublikasi",
+      "repubblica di uzbekistan",
+      "republic of uzbekistan",
+      "republik usbekistan",
+      "repblica de uzbekistn",
+      "repblica do usbequisto",
+      "rpublique douzbkistan",
+      "usbekistan",
+      "uz",
+      "uzb",
+      "uzbekistan",
+      "uzbekistn",
+      "uzbequisto"
+    ]
+  },
+  "va": {
+    "name": "Vatican City",
+    "lat": 41.9,
+    "lon": 12.45,
+    "aliases": [
+      "cidade do vaticano",
+      "citt del vaticano",
+      "cit du vatican",
+      "ciudad del vaticano",
+      "holy see vatican city state",
+      "staat vatikanstadt",
+      "stato della citt del vaticano",
+      "va",
+      "vat",
+      "vatican",
+      "vatican city",
+      "vatican city state",
+      "vatikanstadt"
+    ]
+  },
+  "vc": {
+    "name": "Saint Vincent and the Grenadines",
+    "lat": 13.25,
+    "lon": -61.2,
+    "aliases": [
+      "saint vincent and the grenadines",
+      "saint vincent e grenadine",
+      "saintvincentetles grenadines",
+      "saintvincentetlesgrenadines",
+      "san vicente y granadinas",
+      "san vicente y las granadinas",
+      "st vincent und die grenadinen",
+      "so vicente e granadinas",
+      "so vincente e granadinas",
+      "vc",
+      "vct",
+      "vin"
+    ]
+  },
+  "ve": {
+    "name": "Venezuela",
+    "lat": 8.0,
+    "lon": -66.0,
+    "aliases": [
+      "bolivarian republic of venezuela",
+      "bolivarische republik venezuela",
+      "repubblica bolivariana del venezuela",
+      "repblica bolivariana da venezuela",
+      "repblica bolivariana de venezuela",
+      "rpublique bolivarienne du venezuela",
+      "ve",
+      "ven",
+      "venezuela",
+      "venezuela bolivarian republic of"
+    ]
+  },
+  "vg": {
+    "name": "British Virgin Islands",
+    "lat": 18.4314,
+    "lon": -64.6231,
+    "aliases": [
+      "britische jungferninseln",
+      "british virgin islands",
+      "ilhas virgens",
+      "islas vrgenes",
+      "islas vrgenes del reino unido",
+      "isole vergini",
+      "isole vergini britanniche",
+      "ivb",
+      "jungferninseln",
+      "vg",
+      "vgb",
+      "virgin islands",
+      "virgin islands british",
+      "les vierges",
+      "les vierges britanniques"
+    ]
+  },
+  "vi": {
+    "name": "United States Virgin Islands",
+    "lat": 18.35,
+    "lon": -64.9333,
+    "aliases": [
+      "amerikanische jungferninseln",
+      "ilhas virgens dos estados unidos",
+      "islas vrgenes de los estados unidos",
+      "isole vergini americane",
+      "isole vergini degli stati uniti",
+      "isv",
+      "united states virgin islands",
+      "vi",
+      "vir",
+      "virgin islands of the united states",
+      "virgin islands us",
+      "les vierges des tatsunis"
+    ]
+  },
+  "vn": {
+    "name": "Vietnam",
+    "lat": 16.1667,
+    "lon": 107.8333,
+    "aliases": [
+      "cng ha x hi ch ngha vit nam",
+      "repubblica socialista del vietnam",
+      "repblica socialista de vietnam",
+      "repblica socialista do vietname",
+      "rpublique socialiste du vit nam",
+      "socialist republic of vietnam",
+      "sozialistische republik vietnam",
+      "vie",
+      "viet nam",
+      "vietnam",
+      "vietname",
+      "vit nam",
+      "vn",
+      "vnm"
+    ]
+  },
+  "vu": {
+    "name": "Vanuatu",
+    "lat": -16.0,
+    "lon": 167.0,
+    "aliases": [
+      "repubblica di vanuatu",
+      "republic of vanuatu",
+      "repblica de vanuatu",
+      "ripablik blong vanuatu",
+      "rpublique de vanuatu",
+      "van",
+      "vanuatu",
+      "vu",
+      "vut"
+    ]
+  },
+  "wf": {
+    "name": "Wallis and Futuna",
+    "lat": -13.3,
+    "lon": -176.2,
+    "aliases": [
+      "gebiet der wallis und futuna",
+      "territoire des les wallis et futuna",
+      "territorio de las islas wallis y futuna",
+      "territorio delle isole wallis e futuna",
+      "territory of the wallis and futuna islands",
+      "territrio das ilhas wallis e futuna",
+      "wallis and futuna",
+      "wallis e futuna",
+      "wallis und futuna",
+      "wallis y futuna",
+      "wallisetfutuna",
+      "wf",
+      "wlf"
+    ]
+  },
+  "ws": {
+    "name": "Samoa",
+    "lat": -13.5833,
+    "lon": -172.3333,
+    "aliases": [
+      "estado independente de samoa",
+      "estado independiente de samoa",
+      "independent state of samoa",
+      "malo saoloto tutoatasi o smoa",
+      "sam",
+      "samoa",
+      "stato indipendente di samoa",
+      "unabhngige staat samoa",
+      "ws",
+      "wsm"
+    ]
+  },
+  "ye": {
+    "name": "Yemen",
+    "lat": 15.0,
+    "lon": 48.0,
+    "aliases": [
+      "aljumhriyyah alyamaniyyah",
+      "imen",
+      "jemen",
+      "lyaman",
+      "repubblica dello yemen",
+      "republic of yemen",
+      "republik jemen",
+      "repblica de yemen",
+      "repblica do imen",
+      "rpublique du ymen",
+      "ye",
+      "yem",
+      "yemen",
+      "yemeni republic",
+      "ymen"
+    ]
+  },
+  "za": {
+    "name": "South Africa",
+    "lat": -29.0,
+    "lon": 24.0,
+    "aliases": [
+      "afrique du sud",
+      "janoub ifriqiya",
+      "janoub ifriqya",
+      "repubblica del sud africa",
+      "republic of south africa",
+      "republik sdafrika",
+      "repblica da frica do sul",
+      "repblica de sudfrica",
+      "rsa",
+      "rpublique dafrique du sud",
+      "south africa",
+      "sud africa",
+      "sudfrica",
+      "suidafrika",
+      "sdafrika",
+      "za",
+      "zaf",
+      "frica do sul"
+    ]
+  },
+  "zm": {
+    "name": "Zambia",
+    "lat": -15.0,
+    "lon": 30.0,
+    "aliases": [
+      "repubblica di zambia",
+      "republic of zambia",
+      "republik sambia",
+      "repblica da zmbia",
+      "repblica de zambia",
+      "rpublique de zambie",
+      "sambia",
+      "zam",
+      "zambia",
+      "zambie",
+      "zm",
+      "zmb",
+      "zmbia"
+    ]
+  },
+  "zw": {
+    "name": "Zimbabwe",
+    "lat": -20.0,
+    "lon": 30.0,
+    "aliases": [
+      "repubblica dello zimbabwe",
+      "republic of zimbabwe",
+      "republik simbabwe",
+      "repblica de zimbabue",
+      "repblica do zimbabwe",
+      "rpublique du zimbabwe",
+      "simbabwe",
+      "zim",
+      "zimbabue",
+      "zimbabwe",
+      "zw",
+      "zwe"
+    ]
+  }
+}
