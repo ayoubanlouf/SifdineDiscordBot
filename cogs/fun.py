@@ -7413,6 +7413,11 @@ class Fun(commands.Cog):
         diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
         diff_view.stop()
 
+        pool = [loc for loc in GEOGUESSR_LOCATIONS if loc.get("difficulty") == difficulty]
+        if not pool:
+            pool = list(GEOGUESSR_LOCATIONS)
+        random.shuffle(pool)
+
         signup_msg = await ctx.channel.fetch_message(signup_msg.id)
         reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
 
