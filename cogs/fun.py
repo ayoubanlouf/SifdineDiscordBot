@@ -6309,25 +6309,25 @@ class Fun(commands.Cog):
 
     @commands.command(name="unscramble", aliases=["scramble", "moliniks", "molinix", "chlada", "shlada"], help="An3tik kelma mkhrb9a o nta 9adha.")
     async def unscramble(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=30, default_difficulty="medium")
+        round_duration = 30
+        for arg in args:
+            try:
+                round_duration = max(5, int(arg))
+                break
+            except (ValueError, TypeError):
+                pass
         time_display = f"{round_duration}s"
-        mult = DIFFICULTY_STAKES[difficulty]
 
         try:
             join_emoji = "✅"
             signup_embed = discord.Embed(
                 title="🧩 Word Unscramble",
-                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
+                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**",
                 color=0x000000
             )
-            diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
-            start = await ctx.send(embed=signup_embed, view=diff_view)
+            start = await ctx.send(embed=signup_embed)
             await start.add_reaction(join_emoji)
             await asyncio.sleep(19)
-
-            difficulty = diff_view.difficulty
-            diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
-            diff_view.stop()
 
             signup_msg = await ctx.channel.fetch_message(start.id)
             reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
@@ -6342,7 +6342,7 @@ class Fun(commands.Cog):
                 await start.edit(embed=discord.Embed(
                     description="💨 7ta wa7d ma dkhel lgame ._.",
                     color=0x000000
-                ), view=None)
+                ))
                 return
 
             single_player = len(players) == 1
@@ -6353,14 +6353,14 @@ class Fun(commands.Cog):
 
             if single_player:
                 await start.edit(embed=discord.Embed(
-                    description=f"▶️ Bdina! 3ndek **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
+                    description="▶️ Bdina! 3ndek **3 HP**.",
                     color=0x000000
-                ), view=None)
+                ))
             else:
                 await start.edit(embed=discord.Embed(
-                    description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
+                    description="▶️ Bdina! Kola wa7d 3ndo **3 HP**.\nPlayers: " + ", ".join(p.mention for p in players),
                     color=0x000000
-                ), view=None)
+                ))
             await asyncio.sleep(2)
 
             if single_player:
@@ -6410,7 +6410,7 @@ class Fun(commands.Cog):
 
                 economy_cog = self.bot.get_cog("Economy")
                 correct_count = player_correct_words.get(player.id, 0)
-                gross = (len(players) * 50) + int(round((correct_count * 20) * diff_mult))
+                gross = (len(players) * 50) + (correct_count * 20)
                 eco_msg = ""
                 if economy_cog and correct_count > 0:
                     net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Unscramble Solo")
@@ -6478,7 +6478,7 @@ class Fun(commands.Cog):
                     eco_msg = ""
                     w_words = player_correct_words.get(winner.id, 0)
                     if economy_cog:
-                        gross = (len(players) * 50) + int(round((w_words * 20) * diff_mult))
+                        gross = (len(players) * 50) + (w_words * 20)
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Unscramble Win")
                         player_earnings[winner.id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
@@ -6488,7 +6488,7 @@ class Fun(commands.Cog):
                         # Other players only get 20 for each word with no bonus
                         for pid, words_count in player_correct_words.items():
                             if pid != winner.id and words_count > 0:
-                                p_gross = int(round((words_count * 20) * diff_mult))
+                                p_gross = words_count * 20
                                 if p_gross > 0:
                                     p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Unscramble Words Reward")
                                     player_earnings[pid] = p_net
