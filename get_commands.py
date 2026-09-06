@@ -14,7 +14,7 @@ AllBotCommands = {
         "reminder", "qrcode", "ocr", "game", "steam", "osu", "rocketleague", "shortenurl", "wikipedia", "wikihow"
     ],
     "Fun": [
-        "truth", "dare", "wouldyourather", "flags", "blacktea", "greentea",
+        "truth", "dare", "wouldyourather", "flags", "blacktea", "greentea", "redtea", "unscramble",
         "tictactoe", "connectfour", "akinator", "playchess", "rockpaperscissors", "minesweeper", "wordle", "hangman", "trivia",
         "typeracer", "blackjack", "slots", "mines", "roulette", "higherlower", "coinflip", "dice", "leaderboard", "geoguessr", "guesstherank"
     ],

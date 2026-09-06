@@ -4697,6 +4697,8 @@ MINIGAME_DISPLAY_MAP = {
     "flags": ("🚩 Flags", ["flags", "flag", "rayat", "gtf"]),
     "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
     "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
+    "redtea": ("🔴 RedTea", ["redtea", "rt", "red"]),
+    "unscramble": ("🧩 Unscramble", ["unscramble", "scramble", "fekk", "fek"]),
     "blackjack": ("🃏 Blackjack", ["blackjack", "bj", "21"]),
     "slots": ("🎰 Slots", ["slots", "slot", "machine"]),
     "mines": ("💣 Mines", ["mines", "gems", "gemhunt"]),
@@ -5246,9 +5248,9 @@ class GuessTheRankView(discord.ui.View):
                     await self.cog.record_minigame_win(interaction.guild.id, self.author.id, "guesstherank", earnings=net)
 
             if points_earned == 100:
-                outcome_header = f"🎯 **EXACT GUESS! Mhyeeeb! (+100 pts)**"
+                outcome_header = f"🎯 **EXACT GUESS! Mhyeeeb!**"
             elif points_earned == 50:
-                outcome_header = f"🤏 **CLOSE! Gher b rank w7da! (+50 pts)**"
+                outcome_header = f"🤏 **CLOSE! Gher b rank w7da!**"
             else:
                 outcome_header = f"❌ **WRONG GUESS! Majbtihach.**"
 
@@ -5381,6 +5383,7 @@ class Fun(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.words_db_path = os.path.join("assets", "words.db")
+        self.active_unscrambles = set()
         self.dict_conn = sqlite3.connect(self.words_db_path, check_same_thread=False)
         try:
             self.dict_conn.execute("PRAGMA cache_size = -2000")
@@ -5599,15 +5602,30 @@ class Fun(commands.Cog):
                 winner = active_players[0]
                 economy_cog = self.bot.get_cog("Economy")
                 eco_msg = ""
+                player_earnings = {}
                 winner_flags = player_correct_flags.get(winner.id, 0)
                 if economy_cog:
                     gross = (len(players) * 50) + int(round((winner_flags * 15) * diff_mult))
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
+                    player_earnings[winner.id] = net
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, winner.id, "flags", earnings=net)
+
+                    for pid, p_flags in player_correct_flags.items():
+                        if pid != winner.id and p_flags > 0:
+                            p_gross = int(round((p_flags * 15) * diff_mult))
+                            if p_gross > 0:
+                                p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Flags Reward")
+                                player_earnings[pid] = p_net
+
+                others_msg = ""
+                other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_flags[pid]} flags)" for pid, net in player_earnings.items() if pid != winner.id]
+                if other_rewards:
+                    others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
                 win_embed = discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame b **{winner_flags} flags**!{eco_msg}",
+                    description=f"🏆 {winner.mention} rbe7 lgame b **{winner_flags} flags**!{eco_msg}{others_msg}",
                     color=0x000000
                 )
                 await ctx.send(embed=win_embed)
@@ -5709,32 +5727,52 @@ class Fun(commands.Cog):
             max_guesses = max(player_correct_flags.values()) if player_correct_flags else 0
             if max_guesses > 0:
                 top_players = [p for p in players if player_correct_flags.get(p.id, 0) == max_guesses]
+                economy_cog = self.bot.get_cog("Economy")
+                player_earnings = {}
                 if len(top_players) == 1:
                     winner = top_players[0]
-                    economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
                     if economy_cog:
                         gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
+                        player_earnings[winner.id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
                             await self.record_minigame_win(ctx.guild.id, winner.id, "flags", earnings=net)
+
+                        for pid, p_flags in player_correct_flags.items():
+                            if pid != winner.id and p_flags > 0:
+                                p_gross = int(round((p_flags * 15) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Flags Reward")
+                                    player_earnings[pid] = p_net
+
+                    others_msg = ""
+                    other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_flags[pid]} flags)" for pid, net in player_earnings.items() if pid != winner.id]
+                    if other_rewards:
+                        others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} flags** o rbe7 lgame!{eco_msg}",
+                        description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} flags** o rbe7 lgame!{eco_msg}{others_msg}",
                         color=0x000000
                     ))
                 else:
                     winners_mention = " o ".join(p.mention for p in top_players)
-                    economy_cog = self.bot.get_cog("Economy")
-                    split_eco_msg = ""
                     if economy_cog:
-                        base_gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
-                        gross_split = max(1, int(base_gross / len(top_players)))
-                        for wp in top_players:
-                            await economy_cog.apply_tax_and_add_balance(wp.id, gross_split, context="Flags Win (Tie)")
-                        split_eco_msg = f"\n💰 Kola wa7d rbe7 **{gross_split}** TAD!"
+                        for pid, p_flags in player_correct_flags.items():
+                            if p_flags > 0:
+                                p_gross = int(round((p_flags * 15) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Flags Reward (Tie)")
+                                    player_earnings[pid] = p_net
+
+                    others_msg = ""
+                    rewards_list = [f"<@{pid}>: **+{net}** TAD ({player_correct_flags[pid]} flags)" for pid, net in player_earnings.items()]
+                    if rewards_list:
+                        others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+
                     await ctx.send(embed=discord.Embed(
-                        description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} flags**!{split_eco_msg}",
+                        description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} flags**!{others_msg}",
                         color=0x000000
                     ))
             else:
@@ -5784,6 +5822,7 @@ class Fun(commands.Cog):
             single_player = len(players) == 1
             lives = {p.id: 3 for p in players}
             active_players = list(players)
+            player_correct_words = {p.id: 0 for p in players}
             used_words = set()
 
             if single_player:
@@ -5880,6 +5919,7 @@ class Fun(commands.Cog):
                                     await ctx.send(f"🚪 **{player.mention}** khrej mn lgame o t elimina.")
                                     active_players.remove(player)
                                     continue
+                                player_correct_words[player.id] = player_correct_words.get(player.id, 0) + 1
                                 used_words.add(word_msg.content.strip().lower())
                                 await word_msg.add_reaction('✅')
                         except asyncio.TimeoutError:
@@ -5895,16 +5935,32 @@ class Fun(commands.Cog):
                 if active_players:
                     winner = active_players[0]
                     economy_cog = self.bot.get_cog("Economy")
+                    player_earnings = {}
                     eco_msg = ""
+                    w_words = player_correct_words.get(winner.id, 0)
                     if economy_cog:
-                        match_words_count = len(used_words)
-                        gross = (len(players) * 50) + int(round((match_words_count * 10) * diff_mult))
+                        gross = (len(players) * 50) + int(round((w_words * 10) * diff_mult))
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="BlackTea Win")
+                        player_earnings[winner.id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
                             await self.record_minigame_win(ctx.guild.id, winner.id, "blacktea", earnings=net)
+
+                        # Other players get rewarded for what they guessed with no total_players*50 bonus
+                        for pid, words_count in player_correct_words.items():
+                            if pid != winner.id and words_count > 0:
+                                p_gross = int(round((words_count * 10) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="BlackTea Words Reward")
+                                    player_earnings[pid] = p_net
+
+                    others_msg = ""
+                    other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_words[pid]} words)" for pid, net in player_earnings.items() if pid != winner.id]
+                    if other_rewards:
+                        others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner.mention} rbe7 lgame! L9ito majmou3 **{len(used_words)} kelmat**.{eco_msg}",
+                        description=f"🏆 {winner.mention} rbe7 lgame b **{w_words} kelmat**! (Majmou3 lkelmat: {len(used_words)}){eco_msg}{others_msg}",
                         color=0x000000
                     ))
         except Exception as e:
@@ -6070,6 +6126,384 @@ class Fun(commands.Cog):
                     ))
         except Exception as e:
             print(f"[greentea error]: {e}")
+
+    @commands.command(aliases=["rt", "red"], help="Kteb atwal kelma fiha l7orof li ghan3tik.")
+    async def redtea(self, ctx, *args):
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="medium")
+        time_display = f"{round_duration}s"
+        mult = DIFFICULTY_STAKES[difficulty]
+
+        try:
+            join_emoji = "✅"
+            signup_embed = discord.Embed(
+                title="🔴 RedTea",
+                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nAkbar kelma fiha lcombo katrbe7!\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nMin Players: **2**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
+                color=0x000000
+            )
+            diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
+            start = await ctx.send(embed=signup_embed, view=diff_view)
+            await start.add_reaction(join_emoji)
+            await asyncio.sleep(19)
+
+            difficulty = diff_view.difficulty
+            diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
+            diff_view.stop()
+
+            signup_msg = await ctx.channel.fetch_message(start.id)
+            reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
+
+            players = []
+            if reaction:
+                async for user in reaction.users():
+                    if not user.bot:
+                        players.append(user)
+
+            if len(players) < 2:
+                await start.edit(embed=discord.Embed(
+                    description="❌ Khass minimum **2 players** bach tl3bo RedTea.",
+                    color=0x000000
+                ), view=None)
+                return
+
+            await start.edit(embed=discord.Embed(
+                description="▶️ **Bdina!** (10 Rounds)\nPlayers: " + ", ".join(p.mention for p in players) + f"\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)\n*Akbar kelma fiha lcombo katrbe7!*",
+                color=0x000000
+            ), view=None)
+
+            points = {p.id: 0 for p in players}
+            player_ids = {p.id for p in players}
+            used_words = set()
+            await asyncio.sleep(2)
+
+            for round_num in range(1, 11):
+                if len(player_ids) <= 1:
+                    break
+
+                combo = self.get_combo(difficulty)
+                if not combo:
+                    continue
+
+                longest_word = ""
+                longest_len = 0
+                longest_player = None
+
+                round_msg = await ctx.send(embed=discord.Embed(
+                    description=f"🔴 Kteb **atwel kelma** fiha: **{combo.upper()}**\n⏱️ Round **{round_num}/10** ({time_display})",
+                    color=0x000000
+                ))
+                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+
+                round_start = time.time()
+                while True:
+                    remaining = round_duration - (time.time() - round_start)
+                    if remaining <= 0:
+                        break
+
+                    def check(message):
+                        if message.channel.id != ctx.channel.id:
+                            return False
+                        if message.author.id not in player_ids:
+                            return False
+                        return True
+
+                    try:
+                        word_msg = await self.bot.wait_for('message', check=check, timeout=remaining)
+                    except asyncio.TimeoutError:
+                        break
+
+                    word_clean = word_msg.content.strip().lower()
+                    if word_clean == "exitgame":
+                        player_ids.discard(word_msg.author.id)
+                        players = [p for p in players if p.id != word_msg.author.id]
+                        if longest_player and longest_player.id == word_msg.author.id:
+                            longest_player = None
+                            longest_word = ""
+                            longest_len = 0
+                        await ctx.send(f"🚪 **{word_msg.author.mention}** khrej mn lgame.")
+                        if len(player_ids) <= 1:
+                            break
+                        continue
+
+                    if combo in word_clean and word_clean not in used_words and len(word_clean) > longest_len:
+                        if self.is_english_word(word_clean):
+                            used_words.add(word_clean)
+                            longest_len = len(word_clean)
+                            longest_word = word_clean
+                            longest_player = word_msg.author
+                            asyncio.create_task(word_msg.add_reaction("📏"))
+
+                if not countdown_task.done():
+                    countdown_task.cancel()
+
+                if longest_player and longest_player.id in player_ids:
+                    points[longest_player.id] += 1
+                    await ctx.send(embed=discord.Embed(
+                        description=f"📏 {longest_player.mention} 5da lpoint b **{longest_word.upper()}** ({longest_len} letters)!\nTotal: **{points[longest_player.id]} pts**",
+                        color=0x000000
+                    ))
+                else:
+                    await ctx.send(embed=discord.Embed(
+                        description="⌛ Sala lwe9t. 7ta wa7d ma 3ta kelma s7i7a.",
+                        color=0x000000
+                    ))
+                await asyncio.sleep(1.5)
+
+            if points:
+                maxpoints = max(points.values())
+                winners = [pid for pid, pts in points.items() if pts == maxpoints]
+                economy_cog = self.bot.get_cog("Economy")
+                player_earnings = {}
+
+                if len(winners) == 1:
+                    winner_id = winners[0]
+                    winner = self.bot.get_user(winner_id)
+                    winner_str = winner.mention if winner else f"<@{winner_id}>"
+                    eco_msg = ""
+                    if economy_cog and maxpoints > 0:
+                        gross = (len(players) * 50) + int(round((maxpoints * 20) * diff_mult))
+                        net, tax = await economy_cog.apply_tax_and_add_balance(winner_id, gross, context="RedTea Win")
+                        player_earnings[winner_id] = net
+                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                        if ctx.guild:
+                            await self.record_minigame_win(ctx.guild.id, winner_id, "redtea", earnings=net)
+
+                    # Reward other players based on their points (without len(players)*50 bonus)
+                    if economy_cog:
+                        for pid, pts in points.items():
+                            if pid != winner_id and pts > 0:
+                                p_gross = int(round((pts * 20) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="RedTea Points Reward")
+                                    player_earnings[pid] = p_net
+
+                    others_msg = ""
+                    other_rewards = [f"<@{pid}>: **+{net}** TAD ({points[pid]} pts)" for pid, net in player_earnings.items() if pid != winner_id]
+                    if other_rewards:
+                        others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
+                    await ctx.send(embed=discord.Embed(
+                        description=f"🏆 {winner_str} rbe7 lgame b **{maxpoints} pts**!{eco_msg}{others_msg}",
+                        color=0x000000
+                    ))
+                else:
+                    if economy_cog:
+                        for pid, pts in points.items():
+                            if pts > 0:
+                                p_gross = int(round((pts * 20) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="RedTea Points Reward")
+                                    player_earnings[pid] = p_net
+
+                    mention_str = " o ".join(f"<@{wid}>" for wid in winners)
+                    others_msg = ""
+                    rewards_list = [f"<@{pid}>: **+{net}** TAD ({points[pid]} pts)" for pid, net in player_earnings.items()]
+                    if rewards_list:
+                        others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+
+                    await ctx.send(embed=discord.Embed(
+                        description=f"🏆 {mention_str} ta3adlo b **{maxpoints} pts**!{others_msg}",
+                        color=0x000000
+                    ))
+        except Exception as e:
+            print(f"[redtea error]: {e}")
+
+    @commands.command(name="unscramble", aliases=["scramble", "moliniks", "molinix", "chlada", "shlada"], help="An3tik kelma mkhrb9a o nta 9adha.")
+    async def unscramble(self, ctx, *args):
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=30, default_difficulty="medium")
+        time_display = f"{round_duration}s"
+        mult = DIFFICULTY_STAKES[difficulty]
+
+        try:
+            join_emoji = "✅"
+            signup_embed = discord.Embed(
+                title="🧩 Word Unscramble",
+                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
+                color=0x000000
+            )
+            diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
+            start = await ctx.send(embed=signup_embed, view=diff_view)
+            await start.add_reaction(join_emoji)
+            await asyncio.sleep(19)
+
+            difficulty = diff_view.difficulty
+            diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
+            diff_view.stop()
+
+            signup_msg = await ctx.channel.fetch_message(start.id)
+            reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
+
+            players = []
+            if reaction:
+                async for user in reaction.users():
+                    if not user.bot:
+                        players.append(user)
+
+            if not players:
+                await start.edit(embed=discord.Embed(
+                    description="💨 7ta wa7d ma dkhel lgame ._.",
+                    color=0x000000
+                ), view=None)
+                return
+
+            single_player = len(players) == 1
+            lives = {p.id: 3 for p in players}
+            active_players = list(players)
+            player_correct_words = {p.id: 0 for p in players}
+            used_secrets = set()
+
+            if single_player:
+                await start.edit(embed=discord.Embed(
+                    description=f"▶️ Bdina! 3ndek **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
+                    color=0x000000
+                ), view=None)
+            else:
+                await start.edit(embed=discord.Embed(
+                    description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
+                    color=0x000000
+                ), view=None)
+            await asyncio.sleep(2)
+
+            if single_player:
+                player = active_players[0]
+                while lives[player.id] > 0:
+                    secret = self.get_hangman_secret().strip().lower()
+                    if not secret or len(secret) < 3 or not secret.isalpha() or secret in used_secrets:
+                        secret = random.choice([w for w in ["planet", "castle", "dragon", "monster", "python", "bridge", "silver", "garden", "forest", "wizard", "shadow", "knight", "rocket", "pirate", "jungle"] if w not in used_secrets] or ["planet"])
+                    used_secrets.add(secret)
+
+                    letters = list(secret)
+                    for _ in range(50):
+                        random.shuffle(letters)
+                        if "".join(letters) != secret:
+                            break
+                    scrambled_display = " ".join(letters).upper()
+
+                    round_msg = await ctx.send(f"❓ {player.mention} 9ad had lkelma: **`{scrambled_display}`** ({len(secret)} letters) (HP: **{lives[player.id]}**)")
+                    countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+
+                    def check(message):
+                        if message.author.id != player.id or message.channel.id != ctx.channel.id:
+                            return False
+                        w = message.content.strip().lower()
+                        return w == secret or w == "exitgame"
+
+                    try:
+                        word_msg = await self.bot.wait_for('message', check=check, timeout=round_duration)
+                        if not countdown_task.done():
+                            countdown_task.cancel()
+                        if word_msg:
+                            if word_msg.content.strip().lower() == "exitgame":
+                                lives[player.id] = 0
+                                await ctx.send(f"🚪 **{player.mention}** khrej mn lgame (**Game Over**).\n🧩 Lkelma kanet: **{secret.upper()}**")
+                                break
+                            player_correct_words[player.id] += 1
+                            await word_msg.add_reaction('✅')
+                    except asyncio.TimeoutError:
+                        if not countdown_task.done():
+                            countdown_task.cancel()
+                        lives[player.id] -= 1
+                        if lives[player.id] > 0:
+                            await ctx.send(f"⌛ Sala lwe9t: -1 HP (Ba9i: **{lives[player.id]} HP**). Lkelma kanet: **{secret.upper()}**")
+                        else:
+                            await ctx.send(f"💥 **{player.mention}** t elimina (**0 HP**). Lkelma kanet: **{secret.upper()}**")
+                    await asyncio.sleep(1.5)
+
+                economy_cog = self.bot.get_cog("Economy")
+                correct_count = player_correct_words.get(player.id, 0)
+                gross = (len(players) * 50) + int(round((correct_count * 20) * diff_mult))
+                eco_msg = ""
+                if economy_cog and correct_count > 0:
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Unscramble Solo")
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, player.id, "unscramble", earnings=net)
+                await ctx.send(embed=discord.Embed(
+                    description=f"🎯 Game Over {player.mention}! L9iti **{correct_count} kelmat**.{eco_msg}",
+                    color=0x000000
+                ))
+            else:
+                while len(active_players) > 1:
+                    for player in list(active_players):
+                        if len(active_players) <= 1:
+                            break
+
+                        secret = self.get_hangman_secret().strip().lower()
+                        if not secret or len(secret) < 3 or not secret.isalpha() or secret in used_secrets:
+                            secret = random.choice([w for w in ["planet", "castle", "dragon", "monster", "python", "bridge", "silver", "garden", "forest", "wizard", "shadow", "knight", "rocket", "pirate", "jungle"] if w not in used_secrets] or ["planet"])
+                        used_secrets.add(secret)
+
+                        letters = list(secret)
+                        for _ in range(50):
+                            random.shuffle(letters)
+                            if "".join(letters) != secret:
+                                break
+                        scrambled_display = " ".join(letters).upper()
+
+                        round_msg = await ctx.send(f"❓ {player.mention} 9ad had lkelma: **`{scrambled_display}`** ({len(secret)} letters) (HP: **{lives[player.id]}**)")
+                        countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+
+                        def check(message):
+                            if message.author.id != player.id or message.channel.id != ctx.channel.id:
+                                return False
+                            w = message.content.strip().lower()
+                            return w == secret or w == "exitgame"
+
+                        try:
+                            word_msg = await self.bot.wait_for('message', check=check, timeout=round_duration)
+                            if not countdown_task.done():
+                                countdown_task.cancel()
+                            if word_msg:
+                                if word_msg.content.strip().lower() == "exitgame":
+                                    lives[player.id] = 0
+                                    await ctx.send(f"🚪 **{player.mention}** khrej mn lgame o t elimina.\n🧩 Lkelma kanet: **{secret.upper()}**")
+                                    active_players.remove(player)
+                                    continue
+                                player_correct_words[player.id] += 1
+                                await word_msg.add_reaction('✅')
+                        except asyncio.TimeoutError:
+                            if not countdown_task.done():
+                                countdown_task.cancel()
+                            lives[player.id] -= 1
+                            if lives[player.id] > 0:
+                                await ctx.send(f"⌛ Sala lwe9t {player.mention}: -1 HP (Ba9i: **{lives[player.id]} HP**). Lkelma kanet: **{secret.upper()}**")
+                            else:
+                                await ctx.send(f"💥 **{player.mention}** t elimina (**0 HP**). Lkelma kanet: **{secret.upper()}**")
+                                active_players.remove(player)
+                        await asyncio.sleep(1.5)
+
+                if active_players:
+                    winner = active_players[0]
+                    economy_cog = self.bot.get_cog("Economy")
+                    player_earnings = {}
+                    eco_msg = ""
+                    w_words = player_correct_words.get(winner.id, 0)
+                    if economy_cog:
+                        gross = (len(players) * 50) + int(round((w_words * 20) * diff_mult))
+                        net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Unscramble Win")
+                        player_earnings[winner.id] = net
+                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                        if ctx.guild:
+                            await self.record_minigame_win(ctx.guild.id, winner.id, "unscramble", earnings=net)
+
+                        # Other players only get 20 for each word with no bonus
+                        for pid, words_count in player_correct_words.items():
+                            if pid != winner.id and words_count > 0:
+                                p_gross = int(round((words_count * 20) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Unscramble Words Reward")
+                                    player_earnings[pid] = p_net
+
+                    others_msg = ""
+                    other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_words[pid]} words)" for pid, net in player_earnings.items() if pid != winner.id]
+                    if other_rewards:
+                        others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
+                    await ctx.send(embed=discord.Embed(
+                        description=f"🏆 {winner.mention} rbe7 lgame b **{w_words} kelmat**!{eco_msg}{others_msg}",
+                        color=0x000000
+                    ))
+        except Exception as e:
+            print(f"[unscramble error]: {e}")
 
     @commands.command(name="tictactoe", aliases=["ttt"], help="X/O las9 3 bach trbe7 (sat ttt @user [bet:500]).")
     @not_fraud()
@@ -6532,16 +6966,31 @@ class Fun(commands.Cog):
             if not single_player and len(active_players) == 1:
                 winner = active_players[0]
                 economy_cog = self.bot.get_cog("Economy")
+                player_earnings = {}
                 eco_msg = ""
                 if economy_cog:
                     winner_answers = scores.get(winner.id, 0)
                     gross = (len(players) * 50) + (winner_answers * 50)
                     net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Trivia Win")
+                    player_earnings[winner.id] = net
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, winner.id, "trivia", earnings=net)
+
+                    for pid, p_score in scores.items():
+                        if pid != winner.id and p_score > 0:
+                            p_gross = p_score * 50
+                            if p_gross > 0:
+                                p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Trivia Reward")
+                                player_earnings[pid] = p_net
+
+                others_msg = ""
+                other_rewards = [f"<@{pid}>: **+{net}** TAD ({scores[pid]} answers)" for pid, net in player_earnings.items() if pid != winner.id]
+                if other_rewards:
+                    others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
                 await ctx.send(embed=discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame b **{scores[winner.id]} answers correct**!{eco_msg}",
+                    description=f"🏆 {winner.mention} rbe7 lgame b **{scores[winner.id]} answers correct**!{eco_msg}{others_msg}",
                     color=0x000000
                 ))
                 return
@@ -7496,7 +7945,7 @@ class Fun(commands.Cog):
                             await m.add_reaction("📍")
                             break
                         else:
-                            await m.reply("❌ Mal9itch had ddawla :/.", delete_after=4)
+                            await m.reply("❌ Mal9itch had ddawla :/", delete_after=4)
                     except asyncio.TimeoutError:
                         break
 
