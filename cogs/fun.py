@@ -6129,7 +6129,7 @@ class Fun(commands.Cog):
 
     @commands.command(aliases=["rt", "red"], help="Kteb atwal kelma fiha l7orof li ghan3tik.")
     async def redtea(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="medium")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="medium")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
 
@@ -7944,8 +7944,6 @@ class Fun(commands.Cog):
                                 countdown_task.cancel()
                             await m.add_reaction("📍")
                             break
-                        else:
-                            await m.reply("❌ Mal9itch had ddawla :/", delete_after=4)
                     except asyncio.TimeoutError:
                         break
 
@@ -7963,7 +7961,7 @@ class Fun(commands.Cog):
                         prox_str = "**100%** (Dawla s7i7a!)"
                     else:
                         header = f"📍 **Target: {target_flag} {target_country}**"
-                        prox_str = f"**{proximity*100:.1f}%** ({dist:,.0f} km b3id)"
+                        prox_str = f"**{proximity*100:.1f}%** (b3id b {dist:,.0f} km)"
 
                     res_embed = discord.Embed(
                         title=f"{target_flag} Round {r} Result — {target_country}",
@@ -8001,9 +7999,14 @@ class Fun(commands.Cog):
             summary_embed = discord.Embed(
                 title="🏆 GeoGuessr Solo Results!",
                 description=(
-                    f"Bravo {player.mention}! Total Stakes: **{total_round_stakes:.1f} TAD** (Difficulty: **{difficulty.upper()} {diff_mult}x**)!{eco_msg}\n\n"
+                    f"Bravo {player.mention}! Difficulty: **{difficulty.upper()} ({diff_mult}x)**!{eco_msg}\n\n"
                     f"**Round Breakdown:**\n"
-                    + "\n".join([f"• Round {idx+1}: **{h[0]['country']}** — {h[1]} ({h[2]*100:.0f}% prox, +{h[4]:.1f} TAD)" for idx, h in enumerate(round_history)])
+                    + "\n".join([
+                        f"• Round {idx+1}: **{h[0]['country']}** — {h[1]} (`{h[3]:,.0f} km` • `{h[2]*100:.0f}%`)"
+                        if h[2] > 0 else
+                        f"• Round {idx+1}: **{h[0]['country']}** — Time Out (`0%`)"
+                        for idx, h in enumerate(round_history)
+                    ])
                 ),
                 color=0x000000
             )
@@ -8011,7 +8014,7 @@ class Fun(commands.Cog):
 
         else:
             player_mentions = ", ".join(p.mention for p in players)
-            await ctx.send(f"🎮 **Multiplayer GeoGuessr:** {player_mentions}!\n• **{total_rounds} rounds**\n• Kul wa7ed 3ndo **1 guess** f round (smit **dawla**!)\n• L9rib l dawla kaydi a3la round stake (max 50 TAD)!")
+            await ctx.send(f"🎮 **Multiplayer GeoGuessr:** {player_mentions}!\n• **{total_rounds} rounds**\n• Kul wa7ed 3ndo **1 guess** f round (smit **dawla**!)\n• Dawla li tgalat kat-bloka 3la lkhrin — l9rib kayrbe7 kter!")
 
             player_stakes = {p.id: 0.0 for p in players}
 
@@ -8029,6 +8032,7 @@ class Fun(commands.Cog):
                     title=f"🌍 Round {r}/{total_rounds} — Guess the country!",
                     description=(
                         f"Kul wa7ed 3ndo **1 guess**! Kteb smit **dawla** f chat.\n"
+                        f"⚠️ Dawla li tgalat makat3awdch!\n"
                         f"⌛ Time: **{round_duration}s**"
                     ),
                     color=0x000000
@@ -8038,6 +8042,7 @@ class Fun(commands.Cog):
                 round_msg = await ctx.send(embed=round_embed)
 
                 guesses = {}
+                taken_codes = set()
                 countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
                 start_time = time.time()
 
@@ -8055,6 +8060,9 @@ class Fun(commands.Cog):
                         m = await self.bot.wait_for("message", check=check_m, timeout=time_left)
                         cguess = resolve_country_guess(m.content)
                         if cguess:
+                            if cguess["code"] in taken_codes:
+                                continue
+                            taken_codes.add(cguess["code"])
                             proximity, dist = calculate_geoguessr_proximity(
                                 target_code, target_lat, target_lon,
                                 cguess["code"], cguess["lat"], cguess["lon"]
@@ -8067,8 +8075,6 @@ class Fun(commands.Cog):
                                 if not countdown_task.done():
                                     countdown_task.cancel()
                                 break
-                        else:
-                            await m.reply("❌ Mal9itch had dawla :/", delete_after=4)
                     except asyncio.TimeoutError:
                         break
 
@@ -8087,7 +8093,10 @@ class Fun(commands.Cog):
                         puser = discord.utils.get(players, id=pid)
                         pname = puser.display_name if puser else f"Player {pid}"
                         cguess, prox, dist, stake = pdata
-                        guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (`{prox*100:.1f}% prox`)")
+                        if prox >= 1.0:
+                            guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (🎯 Exact • `100%`)")
+                        else:
+                            guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (`{dist:,.0f} km` • `{prox*100:.1f}%`)")
 
                     res_embed = discord.Embed(
                         title=f"{target_flag} Round {r} Target: {target_country}",
@@ -8130,7 +8139,7 @@ class Fun(commands.Cog):
                     if pstake > 0:
                         p_gross = int(round(pstake * diff_mult))
                         if p_gross > 0:
-                            p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="GeoGuessr Stakes Reward")
+                            p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="GeoGuessr Points Reward")
                             player_earnings[pid] = p_net
 
             leaderboard_lines = []
@@ -8138,12 +8147,12 @@ class Fun(commands.Cog):
                 puser = discord.utils.get(players, id=pid)
                 pname = puser.display_name if puser else f"Player {pid}"
                 earn_str = f" (+{format_tad(player_earnings[pid])})" if pid in player_earnings else ""
-                leaderboard_lines.append(f"**#{rank_pos}** {pname}: **{pstake:.1f} TAD stakes**{earn_str}")
+                leaderboard_lines.append(f"**#{rank_pos}** {pname}{earn_str}")
 
             final_embed = discord.Embed(
                 title="🏆 GeoGuessr Match Ended!",
                 description=(
-                    f"🥇 **Winner:** {top_winner.mention if top_winner else 'Unknown'} b **{top_stake:.1f} TAD stakes**!{eco_msg}\n\n"
+                    f"🥇 **Winner:** {top_winner.mention if top_winner else 'Unknown'}!{eco_msg}\n\n"
                     f"📈 **Final Scoreboard:**\n" + "\n".join(leaderboard_lines)
                 ),
                 color=0x000000
