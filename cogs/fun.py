@@ -6015,25 +6015,57 @@ class Fun(commands.Cog):
             if points:
                 maxpoints = max(points.values())
                 winners = [pid for pid, pts in points.items() if pts == maxpoints]
+                economy_cog = self.bot.get_cog("Economy")
+                player_earnings = {}
+
                 if len(winners) == 1:
-                    winner = self.bot.get_user(winners[0])
-                    winner_str = winner.mention if winner else f"<@{winners[0]}>"
-                    economy_cog = self.bot.get_cog("Economy")
+                    winner_id = winners[0]
+                    winner = self.bot.get_user(winner_id)
+                    winner_str = winner.mention if winner else f"<@{winner_id}>"
                     eco_msg = ""
                     if economy_cog and maxpoints > 0:
                         gross = (len(players) * 50) + int(round((maxpoints * 20) * diff_mult))
-                        net, tax = await economy_cog.apply_tax_and_add_balance(winners[0], gross, context="GreenTea Win")
+                        net, tax = await economy_cog.apply_tax_and_add_balance(winner_id, gross, context="GreenTea Win")
+                        player_earnings[winner_id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
-                            await self.record_minigame_win(ctx.guild.id, winners[0], "greentea", earnings=net)
+                            await self.record_minigame_win(ctx.guild.id, winner_id, "greentea", earnings=net)
+
+                    # Reward other players based on their points (without len(players)*50 bonus)
+                    if economy_cog:
+                        for pid, pts in points.items():
+                            if pid != winner_id and pts > 0:
+                                p_gross = int(round((pts * 20) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="GreenTea Points Reward")
+                                    player_earnings[pid] = p_net
+
+                    others_msg = ""
+                    other_rewards = [f"<@{pid}>: **+{net}** TAD ({points[pid]} pts)" for pid, net in player_earnings.items() if pid != winner_id]
+                    if other_rewards:
+                        others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner_str} rbe7 lgame b **{maxpoints} pts**!{eco_msg}",
+                        description=f"🏆 {winner_str} rbe7 lgame b **{maxpoints} pts**!{eco_msg}{others_msg}",
                         color=0x000000
                     ))
                 else:
+                    if economy_cog:
+                        for pid, pts in points.items():
+                            if pts > 0:
+                                p_gross = int(round((pts * 20) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="GreenTea Points Reward")
+                                    player_earnings[pid] = p_net
+
                     mention_str = " o ".join(f"<@{wid}>" for wid in winners)
+                    others_msg = ""
+                    rewards_list = [f"<@{pid}>: **+{net}** TAD ({points[pid]} pts)" for pid, net in player_earnings.items()]
+                    if rewards_list:
+                        others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {mention_str} ta3adlo b **{maxpoints} pts**!",
+                        description=f"🏆 {mention_str} ta3adlo b **{maxpoints} pts**!{others_msg}",
                         color=0x000000
                     ))
         except Exception as e:
@@ -6738,18 +6770,34 @@ class Fun(commands.Cog):
         )
         if ranked:
             leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 🎉")
-            if scores.get(ranked[0].id, 0) > 0:
-                economy_cog = self.bot.get_cog("Economy")
-                if economy_cog:
-                    gross = (len(players) * 50) + (scores[ranked[0].id] * 50)
-                    net, tax = await economy_cog.apply_tax_and_add_balance(ranked[0].id, gross, context="TypeRacer Win")
+            economy_cog = self.bot.get_cog("Economy")
+            if economy_cog:
+                top_player = ranked[0]
+                if scores.get(top_player.id, 0) > 0:
+                    gross = (len(players) * 50) + (scores[top_player.id] * 50)
+                    net, tax = await economy_cog.apply_tax_and_add_balance(top_player.id, gross, context="TypeRacer Win")
                     leaderboard_embed.add_field(
                         name="🏆 Winner Reward",
-                        value=f"**{ranked[0].mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!",
+                        value=f"**{top_player.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!",
                         inline=False
                     )
                     if ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, ranked[0].id, "typeracer", earnings=net)
+                        await self.record_minigame_win(ctx.guild.id, top_player.id, "typeracer", earnings=net)
+
+                other_rewards = []
+                for p in ranked[1:]:
+                    p_score = scores.get(p.id, 0)
+                    if p_score > 0:
+                        p_gross = p_score * 50
+                        p_net, _ = await economy_cog.apply_tax_and_add_balance(p.id, p_gross, context="TypeRacer Rounds Reward")
+                        other_rewards.append(f"**{p.mention}**: **+{p_net}** TAD ({p_score} wins)")
+
+                if other_rewards:
+                    leaderboard_embed.add_field(
+                        name="🎖️ Other Rewards",
+                        value="\n".join(other_rewards),
+                        inline=False
+                    )
         await ctx.send(embed=leaderboard_embed)
 
 
@@ -7348,9 +7396,7 @@ class Fun(commands.Cog):
             title="🌍 GeoGuessr Challenge!",
             description=(
                 f"Clicki 3la {join_emoji} bach tdkhel lgame.\n"
-                f"• Minimum 1 player (Solo wla Multiplayer!)\n"
-                f"• Guess the **Country**: Kteb gher smit ddawla f chat!\n"
-                f"• Proximity system: `round_stake = proximity * 50 TAD`\n\n"
+                f"• Guess the **Country**: Kteb smit dawla f chat!\n\n"
                 f"Starts: <t:{start_ts}:R>\n"
                 f"Time per round: **{round_duration}s**\n"
                 f"Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)"
@@ -7470,8 +7516,7 @@ class Fun(commands.Cog):
                         description=(
                             f"{header}\n\n"
                             f"🎮 Lkhtiyar dialek: **{cguess['name']}**\n"
-                            f"📏 Proximity: {prox_str}\n"
-                            f"💰 Round Stake: **+{round_stake:.1f} TAD**\n\n"
+                            f"📏 Proximity: {prox_str}\n\n"
                             f"🗺️ **[Choufha f Google Maps]({maps_link})**"
                         ),
                         color=0x000000
@@ -7481,8 +7526,7 @@ class Fun(commands.Cog):
                     res_embed = discord.Embed(
                         title=f"⏰ Time Out! Real Country: {target_flag} {target_country}",
                         description=(
-                            f"Majawbtich f lwe9t! Proximity: **0%**\n"
-                            f"💰 Round Stake: **+0 TAD**\n\n"
+                            f"Majawbtich f lwe9t! Proximity: **0%**\n\n"
                             f"🗺️ **[Choufha f Google Maps]({maps_link})**"
                         ),
                         color=0x000000
@@ -7564,13 +7608,13 @@ class Fun(commands.Cog):
                             round_stake = proximity * 50
                             guesses[m.author.id] = (cguess, proximity, dist, round_stake)
                             player_stakes[m.author.id] += round_stake
-                            await m.add_reaction("✅")
+                            await m.add_reaction("📍")
                             if len(guesses) >= len(players):
                                 if not countdown_task.done():
                                     countdown_task.cancel()
                                 break
                         else:
-                            await m.reply("❌ Mal9itch had ddawla, 3awed kteb smia n9iya!", delete_after=4)
+                            await m.reply("❌ Mal9itch had dawla :/", delete_after=4)
                     except asyncio.TimeoutError:
                         break
 
@@ -7589,7 +7633,7 @@ class Fun(commands.Cog):
                         puser = discord.utils.get(players, id=pid)
                         pname = puser.display_name if puser else f"Player {pid}"
                         cguess, prox, dist, stake = pdata
-                        guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (`{prox*100:.1f}% prox`, +{stake:.1f} TAD)")
+                        guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (`{prox*100:.1f}% prox`)")
 
                     res_embed = discord.Embed(
                         title=f"{target_flag} Round {r} Target: {target_country}",
@@ -7615,23 +7659,37 @@ class Fun(commands.Cog):
 
             economy_cog = self.bot.get_cog("Economy")
             eco_msg = ""
-            gross = int(round(50 * len(players) + top_stake * diff_mult))
-            if economy_cog and top_stake > 0 and top_winner:
-                net, tax = await economy_cog.apply_tax_and_add_balance(top_winner.id, gross, context="GeoGuessr Multiplayer Win")
-                eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (Gross: {gross:,} TAD • 🔥 `{tax:,}` TAD tax burned)!"
-                if ctx.guild:
-                    await self.record_minigame_win(ctx.guild.id, top_winner.id, "geoguessr", earnings=net)
+            player_earnings = {}
+
+            if economy_cog:
+                # 1st place: 50 * len(players) + top_stake * diff_mult
+                if top_stake > 0 and top_winner:
+                    gross = int(round(50 * len(players) + top_stake * diff_mult))
+                    net, tax = await economy_cog.apply_tax_and_add_balance(top_winner.id, gross, context="GeoGuessr Multiplayer Win")
+                    player_earnings[top_winner.id] = net
+                    eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (Gross: {gross:,} TAD • 🔥 `{tax:,}` TAD tax burned)!"
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, top_winner.id, "geoguessr", earnings=net)
+
+                # Other places: pstake * diff_mult (without the 50 * len(players) bonus)
+                for pid, pstake in sorted_stakes[1:]:
+                    if pstake > 0:
+                        p_gross = int(round(pstake * diff_mult))
+                        if p_gross > 0:
+                            p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="GeoGuessr Stakes Reward")
+                            player_earnings[pid] = p_net
 
             leaderboard_lines = []
             for rank_pos, (pid, pstake) in enumerate(sorted_stakes, 1):
                 puser = discord.utils.get(players, id=pid)
                 pname = puser.display_name if puser else f"Player {pid}"
-                leaderboard_lines.append(f"**#{rank_pos}** {pname}: **{pstake:.1f} TAD stakes**")
+                earn_str = f" (+{format_tad(player_earnings[pid])})" if pid in player_earnings else ""
+                leaderboard_lines.append(f"**#{rank_pos}** {pname}: **{pstake:.1f} TAD stakes**{earn_str}")
 
             final_embed = discord.Embed(
                 title="🏆 GeoGuessr Match Ended!",
                 description=(
-                    f"🥇 **Lba6al:** {top_winner.mention if top_winner else 'Unknown'} b **{top_stake:.1f} TAD stakes**!{eco_msg}\n\n"
+                    f"🥇 **Winner:** {top_winner.mention if top_winner else 'Unknown'} b **{top_stake:.1f} TAD stakes**!{eco_msg}\n\n"
                     f"📈 **Final Scoreboard:**\n" + "\n".join(leaderboard_lines)
                 ),
                 color=0x000000
