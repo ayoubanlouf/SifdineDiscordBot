@@ -221,6 +221,53 @@ class WalletView(discord.ui.View):
                 pass
 
 
+class VaultView(discord.ui.View):
+    def __init__(self, vault_name: str, author: Union[discord.Member, discord.User], cog):
+        super().__init__(timeout=90)
+        self.vault_name = vault_name
+        self.author = author
+        self.cog = cog
+        self.showing_transactions = False
+        self.message: Optional[discord.Message] = None
+        self._update_buttons()
+
+    def _update_buttons(self):
+        self.clear_items()
+        if not self.showing_transactions:
+            label = "Recent Tax Inflows" if self.vault_name == "bank" else "Recent Table Collections"
+            btn_tx = discord.ui.Button(label=label, style=discord.ButtonStyle.primary, emoji="📜")
+            btn_tx.callback = self.toggle_view_callback
+            self.add_item(btn_tx)
+        else:
+            btn_back = discord.ui.Button(label="Back to Overview", style=discord.ButtonStyle.primary, emoji="🔙")
+            btn_back.callback = self.toggle_view_callback
+            self.add_item(btn_back)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l bouton machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    async def toggle_view_callback(self, interaction: discord.Interaction):
+        self.showing_transactions = not self.showing_transactions
+        self._update_buttons()
+        if self.showing_transactions:
+            embed = await self.cog.get_vault_transactions_embed(self.vault_name)
+        else:
+            embed = await self.cog.get_vault_embed(self.vault_name)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+
+
 class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -285,10 +332,60 @@ class Economy(commands.Cog):
         w = await self.get_wallet(user_id)
         return w["balance"]
 
-    async def apply_tax_and_add_balance(self, user_id: int, gross_payout: int, context: str = "") -> Tuple[int, int]:
+    async def deposit_vault(self, vault_name: str, amount: int, source: str = "", context: str = "") -> int:
+        if amount <= 0:
+            v = await self.get_vault(vault_name)
+            return v["balance"]
+
+        now_ts = int(time.time())
+        await self.bot.db.execute(
+            "INSERT INTO economy_vaults (vault_name, balance, total_collected, updated_at) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(vault_name) DO UPDATE SET balance = balance + ?, total_collected = total_collected + ?, updated_at = ?",
+            (vault_name, amount, amount, now_ts, amount, amount, now_ts)
+        )
+        await self.bot.db.execute(
+            "INSERT INTO vault_transactions (vault_name, amount, source, context, created_at) VALUES (?, ?, ?, ?, ?)",
+            (vault_name, amount, source or vault_name, context, now_ts)
+        )
+        await self.bot.db.commit()
+        v = await self.get_vault(vault_name)
+        return v["balance"]
+
+    async def get_vault(self, vault_name: str) -> dict:
+        async with self.bot.db.execute(
+            "SELECT balance, total_collected, updated_at FROM economy_vaults WHERE vault_name = ?",
+            (vault_name,)
+        ) as cursor:
+            row = await cursor.fetchone()
+
+        if row is None:
+            now_ts = int(time.time())
+            await self.bot.db.execute(
+                "INSERT INTO economy_vaults (vault_name, balance, total_collected, updated_at) VALUES (?, 0, 0, ?) "
+                "ON CONFLICT(vault_name) DO NOTHING",
+                (vault_name, now_ts)
+            )
+            await self.bot.db.commit()
+            return {"balance": 0, "total_collected": 0, "updated_at": now_ts}
+
+        return {
+            "balance": int(row[0]),
+            "total_collected": int(row[1]),
+            "updated_at": int(row[2])
+        }
+
+    async def get_vault_transactions(self, vault_name: str, limit: int = 6) -> list:
+        async with self.bot.db.execute(
+            "SELECT amount, source, context, created_at FROM vault_transactions WHERE vault_name = ? ORDER BY created_at DESC LIMIT ?",
+            (vault_name, limit)
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return rows
+
+    async def apply_tax_and_add_balance(self, user_id: int, gross_payout: int, context: str = "", vault: str = "bank") -> Tuple[int, int]:
         """
-        Applies 2% anti-inflation tax burn on gross payout, adds after-tax balance, and logs transaction.
-        Returns: (net_payout, tax_burned)
+        Applies 2% tax on gross payout, adds after-tax balance to user, deposits tax to vault (bank or casino), and logs transaction.
+        Returns: (net_payout, tax)
         """
         if gross_payout <= 0 or self.is_bot_user(user_id):
             return 0, 0
@@ -301,6 +398,10 @@ class Economy(commands.Cog):
 
         ctx_desc = f"{context} (Tax: {tax} TAD)" if context else f"Payout (Tax: {tax} TAD)"
         await self.add_balance(user_id, net_payout, context=ctx_desc)
+
+        if tax > 0:
+            await self.deposit_vault(vault, tax, source=vault, context=context)
+
         return net_payout, tax
 
     async def deduct_balance(self, user_id: int, amount: int, context: str = "", force: bool = False) -> bool:
@@ -424,7 +525,67 @@ class Economy(commands.Cog):
         )
         return embed
 
+    async def get_vault_embed(self, vault_name: str) -> discord.Embed:
+        v = await self.get_vault(vault_name)
+        if vault_name == "bank":
+            embed = discord.Embed(
+                title="🏛️ Central Bank",
+                description="Lkhazina l3amma hh.",
+                color=0x000000)
+            embed.add_field(name="Total Reserves", value=f"💰 {format_tad(v['balance'])}", inline=False)
+            embed.add_field(name="Total Taxes Collected", value=f"📈 {format_tad(v['total_collected'])}", inline=False)
+        else:
+            embed = discord.Embed(
+                title="🎰 Royal Casino Vault",
+                description="Lkhzna tlcasino.",
+                color=0x000000)
+            embed.add_field(name="Vault Balance", value=f"💰 {format_tad(v['balance'])}", inline=False)
+            embed.add_field(name="Total gambling Taxes", value=f"📈 {format_tad(v['total_collected'])}", inline=False)
+        return embed
+
+    async def get_vault_transactions_embed(self, vault_name: str) -> discord.Embed:
+        v = await self.get_vault(vault_name)
+        rows = await self.get_vault_transactions(vault_name, limit=6)
+
+        if vault_name == "bank":
+            title = "🏛️ Central Bank — Recent Inflow Receipts"
+            color = 0xD4AF37
+        else:
+            title = "🎰 Royal Casino — Recent Table Tax Receipts"
+            color = 0x2E0854
+
+        embed = discord.Embed(title=title, color=color)
+        embed.description = f"💰 **Current Balance:** {format_tad(v['balance'])}\n\n"
+
+        if not rows:
+            embed.description += "*Ba9i ta tax receipt ma tsjjlat hna.*"
+        else:
+            lines = []
+            for amt, src, ctx_desc, ts in rows:
+                sign = "🟢 +"
+                lines.append(f"{sign}**{amt:,}** TAD — *{ctx_desc or src}* (<t:{ts}:R>)")
+            embed.description += "\n".join(lines)
+
+        embed.set_footer(text="Global Audit Log • Real-time tax inflow history")
+        return embed
+
     # ============ USER COMMANDS ============
+
+    @commands.command(name="bank", aliases=["banka", "centralbank", "treasury"], help="Lkhazina l3amma hh.")
+    @not_fraud()
+    async def bank_cmd(self, ctx: commands.Context):
+        embed = await self.get_vault_embed("bank")
+        view = VaultView("bank", ctx.author, self)
+        msg = await ctx.send(embed=embed, view=view)
+        view.message = msg
+
+    @commands.command(name="casino", help="Lkhzna ta3 lcasino.")
+    @not_fraud()
+    async def casino_cmd(self, ctx: commands.Context):
+        embed = await self.get_vault_embed("casino")
+        view = VaultView("casino", ctx.author, self)
+        msg = await ctx.send(embed=embed, view=view)
+        view.message = msg
 
     @commands.command(name="wallet", aliases=["bstam", "money", "flous", "bztam", "balance", "bal", "cash", "wal"], help="Chouf ch7al 3ndek tlflous.")
     @not_fraud()
@@ -628,12 +789,14 @@ class Economy(commands.Cog):
 
         await self.deduct_balance(ctx.author.id, amount, context=f"Sent to {target.display_name}")
         await self.add_balance(target.id, received, context=f"Received from {ctx.author.display_name}")
+        if tax > 0:
+            await self.deposit_vault("bank", tax, source="pay", context=f"Transfer: {ctx.author.name} -> {target.name}")
 
         embed = discord.Embed(
             title="💸 Payment Successful",
             description=(
                 f"Sifti {format_tad(received)} l **{target.mention}**.\n\n"
-                f"🔥 **2% Tax Burned:** `{tax:,}` TAD"
+                f"🏛️ **2% Bank Tax:** `{tax:,}` TAD (Deposited to Central Bank)"
             ),
             color=0x000000
         )
@@ -655,14 +818,37 @@ class Economy(commands.Cog):
 
         deduct_amt = min(w["balance"], amount)
         await self.deduct_balance(target.id, deduct_amt, context=f"Taxed by Admin {ctx.author.display_name}", force=True)
+        if deduct_amt > 0:
+            await self.deposit_vault("bank", deduct_amt, source="admin_tax", context=f"Sanction on {target.name}")
         w_after = await self.get_wallet(target.id)
 
         embed = discord.Embed(
             title="🏛️ Economy Tax Applied",
-            description=f"N9ssna **{deduct_amt:,}** TAD mn wallet dial **{target.mention}**.\n💰 **New Balance:** {format_tad(w_after['balance'])}",
+            description=(
+                f"N9ssna **{deduct_amt:,}** TAD mn wallet dial **{target.mention}** o tsiftat l **Central Bank**.\n"
+                f"💰 **New Balance:** {format_tad(w_after['balance'])}"
+            ),
             color=0x000000
         )
         await ctx.send(embed=embed)
+
+    @commands.command(name="setvault", help="Beddel balance dial bank wla casino (Owner only).")
+    @commands.is_owner()
+    async def set_vault_cmd(self, ctx: commands.Context, vault_name: str, amount: int):
+        v_name = vault_name.lower()
+        if v_name not in ("bank", "casino"):
+            await ctx.send("❌ Khtar `bank` wla `casino`.")
+            return
+        if amount < 0:
+            await ctx.send("❌ Amount khas ykoun >= 0.")
+            return
+        now_ts = int(time.time())
+        await self.bot.db.execute(
+            "UPDATE economy_vaults SET balance = ?, updated_at = ? WHERE vault_name = ?",
+            (amount, now_ts, v_name)
+        )
+        await self.bot.db.commit()
+        await ctx.send(f"✅ Balance dial **{v_name.capitalize()}** tbeddel l: {format_tad(amount)}")
 
     @commands.command(name="reward", help="zid flous l wallet dial user (mention wla ID).")
     @commands.is_owner()

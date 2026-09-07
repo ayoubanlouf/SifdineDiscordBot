@@ -406,6 +406,29 @@ async def setup_hook():
         )
     """)
     await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_transactions_user ON user_transactions (user_id, created_at DESC)")
+
+    # System Treasury Vaults (Bank & Casino)
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS economy_vaults (
+            vault_name TEXT PRIMARY KEY,
+            balance INTEGER DEFAULT 0,
+            total_collected INTEGER DEFAULT 0,
+            updated_at INTEGER DEFAULT 0
+        )
+    """)
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS vault_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vault_name TEXT,
+            amount INTEGER,
+            source TEXT,
+            context TEXT,
+            created_at INTEGER
+        )
+    """)
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_vault_transactions ON vault_transactions (vault_name, created_at DESC)")
+    await bot.db.execute("INSERT OR IGNORE INTO economy_vaults (vault_name, balance, total_collected, updated_at) VALUES ('bank', 0, 0, 0)")
+    await bot.db.execute("INSERT OR IGNORE INTO economy_vaults (vault_name, balance, total_collected, updated_at) VALUES ('casino', 0, 0, 0)")
     await bot.db.commit()
 
     await load_extensions()

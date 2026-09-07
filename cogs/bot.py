@@ -575,7 +575,7 @@ class Bot(commands.Cog):
 
         canonical_name = target_cmd.qualified_name.lower()
         if canonical_name in ("enable", "disable", "disabled", "help"):
-            await ctx.send(f"❌ Mat9dch tdesactivi command `{canonical_name}` 7it essential!")
+            await ctx.send(f"❌ Mat9dch t disabli command `{canonical_name}` 7it daroria!")
             return
 
         async with self.bot.db.execute(
@@ -585,7 +585,7 @@ class Bot(commands.Cog):
             exists = await cursor.fetchone()
 
         if exists:
-            await ctx.send(f"⚠️ Command `{canonical_name}` deja mdesaktivia f had server.")
+            await ctx.send(f"⚠️ Command `{canonical_name}` deja mdisablia f had server.")
             return
 
         await self.bot.db.execute(
@@ -595,8 +595,7 @@ class Bot(commands.Cog):
         await self.bot.db.commit()
 
         embed = discord.Embed(
-            title="🚫 Command Disabled",
-            description=f"✅ Desaktiviti command `{canonical_name}` f had server.\n7ta wa7d ma ghay9der ysta3melha daba.",
+            description=f"🚫 Disablit command `{canonical_name}` f had server.\n7ta wa7d ma ghay9der ysta3melha daba.",
             color=0x000000
         )
         await ctx.send(embed=embed)
@@ -629,8 +628,7 @@ class Bot(commands.Cog):
         await self.bot.db.commit()
 
         embed = discord.Embed(
-            title="✅ Command Enabled",
-            description=f"🟢 Re-enablit command `{canonical_name}` f had server!",
+            description=f"🟢 Enablit command `{canonical_name}` f had server!",
             color=0x000000
         )
         await ctx.send(embed=embed)

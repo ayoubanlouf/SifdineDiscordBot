@@ -32,7 +32,7 @@ AllBotCommands = {
         "buzzeverywhere", "customcaption", "dailystruggle", "gruplan", "isthis", "tuxedopooh", "nekofact", "magik", "trapcard", "transgender"
     ],
     "Economy": [
-        "wallet", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit", "wallets", "fraudlist"
+        "wallet", "bank", "casino", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit", "wallets", "fraudlist"
     ],
     "Triggers": [
         "👀", "🧠", "🧽", "👎", "🚨", "🎤", "🤖", "🦅", "🐦", "📺", "🚀", "💡"
