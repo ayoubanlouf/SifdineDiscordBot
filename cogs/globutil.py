@@ -21,6 +21,9 @@ import random
 import time
 import html
 import xml.etree.ElementTree as ET
+import io
+import gc
+from PIL import Image, ImageDraw, ImageFont
 from bs4 import BeautifulSoup
 
 
@@ -102,6 +105,258 @@ class RocketLeagueView(discord.ui.View):
         self.page_one.disabled = False
         self.page_two.disabled = True
         await interaction.response.edit_message(embed=self.embed_p2, view=self)
+
+
+def create_rounded_mask(size, radius):
+    mask = Image.new('L', size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.rounded_rectangle([(0, 0), size], radius=radius, fill=255)
+    return mask
+
+
+def render_visual_pyramid(sections_data: list, perfume_name: str = "Perfume") -> io.BytesIO:
+    active_sections = [s for s in sections_data if s[1]]
+    if not active_sections:
+        return None
+
+    card_width = 820
+    tile_w, tile_h = 96, 120
+    img_size = (68, 68)
+    gap_x = 16
+    gap_y = 14
+
+    section_rows = []
+    total_height = 80 + 30
+    for sec_title, notes in active_sections:
+        if len(notes) <= 5:
+            rows = [notes]
+        elif len(notes) <= 8:
+            mid = (len(notes) + 1) // 2
+            rows = [notes[:mid], notes[mid:]]
+        else:
+            rows = [notes[:4], notes[4:8], notes[8:]]
+        section_rows.append((sec_title, rows))
+        sec_h = 45 + len(rows) * (tile_h + gap_y)
+        total_height += sec_h
+
+    # Very dark neutral grey / pitch charcoal (NO blue hue)
+    bg_color = (12, 12, 14)
+    img = Image.new('RGB', (card_width, total_height), color=bg_color)
+    draw = ImageDraw.Draw(img)
+
+    try:
+        title_font = ImageFont.truetype("arialbd.ttf", 15)
+        header_font = ImageFont.truetype("arialbd.ttf", 11)
+        note_font = ImageFont.truetype("arial.ttf", 10)
+        sub_font = ImageFont.truetype("arial.ttf", 11)
+    except Exception:
+        title_font = ImageFont.load_default()
+        header_font = ImageFont.load_default()
+        note_font = ImageFont.load_default()
+        sub_font = ImageFont.load_default()
+
+    # Outer subtle clay border
+    draw.rounded_rectangle([(8, 8), (card_width - 8, total_height - 8)], radius=18, outline=(32, 32, 36), width=1)
+
+    # Top Header
+    clean_name = perfume_name[:50] + "..." if len(perfume_name) > 50 else perfume_name
+    draw.text((card_width // 2, 32), clean_name.upper(), fill=(215, 215, 220), font=title_font, anchor="mm")
+    draw.text((card_width // 2, 52), "OLFACTORY PYRAMID", fill=(115, 115, 125), font=sub_font, anchor="mm")
+
+    y_cur = 72
+
+    for sec_title, rows in section_rows:
+        divider_y = y_cur + 16
+        draw.line([(45, divider_y), (card_width - 45, divider_y)], fill=(28, 28, 32), width=1)
+
+        # Centered section label
+        sec_box_w = 130
+        draw.rectangle([(card_width // 2 - sec_box_w // 2, divider_y - 10), (card_width // 2 + sec_box_w // 2, divider_y + 10)], fill=bg_color)
+        draw.text((card_width // 2, divider_y), sec_title, fill=(150, 150, 160), font=header_font, anchor="mm")
+
+        row_y = divider_y + 20
+
+        for row_notes in rows:
+            num_notes = len(row_notes)
+            total_row_w = num_notes * tile_w + (num_notes - 1) * gap_x
+            start_x = (card_width - total_row_w) // 2
+
+            for i, note in enumerate(row_notes):
+                nx = start_x + i * (tile_w + gap_x)
+                ny = row_y
+
+                # Pure dark drop shadow
+                draw.rounded_rectangle([(nx + 2, ny + 3), (nx + tile_w + 2, ny + tile_h + 3)], radius=13, fill=(5, 5, 6))
+                # Neutral dark frosted clay tile
+                draw.rounded_rectangle([(nx, ny), (nx + tile_w, ny + tile_h)], radius=13, fill=(22, 22, 26), outline=(38, 38, 44), width=1)
+                # Subtle glass highlight
+                draw.line([(nx + 10, ny + 2), (nx + tile_w - 10, ny + 2)], fill=(50, 50, 58), width=1)
+
+                # Paste note image
+                img_x = nx + (tile_w - img_size[0]) // 2
+                img_y = ny + 9
+
+                if note.get("img_bytes"):
+                    try:
+                        note_raw = Image.open(io.BytesIO(note["img_bytes"])).convert('RGBA')
+                        note_resized = note_raw.resize(img_size, Image.Resampling.LANCZOS)
+                        mask = create_rounded_mask(img_size, radius=9)
+                        img.paste(note_resized, (img_x, img_y), mask)
+                    except Exception:
+                        draw.rounded_rectangle([(img_x, img_y), (img_x + img_size[0], img_y + img_size[1])], radius=9, fill=(34, 34, 38))
+                else:
+                    draw.rounded_rectangle([(img_x, img_y), (img_x + img_size[0], img_y + img_size[1])], radius=9, fill=(34, 34, 38))
+
+                # Note name text
+                note_name = note.get("name", "")
+                if len(note_name) > 13:
+                    parts = note_name.split()
+                    if len(parts) > 1:
+                        line1 = parts[0]
+                        line2 = " ".join(parts[1:])
+                        if len(line2) > 11: line2 = line2[:10] + "…"
+                        draw.text((nx + tile_w // 2, ny + 90), line1, fill=(230, 230, 235), font=note_font, anchor="mm")
+                        draw.text((nx + tile_w // 2, ny + 104), line2, fill=(230, 230, 235), font=note_font, anchor="mm")
+                    else:
+                        draw.text((nx + tile_w // 2, ny + 97), note_name[:11] + "…", fill=(230, 230, 235), font=note_font, anchor="mm")
+                else:
+                    draw.text((nx + tile_w // 2, ny + 97), note_name, fill=(230, 230, 235), font=note_font, anchor="mm")
+
+            row_y += tile_h + gap_y
+
+        y_cur = row_y + 8
+
+    # Bottom Branding
+    draw.text((card_width // 2, total_height - 18), "Fragrantica • Sifdine", fill=(70, 70, 75), font=sub_font, anchor="mm")
+
+    buf = io.BytesIO()
+    img.save(buf, format='PNG', optimize=True)
+    buf.seek(0)
+    del img, draw
+    return buf
+
+
+_fragrantica_session = None
+
+def _get_fragrantica_session():
+    global _fragrantica_session
+    if _fragrantica_session is None:
+        from curl_cffi import requests
+        _fragrantica_session = requests.Session(impersonate="chrome")
+        _fragrantica_session.headers.update({
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Sec-Ch-Ua': '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1'
+        })
+    return _fragrantica_session
+
+
+def _fetch_fragrantica_html(url: str):
+    global _fragrantica_session
+    session = _get_fragrantica_session()
+    try:
+        resp = session.get(url, timeout=15)
+        if resp.status_code == 200:
+            return resp.text
+        if resp.status_code in (403, 503):
+            # Session challenged or stale; refresh session and retry once
+            from curl_cffi import requests
+            _fragrantica_session = requests.Session(impersonate="chrome")
+            resp = _fragrantica_session.get(url, timeout=15)
+            if resp.status_code == 200:
+                return resp.text
+    except Exception as e:
+        print(f"[Fragrantica] Error fetching {url}: {e}")
+    return None
+
+
+
+class FragranticaToggleView(discord.ui.View):
+    def __init__(self, author_id: int, embed_info: discord.Embed, embed_pyramid: discord.Embed, visual_notes_data: list, perfume_name: str, session: aiohttp.ClientSession):
+        super().__init__(timeout=90)
+        self.author_id = author_id
+        self.embed_info = embed_info
+        self.embed_pyramid = embed_pyramid
+        self.visual_notes_data = visual_notes_data
+        self.perfume_name = perfume_name
+        self.session = session
+        self.showing_pyramid = False
+        self.cached_file_bytes = None
+        self.message = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("Had l'bouton dial li tlbo.", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Notes Pyramid", style=discord.ButtonStyle.primary, emoji="🌿")
+    async def toggle_view(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.showing_pyramid:
+            self.showing_pyramid = True
+            button.label = "Overview"
+            button.emoji = "🧴"
+            button.style = discord.ButtonStyle.secondary
+
+            if self.cached_file_bytes is None and self.visual_notes_data:
+                await interaction.response.defer()
+
+                async def fetch_thumb(item):
+                    try:
+                        timeout = aiohttp.ClientTimeout(total=4)
+                        async with self.session.get(item["url"], timeout=timeout) as r:
+                            if r.status == 200:
+                                return {**item, "img_bytes": await r.read()}
+                    except Exception:
+                        pass
+                    return item
+
+                sections_with_imgs = []
+                for sec_label, notes_list in self.visual_notes_data:
+                    loaded = await asyncio.gather(*[fetch_thumb(n) for n in notes_list])
+                    sections_with_imgs.append((sec_label, loaded))
+
+                buf = await asyncio.to_thread(render_visual_pyramid, sections_with_imgs, self.perfume_name)
+                if buf:
+                    self.cached_file_bytes = buf.getvalue()
+                    buf.close()
+
+            if self.cached_file_bytes:
+                file = discord.File(io.BytesIO(self.cached_file_bytes), filename="pyramid.png")
+                self.embed_pyramid.set_image(url="attachment://pyramid.png")
+                if interaction.response.is_done():
+                    await interaction.message.edit(embed=self.embed_pyramid, attachments=[file], view=self)
+                else:
+                    await interaction.response.edit_message(embed=self.embed_pyramid, attachments=[file], view=self)
+            else:
+                if interaction.response.is_done():
+                    await interaction.message.edit(embed=self.embed_pyramid, view=self)
+                else:
+                    await interaction.response.edit_message(embed=self.embed_pyramid, view=self)
+        else:
+            self.showing_pyramid = False
+            button.label = "Notes Pyramid"
+            button.emoji = "🌿"
+            button.style = discord.ButtonStyle.primary
+            await interaction.response.edit_message(embed=self.embed_info, attachments=[], view=self)
+
+    async def on_timeout(self):
+        for child in self.children:
+            if not isinstance(child, discord.ui.Button) or child.style != discord.ButtonStyle.link:
+                child.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+        self.cached_file_bytes = None
 
 
 class GlobUtil(commands.Cog):
@@ -2343,6 +2598,268 @@ class GlobUtil(commands.Cog):
 
             except Exception as e:
                 await ctx.send(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
+
+    @commands.command(name="fragrantica", aliases=["perfume", "frag", "fragrance", "parfum", "cologne", "scent", "notes", "ri7a", "riha"], help="9elleb 3la chi ri7a f Fragrantica.")
+    async def fragrantica(self, ctx: commands.Context, *, query: str = None):
+        if not query:
+            return await ctx.send(embed=discord.Embed(description="❌ Kteb smiyt ri7a: `sat fragrantica <name>`", color=0x000000))
+
+        wait_embed = discord.Embed(
+            description="Kan9elleb f Fragrantica...",
+            color=0x000000
+        )
+        status_msg = await ctx.send(embed=wait_embed)
+
+        serpapi_key = os.getenv('SERPAPI_KEY')
+        if not serpapi_key:
+            return await status_msg.edit(embed=discord.Embed(description="❌ SERPAPI_KEY ma kaynach f configuration.", color=0x000000))
+
+        # 1. SerpApi search for site:fragrantica.com/perfume
+        target_url = None
+        target_title = None
+        try:
+            serp_params = {
+                'engine': 'google',
+                'q': f"site:fragrantica.com/perfume {query}",
+                'api_key': serpapi_key,
+                'num': 4
+            }
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with self.bot.session.get('https://serpapi.com/search.json', params=serp_params, timeout=timeout) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for item in data.get('organic_results', []):
+                        link = item.get('link', '')
+                        if 'fragrantica.com/perfume/' in link and link.endswith('.html'):
+                            target_url = link
+                            target_title = item.get('title', '')
+                            break
+        except Exception:
+            pass
+
+        if not target_url:
+            return await status_msg.edit(embed=discord.Embed(
+                description=f"❌ Mal9itch chi ri7a b smiyt `{query}` f Fragrantica. Jereb zid smiyt l'house/brand (e.g. `sat fragrantica rasasi hawas kobra`).",
+                color=0x000000
+            ))
+
+        # 2. Fetch Fragrantica HTML using Chrome-impersonated session (bypasses Cloudflare 403)
+        html_doc = None
+        try:
+            html_doc = await asyncio.to_thread(_fetch_fragrantica_html, target_url)
+            if not html_doc:
+                return await status_msg.edit(embed=discord.Embed(description="❌ Fragrantica rejectat request. tal wa7d chwya o 3awd jrrb.", color=0x000000))
+        except Exception as e:
+            return await status_msg.edit(embed=discord.Embed(description=f"❌ Tra mochkil f connexion m3a Fragrantica: `{e}`", color=0x000000))
+
+        # 3. Parse HTML
+        soup = BeautifulSoup(html_doc, 'html.parser')
+
+        # Name and House / Brand
+        name_brand_m = re.search(r'<b>([^<]+)</b>\s+by\s+<b>([^<]+)</b>', html_doc)
+        if name_brand_m:
+            perfume_name = name_brand_m.group(1).strip()
+            brand_name = name_brand_m.group(2).strip()
+            display_title = f"{perfume_name} by {brand_name}"
+        else:
+            og_title = soup.find('meta', property='og:title')
+            display_title = og_title['content'] if og_title else (target_title or "Fragrance")
+
+        # Bottle Image
+        bottle_img_url = None
+        bottle_img = soup.find('img', itemprop='image')
+        if bottle_img and bottle_img.get('src'):
+            bottle_img_url = bottle_img['src']
+        if not bottle_img_url:
+            og_img = soup.find('meta', property='og:image')
+            if og_img and og_img.get('content'):
+                bottle_img_url = og_img['content']
+
+        # Intro text block
+        intro_p = ""
+        for p in soup.find_all('p'):
+            p_text = p.get_text(" ", strip=True)
+            if "fragrance for" in p_text.lower() or "launched in" in p_text.lower():
+                intro_p = p_text
+                break
+
+        # Gender
+        gender_match = re.search(r'fragrance for\s+(women and men|men and women|women|men)', intro_p, re.I)
+        raw_gender = gender_match.group(1).lower() if gender_match else "unisex"
+        if "women and men" in raw_gender or "men and women" in raw_gender:
+            gender = "🚻 Unisex"
+        elif "men" in raw_gender:
+            gender = "👨 Men"
+        elif "women" in raw_gender:
+            gender = "👩 Women"
+        else:
+            gender = "🚻 Unisex"
+
+        # Year
+        year_match = re.search(r'launched in\s+(\d{4})', intro_p, re.I)
+        year = year_match.group(1) if year_match else None
+
+        # Perfumer
+        perfumer_match = re.search(r'nose behind this fragrance is\s+([^.<]+)', intro_p, re.I)
+        perfumer = perfumer_match.group(1).strip() if perfumer_match else "Not disclosed"
+
+        # Rating & Votes
+        rating_val = None
+        rating_tag = soup.find(attrs={"itemprop": "ratingValue"})
+        if rating_tag:
+            rating_val = rating_tag.get('content') or rating_tag.text.strip()
+        if not rating_val:
+            m = re.search(r'([0-9]\.[0-9]{1,2})\s*out of\s*5', html_doc)
+            if m:
+                rating_val = m.group(1)
+
+        rating_count = None
+        votes_tag = soup.find(attrs={"itemprop": "ratingCount"})
+        if votes_tag:
+            rating_count = votes_tag.get('content') or votes_tag.text.strip()
+
+        if rating_val:
+            try:
+                r_float = float(rating_val)
+                rating_str = f"⭐ **{r_float:.2f}** / 5"
+                if rating_count:
+                    rating_str += f" ({int(rating_count):,} votes)"
+            except Exception:
+                rating_str = f"⭐ {rating_val} / 5"
+        else:
+            rating_str = "No ratings yet"
+
+        # Longevity & Sillage
+        longevity = "Moderate (3h - 6h)"
+        sillage = "Moderate"
+        doc_lower = html_doc.lower()
+        if "very long lasting" in doc_lower:
+            longevity = "Very Long Lasting (12h+)"
+        elif "long lasting" in doc_lower:
+            longevity = "Long Lasting (7h - 12h)"
+        elif "weak" in doc_lower:
+            longevity = "Weak to Moderate (2h - 4h)"
+
+        if "enormous" in doc_lower:
+            sillage = "Strong to Enormous"
+        elif "strong" in doc_lower:
+            sillage = "Strong"
+        elif "intimate" in doc_lower:
+            sillage = "Intimate"
+
+        # Main Accords
+        accords = []
+        idx = html_doc.find('main accords')
+        if idx != -1:
+            block = html_doc[idx:idx+2500]
+            accords = re.findall(r'<span class="truncate">([^<]+)</span>', block)
+        if not accords:
+            for div in soup.find_all('div', class_=re.compile(r'accord-bar|cell accord-box')):
+                txt = div.get_text(strip=True)
+                if txt and len(txt) < 25 and txt not in accords:
+                    accords.append(txt)
+        accords = [a.strip().capitalize() for a in accords if a.strip()][:6]
+        accords_str = " • ".join(accords) if accords else "Not specified"
+
+        # Notes Pyramid
+        top_notes, mid_notes, base_notes = [], [], []
+        top_m = re.search(r'top note[s]? (?:is|are)\s+([^;.]+)', intro_p, re.I)
+        if top_m:
+            top_notes = [n.strip().capitalize() for n in re.split(r',|\band\b', top_m.group(1)) if n.strip()]
+
+        mid_m = re.search(r'middle note[s]? (?:is|are)\s+([^;.]+)', intro_p, re.I)
+        if mid_m:
+            mid_notes = [n.strip().capitalize() for n in re.split(r',|\band\b', mid_m.group(1)) if n.strip()]
+
+        base_m = re.search(r'base note[s]? (?:is|are)\s+([^;.]+)', intro_p, re.I)
+        if base_m:
+            base_notes = [n.strip().capitalize() for n in re.split(r',|\band\b', base_m.group(1)) if n.strip()]
+
+        if not (top_notes or mid_notes or base_notes):
+            notes_m = re.search(r'fragrance features\s+([^.]+)', intro_p, re.I)
+            if notes_m:
+                mid_notes = [n.strip().capitalize() for n in re.split(r',|\band\b', notes_m.group(1)) if n.strip()]
+
+        # Extract Visual Notes with Images from Fragrantica
+        visual_notes_data = []
+        pyramid_div = soup.find('div', id='pyramid')
+        if pyramid_div:
+            for level, level_label in [('top', 'TOP NOTES'), ('middle', 'MIDDLE NOTES'), ('base', 'BASE NOTES')]:
+                p_lvl = pyramid_div.find('pyramid-level-new', attrs={'notes': level})
+                notes_in_lvl = []
+                if p_lvl:
+                    for a in p_lvl.find_all('a'):
+                        img = a.find('img')
+                        label = a.find(class_=re.compile(r'pyramid-note-label')) or a.find('span')
+                        name = (label.get_text(strip=True) if label else None) or (img.get('alt') if img else None)
+                        note_img_url = img.get('src') if img else None
+                        if name and note_img_url:
+                            notes_in_lvl.append({'name': name, 'url': note_img_url})
+                if notes_in_lvl:
+                    visual_notes_data.append((level_label, notes_in_lvl))
+
+            if not visual_notes_data:
+                # General notes without tiers (e.g. Bvlgari Le Gemme Kobraa)
+                general_notes = []
+                for a in pyramid_div.find_all('a'):
+                    img = a.find('img')
+                    if img and 'sastojci' in img.get('src', ''):
+                        name = (img.get('alt') or a.get_text(strip=True)).strip()
+                        note_img_url = img.get('src')
+                        if name and note_img_url:
+                            general_notes.append({'name': name, 'url': note_img_url})
+                if general_notes:
+                    visual_notes_data.append(('FRAGRANCE NOTES', general_notes))
+
+        # 4. Build Embeds
+        # Page 1: Overview (Clean without attachments)
+        embed_info = discord.Embed(
+            title=f"{display_title}",
+            url=target_url,
+            color=0x000000
+        )
+        if bottle_img_url:
+            embed_info.set_thumbnail(url=bottle_img_url)
+
+        profile_val = f"{gender}" + (f" • {year}" if year else "")
+        embed_info.add_field(name="Profile", value=profile_val, inline=True)
+        embed_info.add_field(name="Perfumer", value=perfumer[:100], inline=True)
+        embed_info.add_field(name="Rating", value=rating_str, inline=False)
+        embed_info.add_field(name="⏳ Longevity", value=longevity, inline=True)
+        embed_info.add_field(name="💨 Sillage", value=sillage, inline=True)
+        embed_info.add_field(name="👃 Main Accords", value=accords_str, inline=False)
+        embed_info.set_footer(text=f"Fragrantica • Page 1/2 • Requested by {ctx.author.display_name}")
+
+        # Page 2: Notes Pyramid
+        embed_pyramid = discord.Embed(
+            title=f"{display_title} (Pyramid)",
+            url=target_url,
+            color=0x000000
+        )
+        if bottle_img_url:
+            embed_pyramid.set_thumbnail(url=bottle_img_url)
+        embed_pyramid.set_footer(text=f"Fragrantica • Page 2/2 • Requested by {ctx.author.display_name}")
+
+        # 5. Send & View setup (No attachment on Page 1)
+        view = FragranticaToggleView(
+            author_id=ctx.author.id,
+            embed_info=embed_info,
+            embed_pyramid=embed_pyramid,
+            visual_notes_data=visual_notes_data,
+            perfume_name=display_title,
+            session=self.bot.session
+        )
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+
+        sent_msg = await ctx.send(embed=embed_info, view=view)
+        view.message = sent_msg
+
+        # Explicit RAM cleanup
+        del html_doc, soup
+        gc.collect()
 
 
 async def setup(bot):

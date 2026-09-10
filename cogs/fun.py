@@ -7915,7 +7915,7 @@ class Fun(commands.Cog):
         elif won and ctx.guild:
             await self.record_minigame_win(ctx.guild.id, ctx.author.id, "roulette")
 
-        await spin_msg.edit(embed=embed, attachments=[])
+        await spin_msg.edit(embed=embed)
 
     @commands.command(aliases=["hl"], help="9emmer wach lwr9a jaya Higher wla Lower (sat higherlower [bet:500]).")
     @not_fraud()
