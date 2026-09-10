@@ -16,4 +16,3 @@ langdetect
 yt-dlp
 pynacl
 curl_cffi
-beautifulsoup4

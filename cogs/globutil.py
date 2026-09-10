@@ -24,7 +24,6 @@ import xml.etree.ElementTree as ET
 import io
 import gc
 from PIL import Image, ImageDraw, ImageFont
-from bs4 import BeautifulSoup
 
 
 _rl_session = None
@@ -264,14 +263,28 @@ def _fetch_fragrantica_html(url: str):
     try:
         resp = session.get(url, timeout=15)
         if resp.status_code == 200:
-            return resp.text
+            text = resp.text
+            del resp
+            cut_idx = text.find('id="userReviews"')
+            if cut_idx == -1:
+                cut_idx = text.find('class="reviews"')
+            if cut_idx != -1:
+                text = text[:cut_idx + 1000]
+            return text
         if resp.status_code in (403, 503):
             # Session challenged or stale; refresh session and retry once
             from curl_cffi import requests
             _fragrantica_session = requests.Session(impersonate="chrome")
             resp = _fragrantica_session.get(url, timeout=15)
             if resp.status_code == 200:
-                return resp.text
+                text = resp.text
+                del resp
+                cut_idx = text.find('id="userReviews"')
+                if cut_idx == -1:
+                    cut_idx = text.find('class="reviews"')
+                if cut_idx != -1:
+                    text = text[:cut_idx + 1000]
+                return text
     except Exception as e:
         print(f"[Fragrantica] Error fetching {url}: {e}")
     return None
@@ -2484,13 +2497,13 @@ class GlobUtil(commands.Cog):
                 # 1. Search with curl_cffi to bypass Cloudflare protection
                 search_url = f"https://www.wikihow.com/wikiHowTo?search={urllib.parse.quote(query)}"
                 status, search_html = await asyncio.to_thread(_fetch_wikihow_sync, search_url)
-
                 if status != 200 or not search_html:
                     await ctx.send("❌ Tra mochkil f l'connexion m3a wikiHow.")
                     return
 
-                soup = BeautifulSoup(search_html, 'html.parser')
-                result_links = soup.select('a.result_link')
+                result_links = re.findall(r'<a[^>]+class=["\'][^"\']*result_link[^"\']*["\'][^>]+href=["\']([^"\']+)["\']', search_html)
+                if not result_links:
+                    result_links = re.findall(r'href=["\'](https?://www\.wikihow\.com/[^"\']+)["\'][^>]+class=["\'][^"\']*result_link', search_html)
 
                 # If no direct result_links, try stripping leading "to " or "how to "
                 if not result_links:
@@ -2499,15 +2512,13 @@ class GlobUtil(commands.Cog):
                         search_url = f"https://www.wikihow.com/wikiHowTo?search={urllib.parse.quote(clean_q)}"
                         status, search_html = await asyncio.to_thread(_fetch_wikihow_sync, search_url)
                         if status == 200 and search_html:
-                            soup = BeautifulSoup(search_html, 'html.parser')
-                            result_links = soup.select('a.result_link')
+                            result_links = re.findall(r'<a[^>]+class=["\'][^"\']*result_link[^"\']*["\'][^>]+href=["\']([^"\']+)["\']', search_html)
 
                 if not result_links:
                     await ctx.send(f"❌ Mal9itch chi article f wikiHow 3la `{query}`.")
                     return
 
-                result_link = result_links[0]
-                article_url = result_link.get('href', '')
+                article_url = result_links[0]
                 if not article_url.startswith('http'):
                     article_url = 'https://www.wikihow.com' + article_url
 
@@ -2516,57 +2527,46 @@ class GlobUtil(commands.Cog):
                     await ctx.send(f"❌ Ma9ditch n-charge l'article mn wikiHow: {article_url}")
                     return
 
-                p_soup = BeautifulSoup(article_html, 'html.parser')
-                h1 = p_soup.find('h1', id='section_0') or p_soup.find('h1')
-                article_title = h1.text.strip() if h1 else result_link.text.strip().split('\n')[0]
+                h1_m = re.search(r'<h1[^>]*>(.*?)</h1>', article_html, re.DOTALL | re.I)
+                article_title = re.sub(r'<[^>]+>', '', h1_m.group(1)).strip() if h1_m else "wikiHow Article"
 
-                step_lis = p_soup.find_all('li', id=re.compile(r'step-id-\d+'))
+                step_lis = re.findall(r'<li[^>]+id=["\']step-id-\d+["\'][^>]*>(.*?)</li>', article_html, re.DOTALL | re.I)
 
-                def extract_img(li):
-                    vid = li.find('video')
-                    if vid:
-                        for a in ['data-poster', 'poster', 'data-gifsrc', 'data-giffirstsrc']:
-                            v = vid.get(a)
-                            if v and 'wikihow.com/images' in v:
-                                if v.startswith('//'):
-                                    return 'https:' + v
-                                elif v.startswith('/'):
-                                    return 'https://www.wikihow.com' + v
-                                return v
-                    for img in li.find_all('img'):
-                        for a in ['data-src', 'src', 'data-original']:
-                            v = img.get(a)
-                            if v and 'wikihow.com/images' in v and not v.endswith('.svg') and 'WH_logo' not in v:
-                                if v.startswith('//'):
-                                    return 'https:' + v
-                                elif v.startswith('/'):
-                                    return 'https://www.wikihow.com' + v
-                                return v
+                def extract_img(li_html):
+                    for a in ['data-poster', 'poster', 'data-gifsrc', 'data-giffirstsrc']:
+                        m = re.search(rf'{a}=["\']([^"\']+)["\']', li_html)
+                        if m and 'wikihow.com/images' in m.group(1):
+                            v = m.group(1)
+                            if v.startswith('//'): return 'https:' + v
+                            if v.startswith('/'): return 'https://www.wikihow.com' + v
+                            return v
+                    for a in ['data-src', 'src', 'data-original']:
+                        m = re.search(rf'{a}=["\']([^"\']+)["\']', li_html)
+                        if m and 'wikihow.com/images' in m.group(1) and not m.group(1).endswith('.svg') and 'WH_logo' not in m.group(1):
+                            v = m.group(1)
+                            if v.startswith('//'): return 'https:' + v
+                            if v.startswith('/'): return 'https://www.wikihow.com' + v
+                            return v
                     return None
 
                 embeds = []
                 total_steps = len(step_lis)
 
-                for i, li in enumerate(step_lis):
-                    b_tag = li.find('b')
-                    s_title = b_tag.text.strip() if b_tag else f"Step {i+1}"
+                for i, li_content in enumerate(step_lis):
+                    b_m = re.search(r'<b[^>]*>(.*?)</b>', li_content, re.DOTALL)
+                    s_title = re.sub(r'<[^>]+>', '', b_m.group(1)).strip() if b_m else f"Step {i+1}"
 
-                    s_div = li.find('div', class_='step')
-                    body = ""
-                    if s_div:
-                        clone = BeautifulSoup(str(s_div), 'html.parser')
-                        for tag in clone(['script', 'style', 'sup', 'b', 'ul', 'ol']):
-                            tag.decompose()
-                        body = clone.text.strip().replace('\n', ' ')
-                        body = re.sub(r'\s+', ' ', body)
-                    else:
-                        body = li.text.strip().replace('\n', ' ')
-                        body = re.sub(r'\s+', ' ', body)
+                    s_div_m = re.search(r'<div[^>]+class=["\'][^"\']*step[^"\']*["\'][^>]*>(.*?)</div>', li_content, re.DOTALL)
+                    body_raw = s_div_m.group(1) if s_div_m else li_content
+                    clean_body = re.sub(r'<(script|style|sup|b|ul|ol)[^>]*>.*?</\1>', '', body_raw, flags=re.DOTALL | re.I)
+                    clean_body = re.sub(r'<[^>]+>', '', clean_body)
+                    clean_body = html.unescape(clean_body)
+                    body = re.sub(r'\s+', ' ', clean_body).strip()
 
                     if len(body) > 1000:
                         body = body[:997] + "..."
 
-                    step_img = extract_img(li)
+                    step_img = extract_img(li_content)
 
                     embed = discord.Embed(
                         title=f"📋 {article_title}",
@@ -2583,8 +2583,12 @@ class GlobUtil(commands.Cog):
                     paginator = self.bot.Paginator(ctx, pages=embeds, per_page=1, title=article_title)
                     await paginator.send()
                 else:
-                    intro = p_soup.find('div', id='intro') or p_soup.find('div', class_='intro')
-                    intro_text = intro.text.strip()[:1500] if intro else "Iftah l'link lte7t bach tchouf l'article kaml."
+                    intro_m = re.search(r'<div[^>]+(?:id|class)=["\'][^"\']*intro[^"\']*["\'][^>]*>(.*?)</div>', article_html, re.DOTALL | re.I)
+                    if intro_m:
+                        intro_clean = re.sub(r'<[^>]+>', '', intro_m.group(1))
+                        intro_text = html.unescape(intro_clean).strip()[:1500]
+                    else:
+                        intro_text = "Iftah l'link lte7t bach tchouf l'article kaml."
                     embed = discord.Embed(
                         title=f"📋 {article_title}",
                         url=article_url,
@@ -2634,6 +2638,7 @@ class GlobUtil(commands.Cog):
                             target_url = link
                             target_title = item.get('title', '')
                             break
+                    del data
         except Exception:
             pass
 
@@ -2652,9 +2657,7 @@ class GlobUtil(commands.Cog):
         except Exception as e:
             return await status_msg.edit(embed=discord.Embed(description=f"❌ Tra mochkil f connexion m3a Fragrantica: `{e}`", color=0x000000))
 
-        # 3. Parse HTML
-        soup = BeautifulSoup(html_doc, 'html.parser')
-
+        # 3. Parse HTML using pure regex (avoids BeautifulSoup DOM overhead to keep RAM < 100MB)
         # Name and House / Brand
         name_brand_m = re.search(r'<b>([^<]+)</b>\s+by\s+<b>([^<]+)</b>', html_doc)
         if name_brand_m:
@@ -2662,26 +2665,25 @@ class GlobUtil(commands.Cog):
             brand_name = name_brand_m.group(2).strip()
             display_title = f"{perfume_name} by {brand_name}"
         else:
-            og_title = soup.find('meta', property='og:title')
-            display_title = og_title['content'] if og_title else (target_title or "Fragrance")
+            og_title_m = re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', html_doc, re.I)
+            if not og_title_m:
+                og_title_m = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']', html_doc, re.I)
+            display_title = og_title_m.group(1).strip() if og_title_m else (target_title or "Fragrance")
 
         # Bottle Image
-        bottle_img_url = None
-        bottle_img = soup.find('img', itemprop='image')
-        if bottle_img and bottle_img.get('src'):
-            bottle_img_url = bottle_img['src']
-        if not bottle_img_url:
-            og_img = soup.find('meta', property='og:image')
-            if og_img and og_img.get('content'):
-                bottle_img_url = og_img['content']
+        bottle_m = re.search(r'<img[^>]+itemprop=["\']image["\'][^>]+src=["\']([^"\']+)["\']', html_doc, re.I)
+        if not bottle_m:
+            bottle_m = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html_doc, re.I)
+        if not bottle_m:
+            bottle_m = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', html_doc, re.I)
+        bottle_img_url = bottle_m.group(1) if bottle_m else None
 
         # Intro text block
-        intro_p = ""
-        for p in soup.find_all('p'):
-            p_text = p.get_text(" ", strip=True)
-            if "fragrance for" in p_text.lower() or "launched in" in p_text.lower():
-                intro_p = p_text
-                break
+        intro_m = re.search(r'<div[^>]+itemprop=["\']description["\'][^>]*>(.*?)</div>', html_doc, re.DOTALL | re.I)
+        intro_p = intro_m.group(1) if intro_m else ""
+        if not intro_p:
+            p_m = re.search(r'<p[^>]*>([^<]*(?:fragrance for|launched in)[^<]*)</p>', html_doc, re.I)
+            intro_p = p_m.group(1) if p_m else ""
 
         # Gender
         gender_match = re.search(r'fragrance for\s+(women and men|men and women|women|men)', intro_p, re.I)
@@ -2704,19 +2706,17 @@ class GlobUtil(commands.Cog):
         perfumer = perfumer_match.group(1).strip() if perfumer_match else "Not disclosed"
 
         # Rating & Votes
-        rating_val = None
-        rating_tag = soup.find(attrs={"itemprop": "ratingValue"})
-        if rating_tag:
-            rating_val = rating_tag.get('content') or rating_tag.text.strip()
-        if not rating_val:
-            m = re.search(r'([0-9]\.[0-9]{1,2})\s*out of\s*5', html_doc)
-            if m:
-                rating_val = m.group(1)
+        rating_m = re.search(r'itemprop=["\']ratingValue["\'][^>]*content=["\']([^"\']+)["\']', html_doc, re.I)
+        if not rating_m:
+            rating_m = re.search(r'content=["\']([^"\']+)["\'][^>]*itemprop=["\']ratingValue["\']', html_doc, re.I)
+        if not rating_m:
+            rating_m = re.search(r'([0-9]\.[0-9]{1,2})\s*out of\s*5', html_doc)
+        rating_val = rating_m.group(1) if rating_m else None
 
-        rating_count = None
-        votes_tag = soup.find(attrs={"itemprop": "ratingCount"})
-        if votes_tag:
-            rating_count = votes_tag.get('content') or votes_tag.text.strip()
+        votes_m = re.search(r'itemprop=["\']ratingCount["\'][^>]*content=["\']([^"\']+)["\']', html_doc, re.I)
+        if not votes_m:
+            votes_m = re.search(r'content=["\']([^"\']+)["\'][^>]*itemprop=["\']ratingCount["\']', html_doc, re.I)
+        rating_count = votes_m.group(1) if votes_m else None
 
         if rating_val:
             try:
@@ -2729,10 +2729,10 @@ class GlobUtil(commands.Cog):
         else:
             rating_str = "No ratings yet"
 
-        # Longevity & Sillage
+        # Longevity & Sillage (search only top 80KB to save memory)
         longevity = "Moderate (3h - 6h)"
         sillage = "Moderate"
-        doc_lower = html_doc.lower()
+        doc_lower = html_doc[:80000].lower()
         if "very long lasting" in doc_lower:
             longevity = "Very Long Lasting (12h+)"
         elif "long lasting" in doc_lower:
@@ -2753,11 +2753,6 @@ class GlobUtil(commands.Cog):
         if idx != -1:
             block = html_doc[idx:idx+2500]
             accords = re.findall(r'<span class="truncate">([^<]+)</span>', block)
-        if not accords:
-            for div in soup.find_all('div', class_=re.compile(r'accord-bar|cell accord-box')):
-                txt = div.get_text(strip=True)
-                if txt and len(txt) < 25 and txt not in accords:
-                    accords.append(txt)
         accords = [a.strip().capitalize() for a in accords if a.strip()][:6]
         accords_str = " • ".join(accords) if accords else "Not specified"
 
@@ -2780,36 +2775,41 @@ class GlobUtil(commands.Cog):
             if notes_m:
                 mid_notes = [n.strip().capitalize() for n in re.split(r',|\band\b', notes_m.group(1)) if n.strip()]
 
-        # Extract Visual Notes with Images from Fragrantica
+        # Extract Visual Notes with Images from Fragrantica (pure regex, 0 DOM objects)
         visual_notes_data = []
-        pyramid_div = soup.find('div', id='pyramid')
-        if pyramid_div:
-            for level, level_label in [('top', 'TOP NOTES'), ('middle', 'MIDDLE NOTES'), ('base', 'BASE NOTES')]:
-                p_lvl = pyramid_div.find('pyramid-level-new', attrs={'notes': level})
-                notes_in_lvl = []
-                if p_lvl:
-                    for a in p_lvl.find_all('a'):
-                        img = a.find('img')
-                        label = a.find(class_=re.compile(r'pyramid-note-label')) or a.find('span')
-                        name = (label.get_text(strip=True) if label else None) or (img.get('alt') if img else None)
-                        note_img_url = img.get('src') if img else None
-                        if name and note_img_url:
-                            notes_in_lvl.append({'name': name, 'url': note_img_url})
-                if notes_in_lvl:
-                    visual_notes_data.append((level_label, notes_in_lvl))
+        pyr_idx = html_doc.find('id="pyramid"')
+        if pyr_idx != -1:
+            pyr_block = html_doc[pyr_idx:pyr_idx+20000]
+            for lvl_key, lvl_label in [('top', 'TOP NOTES'), ('middle', 'MIDDLE NOTES'), ('base', 'BASE NOTES')]:
+                pattern = r'<pyramid-level-new[^>]*notes=["\']' + lvl_key + r'["\'][^>]*>(.*?)</pyramid-level-new>'
+                lvl_m = re.search(pattern, pyr_block, re.DOTALL | re.I)
+                if lvl_m:
+                    notes_in_lvl = []
+                    for m in re.finditer(r'<img[^>]+>', lvl_m.group(1)):
+                        tag = m.group(0)
+                        src_m = re.search(r'src=["\'](https://fimgs\.net/mdimg/sastojci/t\.[^"\']+)["\']', tag)
+                        alt_m = re.search(r'alt=["\']([^"\']+)["\']', tag)
+                        if src_m and alt_m:
+                            notes_in_lvl.append({'name': alt_m.group(1).strip(), 'url': src_m.group(1).strip()})
+                    if notes_in_lvl:
+                        visual_notes_data.append((lvl_label, notes_in_lvl))
 
             if not visual_notes_data:
-                # General notes without tiers (e.g. Bvlgari Le Gemme Kobraa)
                 general_notes = []
-                for a in pyramid_div.find_all('a'):
-                    img = a.find('img')
-                    if img and 'sastojci' in img.get('src', ''):
-                        name = (img.get('alt') or a.get_text(strip=True)).strip()
-                        note_img_url = img.get('src')
-                        if name and note_img_url:
-                            general_notes.append({'name': name, 'url': note_img_url})
+                for m in re.finditer(r'<img[^>]+>', pyr_block):
+                    tag = m.group(0)
+                    src_m = re.search(r'src=["\'](https://fimgs\.net/mdimg/sastojci/t\.[^"\']+)["\']', tag)
+                    alt_m = re.search(r'alt=["\']([^"\']+)["\']', tag)
+                    if src_m and alt_m:
+                        n = {'name': alt_m.group(1).strip(), 'url': src_m.group(1).strip()}
+                        if n not in general_notes:
+                            general_notes.append(n)
                 if general_notes:
-                    visual_notes_data.append(('FRAGRANCE NOTES', general_notes))
+                    visual_notes_data.append(('FRAGRANCE NOTES', general_notes[:12]))
+
+        # Free raw HTML text immediately
+        del html_doc
+        gc.collect()
 
         # 4. Build Embeds
         # Page 1: Overview (Clean without attachments)
@@ -2858,7 +2858,6 @@ class GlobUtil(commands.Cog):
         view.message = sent_msg
 
         # Explicit RAM cleanup
-        del html_doc, soup
         gc.collect()
 
 
