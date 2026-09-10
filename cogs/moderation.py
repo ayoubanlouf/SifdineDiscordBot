@@ -179,8 +179,7 @@ class Moderation(commands.Cog):
             return False
 
         if role.color.value != 0:
-            if not role.hoist or role.permissions.value == 0:
-                return True
+            return True
 
         return False
 
@@ -189,6 +188,57 @@ class Moderation(commands.Cog):
         if functional_roles:
             return max(functional_roles, key=lambda r: r.position)
         return member.guild.default_role
+
+    def get_member_highest_moderation_role(self, member: discord.Member) -> Optional[discord.Role]:
+        mod_roles = []
+        for r in member.roles:
+            if r.is_default() or self.is_color_role(r):
+                continue
+            if (
+                r.permissions.administrator or
+                r.permissions.manage_guild or
+                r.permissions.manage_roles or
+                r.permissions.manage_channels or
+                r.permissions.manage_messages or
+                r.permissions.kick_members or
+                r.permissions.ban_members or
+                r.permissions.moderate_members
+            ):
+                mod_roles.append(r)
+        if mod_roles:
+            return max(mod_roles, key=lambda r: r.position)
+        return None
+
+    def can_moderate(self, ctx: commands.Context, target: discord.Member | discord.User, is_ban: bool = False) -> tuple[bool, str]:
+        if not ctx.guild:
+            return False, "Had lcommand khdama gher f servers."
+
+        if target.id == ctx.author.id:
+            return False, "Mat9edch dir hadchi l rasek ._."
+
+        if target.id == ctx.guild.owner_id:
+            return False, "Mat9edch t-moderi owner dial server ._."
+
+        if ctx.author.id == ctx.guild.owner_id:
+            return True, ""
+
+        member = target if isinstance(target, discord.Member) else ctx.guild.get_member(target.id)
+        if not member:
+            if is_ban:
+                return True, ""
+            return False, "Had l member makaynch f had server."
+
+        if member.top_role >= ctx.guild.me.top_role:
+            return False, f"Ma9derch n-moderi {member.mention} 7it fo9 mn role dial bot wla 9do."
+
+        author_mod_role = self.get_member_highest_moderation_role(ctx.author)
+        target_mod_role = self.get_member_highest_moderation_role(member)
+
+        if target_mod_role:
+            if not author_mod_role or target_mod_role.position >= author_mod_role.position:
+                return False, f"Mat9edch t-moderi {member.mention} 7it moderation role dialo (`{target_mod_role.name}`) fo9 mn dialk wla 9do."
+
+        return True, ""
 
     def can_manage_role(self, ctx: commands.Context, role: discord.Role) -> tuple[bool, str]:
         if not ctx.guild:
@@ -218,6 +268,16 @@ class Moderation(commands.Cog):
             await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
+        if isinstance(member, discord.Member):
+            if member.id == ctx.guild.owner_id and ctx.author.id != ctx.guild.owner_id:
+                await ctx.send(embed=discord.Embed(description="❌ Mat9edch tbeddel roles l owner dial server.", color=0x000000))
+                return
+            author_mod = self.get_member_highest_moderation_role(ctx.author)
+            target_mod = self.get_member_highest_moderation_role(member)
+            if target_mod and author_mod and target_mod.position >= author_mod.position and ctx.author.id != ctx.guild.owner_id:
+                await ctx.send(embed=discord.Embed(description=f"❌ Mat9edch tbeddel roles l {member.mention} 7it moderation role dialo fo9 mnk wla 9dk.", color=0x000000))
+                return
+
         if role in member.roles:
             e = discord.Embed(description=f'{member.mention} deja 3endo {role.mention}',
                                color=0x000000)
@@ -234,6 +294,16 @@ class Moderation(commands.Cog):
         if not can_manage:
             await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
+
+        if isinstance(member, discord.Member):
+            if member.id == ctx.guild.owner_id and ctx.author.id != ctx.guild.owner_id:
+                await ctx.send(embed=discord.Embed(description="❌ Mat9edch tbeddel roles l owner dial server.", color=0x000000))
+                return
+            author_mod = self.get_member_highest_moderation_role(ctx.author)
+            target_mod = self.get_member_highest_moderation_role(member)
+            if target_mod and author_mod and target_mod.position >= author_mod.position and ctx.author.id != ctx.guild.owner_id:
+                await ctx.send(embed=discord.Embed(description=f"❌ Mat9edch tbeddel roles l {member.mention} 7it moderation role dialo fo9 mnk wla 9dk.", color=0x000000))
+                return
 
         if role in member.roles:
             await member.remove_roles(role)
@@ -722,8 +792,9 @@ class Moderation(commands.Cog):
     @commands.command(aliases=["skt", "skot"], help="Muti chy wa7d.")
     @commands.has_permissions(manage_messages=True)
     async def mute(self, ctx, member: FuzzyMember):
-        if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tmuti chy wa7d b7alk wla fo9 mnk f role ._.")
+        can_mod, err_msg = self.can_moderate(ctx, member)
+        if not can_mod:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
         role = discord.utils.get(ctx.guild.roles, name='0')
@@ -799,8 +870,9 @@ class Moderation(commands.Cog):
     @commands.command(name="timeout", aliases=["to", "ghber", "ghbr"], help="Dir timeout l chy wa7d.")
     @commands.has_permissions(moderate_members=True)
     async def timeout(self, ctx, member: FuzzyMember, duration: str = None):
-        if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch dir timeout lchy wa7d b7alk wla fo9 mnk f role ._.")
+        can_mod, err_msg = self.can_moderate(ctx, member)
+        if not can_mod:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
         if not duration:
@@ -830,8 +902,9 @@ class Moderation(commands.Cog):
     @commands.command(name="jail", aliases=["7bibis"], help="Seft chy wa7d l7bibis.")
     @commands.has_permissions(moderate_members=True)
     async def jail(self, ctx, member: FuzzyMember):
-        if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send("Mat9edch tsift chy wa7d b7alk wla fo9 mnk f role l7ebs ._.")
+        can_mod, err_msg = self.can_moderate(ctx, member)
+        if not can_mod:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
         # 1. Fetch channel & role references
@@ -957,29 +1030,41 @@ class Moderation(commands.Cog):
 
     @commands.command(name="kick", aliases=["kicki"], help="Kick chy wa7d mn server.")
     @commands.has_permissions(kick_members=True)
-    async def kick(self, ctx, member: discord.User, *, reason: str = None):
-        if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tkicki chy wa7d b7alk wla fo9 mnk f role ._.")
+    async def kick(self, ctx, member: FuzzyMember, *, reason: str = None):
+        can_mod, err_msg = self.can_moderate(ctx, member, is_ban=False)
+        if not can_mod:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
         try:
-            await member.kick(reason=reason)
-            await ctx.send(f"{member.mention} tms7 mn server. Reason: {reason or 'Makaynch'}")
+            target_member = member if isinstance(member, discord.Member) else ctx.guild.get_member(member.id)
+            if not target_member:
+                await ctx.send(embed=discord.Embed(description="❌ Had l member makaynch f had server.", color=0x000000))
+                return
+            await target_member.kick(reason=reason)
+            await ctx.send(f"{target_member.mention} tms7 mn server. Reason: {reason or 'Makaynch'}")
         except Exception as e:
-            await ctx.send(embed=discord.Embed(description=f"Ma9dertch nkick **{member.display_name}**: `{e}`", color=0x000000))
+            display_name = getattr(member, 'display_name', getattr(member, 'name', str(member.id)))
+            await ctx.send(embed=discord.Embed(description=f"Ma9dertch nkick **{display_name}**: `{e}`", color=0x000000))
 
     @commands.command(name="ban", aliases=["banni"], help="Ban chy wa7d mn server.")
     @commands.has_permissions(ban_members=True)
-    async def ban(self, ctx, member: discord.User, *, reason: str = None):
-        if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tbanni chy wa7d b7alk wla fo9 mnk f role ._.")
+    async def ban(self, ctx, member: FuzzyMember, *, reason: str = None):
+        can_mod, err_msg = self.can_moderate(ctx, member, is_ban=True)
+        if not can_mod:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
         try:
-            await member.ban(reason=reason)
-            await ctx.send(f"{member.mention} tbanna mn server. Reason: {reason or 'Makaynch'}")
+            if isinstance(member, discord.Member):
+                await member.ban(reason=reason)
+            else:
+                await ctx.guild.ban(discord.Object(id=member.id), reason=reason)
+            mention_str = getattr(member, 'mention', f"<@{member.id}>")
+            await ctx.send(f"{mention_str} tbanna mn server. Reason: {reason or 'Makaynch'}")
         except Exception as e:
-            await ctx.send(embed=discord.Embed(description=f"Ma9dertch nban **{member.display_name}**: `{e}`", color=0x000000))
+            display_name = getattr(member, 'display_name', getattr(member, 'name', str(member.id)))
+            await ctx.send(embed=discord.Embed(description=f"Ma9dertch nban **{display_name}**: `{e}`", color=0x000000))
 
     @commands.command(name="unban", aliases=["unbanni"], help="Unban chy wa7d mn server (b username wla ID).")
     @commands.has_permissions(ban_members=True)
@@ -1059,8 +1144,9 @@ class Moderation(commands.Cog):
     @commands.command(name="voicemute", aliases=["vmute"], help="Muti chy wa7d f voice.")
     @commands.has_permissions(moderate_members=True)
     async def voicemute(self, ctx, member: FuzzyMember):
-        if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tmuti chy wa7d b7alk wla fo9 mnk f role ._.")
+        can_mod, err_msg = self.can_moderate(ctx, member)
+        if not can_mod:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
         if not member.voice:
@@ -1089,8 +1175,9 @@ class Moderation(commands.Cog):
     @commands.command(name="deafen", help="Deafeni chy wa7d f voice.")
     @commands.has_permissions(moderate_members=True)
     async def deafen(self, ctx, member: FuzzyMember):
-        if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tdeafeni chy wa7d b7alk wla fo9 mnk f role ._.")
+        can_mod, err_msg = self.can_moderate(ctx, member)
+        if not can_mod:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
         if not member.voice:
@@ -1120,8 +1207,9 @@ class Moderation(commands.Cog):
     @commands.command(name="disconnect", aliases=["dc", "kickvc"], help="Disconnect chy wa7d mn voice.")
     @commands.has_permissions(moderate_members=True)
     async def disconnect(self, ctx, member: FuzzyMember):
-        if member.top_role >= ctx.author.top_role and ctx.author.id != ctx.guild.owner_id:
-            await ctx.send(f"Mat9edch tdisconnecti chy wa7d b7alk wla fo9 mnk f role ._.")
+        can_mod, err_msg = self.can_moderate(ctx, member)
+        if not can_mod:
+            await ctx.send(embed=discord.Embed(description=f"❌ {err_msg}", color=0x000000))
             return
 
         if not member.voice:

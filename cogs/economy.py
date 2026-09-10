@@ -5,11 +5,12 @@ from zoneinfo import ZoneInfo
 from typing import Optional, Tuple, Union
 import discord
 from discord.ext import commands
-from converters import FuzzyMember
+from converters import FuzzyMember, AmountConverter
 
 
 TAD_EMOJI = "<:TAD:1543808845728710686>"
 TAX_RATE = 0.02  # 2% anti-inflation transaction burn
+GLOBAL_BET_LIMIT = 50000  # Global limit for any gamble/wager
 CASA_TZ = ZoneInfo("Africa/Casablanca")
 
 
@@ -24,17 +25,18 @@ def parse_bet_argument(*args, user_balance: Optional[int] = None) -> Tuple[Optio
     - Magnitudes: '5k' (5000), '2.5k' (2500), '1m' (1000000)
     - Prefixes/Suffixes: 'bet:500', 'b:250', '500tad', '500drhm'
     - Plain numbers: 500
+    Enforces GLOBAL_BET_LIMIT (50,000 TAD).
     """
     remaining = []
     found_bet = None
-    max_cap = 50000  # Safe cap for 'all' / 'max'
+    max_cap = GLOBAL_BET_LIMIT
 
     pattern = re.compile(r"^(?:bet:|b:|bet=)?([0-9]+(?:\.[0-9]+)?)(k|m|mil|kilo|tad|t|drhm|drhem)?$", re.IGNORECASE)
 
     for arg in args:
         if arg is None:
             continue
-        s_arg = str(arg).strip().lower()
+        s_arg = str(arg).strip().lower().replace(",", "")
 
         if found_bet is None:
             # Check keywords
@@ -46,7 +48,9 @@ def parse_bet_argument(*args, user_balance: Optional[int] = None) -> Tuple[Optio
                 continue
             elif s_arg in ("half", "ness", "50%"):
                 if user_balance is not None and user_balance > 0:
-                    found_bet = max(1, user_balance // 2)
+                    found_bet = min(max(1, user_balance // 2), max_cap)
+                else:
+                    found_bet = max_cap // 2
                 continue
 
             m = pattern.match(s_arg)
@@ -69,6 +73,9 @@ def parse_bet_argument(*args, user_balance: Optional[int] = None) -> Tuple[Optio
                     pass
 
         remaining.append(arg)
+
+    if found_bet is not None:
+        found_bet = min(found_bet, GLOBAL_BET_LIMIT)
 
     return found_bet, remaining
 
@@ -382,9 +389,33 @@ class Economy(commands.Cog):
             rows = await cursor.fetchall()
         return rows
 
+    async def apply_lost_gamble_tax(self, bet: int, context: str = "Gamble Loss") -> int:
+        """
+        Applies tax on lost gambles: the player already lost the bet.
+        Takes 2% total tax (1% sent to casino vault, 1% sent to bank vault).
+        Returns the total tax amount.
+        """
+        if bet <= 0:
+            return 0
+        casino_tax = round(bet * 0.01)
+        bank_tax = round(bet * 0.01)
+        if bet >= 50:
+            if casino_tax == 0:
+                casino_tax = 1
+            if bank_tax == 0:
+                bank_tax = 1
+
+        if casino_tax > 0:
+            await self.deposit_vault("casino", casino_tax, source="gamble_loss", context=context)
+        if bank_tax > 0:
+            await self.deposit_vault("bank", bank_tax, source="gamble_loss", context=context)
+        return casino_tax + bank_tax
+
     async def apply_tax_and_add_balance(self, user_id: int, gross_payout: int, context: str = "", vault: str = "bank") -> Tuple[int, int]:
         """
-        Applies 2% tax on gross payout, adds after-tax balance to user, deposits tax to vault (bank or casino), and logs transaction.
+        Applies 2% tax on gross payout, adds after-tax balance to user, deposits tax to vault, and logs transaction.
+        For gambling wins (vault == 'casino'), the 2% tax is split 50/50 between casino and central bank.
+        For non-gambling rewards (vault == 'bank'), the 2% tax goes to central bank.
         Returns: (net_payout, tax)
         """
         if gross_payout <= 0 or self.is_bot_user(user_id):
@@ -400,7 +431,15 @@ class Economy(commands.Cog):
         await self.add_balance(user_id, net_payout, context=ctx_desc)
 
         if tax > 0:
-            await self.deposit_vault(vault, tax, source=vault, context=context)
+            if vault == "casino":
+                casino_tax = tax // 2
+                bank_tax = tax - casino_tax
+                if casino_tax > 0:
+                    await self.deposit_vault("casino", casino_tax, source="casino", context=context)
+                if bank_tax > 0:
+                    await self.deposit_vault("bank", bank_tax, source="casino_split", context=context)
+            else:
+                await self.deposit_vault(vault, tax, source=vault, context=context)
 
         return net_payout, tax
 
@@ -684,7 +723,10 @@ class Economy(commands.Cog):
             # Streak calculation: streak maintained if claimed yesterday
             yesterday_date = today_date - timedelta(days=1)
             if last_daily_date == yesterday_date:
-                streak = min(streak + 1, 7)
+                if streak >= 7:
+                    streak = 1
+                else:
+                    streak += 1
             else:
                 streak = 1
         else:
@@ -760,9 +802,34 @@ class Economy(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="pay", aliases=["transfer", "versi"], help="Sift flous l chy wa7d.")
+    @commands.command(name="pay", aliases=["transfer", "versi"], help="Sift flous l chy wa7d (e.g. sat pay @User 50k wla sat pay 50k @User).")
     @not_fraud()
-    async def pay(self, ctx: commands.Context, target: discord.Member, amount: int):
+    async def pay(self, ctx: commands.Context, arg1: str, arg2: str):
+        amt_conv = AmountConverter()
+        fuzzy_conv = FuzzyMember()
+
+        target = None
+        amount = None
+
+        # Attempt 1: arg1 is target, arg2 is amount (e.g. sat pay @User 50k)
+        try:
+            target = await fuzzy_conv.convert(ctx, arg1)
+            amount = await amt_conv.convert(ctx, arg2)
+        except Exception:
+            pass
+
+        # Attempt 2: arg1 is amount, arg2 is target (e.g. sat pay 50k @User)
+        if target is None or amount is None:
+            try:
+                amount = await amt_conv.convert(ctx, arg1)
+                target = await fuzzy_conv.convert(ctx, arg2)
+            except Exception:
+                pass
+
+        if target is None or amount is None:
+            await ctx.send("❌ Format ghalat. Kteb: `sat pay @User 50k` wla `sat pay 50k @User`.")
+            return
+
         if target.id == ctx.author.id:
             await ctx.send("❌ Ma ymkench tsift flous l rasek.")
             return
@@ -796,7 +863,7 @@ class Economy(commands.Cog):
             title="💸 Payment Successful",
             description=(
                 f"Sifti {format_tad(received)} l **{target.mention}**.\n\n"
-                f"🏛️ **2% Bank Tax:** `{tax:,}` TAD (Deposited to Central Bank)"
+                f"**2% Tax:** `{tax:,}` TAD"
             ),
             color=0x000000
         )
@@ -806,7 +873,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="tax", help="N9ess flous mn wallet dial user (mention wla ID).")
     @commands.is_owner()
-    async def tax_user(self, ctx: commands.Context, target: discord.User, amount: int):
+    async def tax_user(self, ctx: commands.Context, target: discord.User, amount: AmountConverter):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
@@ -834,7 +901,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="setvault", help="Beddel balance dial bank wla casino (Owner only).")
     @commands.is_owner()
-    async def set_vault_cmd(self, ctx: commands.Context, vault_name: str, amount: int):
+    async def set_vault_cmd(self, ctx: commands.Context, vault_name: str, amount: AmountConverter):
         v_name = vault_name.lower()
         if v_name not in ("bank", "casino"):
             await ctx.send("❌ Khtar `bank` wla `casino`.")
@@ -852,7 +919,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="reward", help="zid flous l wallet dial user (mention wla ID).")
     @commands.is_owner()
-    async def reward_user(self, ctx: commands.Context, target: discord.User, amount: int):
+    async def reward_user(self, ctx: commands.Context, target: discord.User, amount: AmountConverter):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return

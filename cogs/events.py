@@ -560,6 +560,9 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
+        if before.bot or after.bot:
+            return
+
         # Global Avatar Update
         if before.avatar != after.avatar:
             embed = discord.Embed(

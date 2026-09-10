@@ -68,4 +68,51 @@ class FuzzyMember(commands.Converter[Union[discord.Member, discord.User]]):
             best_match = max(matches, key=lambda x: x[0])[1]
             return best_match
 
-        raise commands.MemberNotFound(argument)
+        raise commands.MemberNotFound(argument)
+
+
+class AmountConverter(commands.Converter[int]):
+    async def convert(self, ctx: commands.Context, argument: str) -> int:
+        arg_clean = argument.strip().lower().replace(",", "")
+        
+        # Check natural keywords if economy cog available
+        if arg_clean in ("all", "max", "kolchi"):
+            economy_cog = ctx.bot.get_cog("Economy")
+            if economy_cog:
+                w = await economy_cog.get_wallet(ctx.author.id)
+                val = w.get("balance", 0)
+                if val > 0:
+                    return val
+            raise commands.BadArgument("Ma3ndkch flous f wallet dialk.")
+        elif arg_clean in ("half", "ness", "50%"):
+            economy_cog = ctx.bot.get_cog("Economy")
+            if economy_cog:
+                w = await economy_cog.get_wallet(ctx.author.id)
+                val = w.get("balance", 0) // 2
+                if val > 0:
+                    return val
+            raise commands.BadArgument("Ma3ndkch flous kafyin f wallet dialk.")
+
+        pattern = re.compile(r"^(?:amount:|amt:)?([0-9]+(?:\.[0-9]+)?)(k|m|mil|kilo|b|bil|tad|t|drhm|drhem)?$", re.IGNORECASE)
+        m = pattern.match(arg_clean)
+        if not m:
+            raise commands.BadArgument(f"'{argument}' machi valid amount. Kteb b7al `500`, `50k`, `1.5m`.")
+
+        num_str, suffix = m.group(1), m.group(2)
+        try:
+            num_val = float(num_str)
+            if suffix:
+                s = suffix.lower()
+                if s in ("k", "kilo"):
+                    num_val *= 1000
+                elif s in ("m", "mil"):
+                    num_val *= 1000000
+                elif s in ("b", "bil"):
+                    num_val *= 1000000000
+            val = int(round(num_val))
+            if val <= 0:
+                raise commands.BadArgument("Amount khas ykoun kber mn 0.")
+            return val
+        except ValueError:
+            raise commands.BadArgument(f"'{argument}' machi amount valid.")
+

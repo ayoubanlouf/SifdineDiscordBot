@@ -193,58 +193,75 @@ class GlobUtil(commands.Cog):
         )
         status_msg = await ctx.send(embed=wait_embed)
 
-        params = {
-            'api_key': os.getenv('IMAGE_KEY'),
-            'q': query,
-            'search_type': 'images',
-            'location': 'United States'
-        }
+        embed_pages = []
+        serpapi_key = os.getenv('SERPAPI_KEY')
+        image_key = os.getenv('IMAGE_KEY')
 
-        try:
-            async with ReusableSession(self.bot.session) as session:
-                async with session.get('https://api.scaleserp.com/search', params=params) as resp:
-                    if resp.status != 200:
-                        raise Exception(f"API 3tani code {resp.status}")
-                    data = await resp.json()
+        # 1. Try SerpApi (Fast & Reliable: ~1-2s response time)
+        if serpapi_key:
+            try:
+                serp_params = {
+                    'engine': 'google_images',
+                    'q': query,
+                    'api_key': serpapi_key
+                }
+                timeout = aiohttp.ClientTimeout(total=10)
+                async with self.bot.session.get('https://serpapi.com/search.json', params=serp_params, timeout=timeout) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        results = data.get('images_results', [])
+                        for item in results:
+                            img_url = item.get('original') or item.get('thumbnail')
+                            title = item.get('title', 'Image Search Result')
+                            source_link = item.get('link', '')
+                            if img_url:
+                                embed = discord.Embed(
+                                    title=title[:256],
+                                    url=source_link if source_link.startswith("http") else None,
+                                    color=0x000000
+                                )
+                                embed.set_image(url=img_url)
+                                embed_pages.append(embed)
+            except Exception:
+                pass
 
-            image_results = data.get('image_results', [])
-            if not image_results:
-                await status_msg.edit(
-                    embed=discord.Embed(description="Mal9it ta tswira ._.", color=0x000000))
-                return
+        # 2. Fallback to ScaleSERP if SerpApi returned nothing
+        if not embed_pages and image_key:
+            try:
+                scale_params = {
+                    'api_key': image_key,
+                    'q': query,
+                    'search_type': 'images',
+                    'location': 'United States'
+                }
+                timeout = aiohttp.ClientTimeout(total=10)
+                async with self.bot.session.get('https://api.scaleserp.com/search', params=scale_params, timeout=timeout) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        for item in data.get('image_results', []):
+                            img_url = item.get('image')
+                            title = item.get('title', 'Image Search Result')
+                            source_link = item.get('link', '')
+                            if img_url:
+                                embed = discord.Embed(
+                                    title=title[:256],
+                                    url=source_link if source_link.startswith("http") else None,
+                                    color=0x000000
+                                )
+                                embed.set_image(url=img_url)
+                                embed_pages.append(embed)
+            except Exception:
+                pass
 
-            embed_pages = []
-            for item in image_results:
-                img_url = item.get('image')
-                title = item.get('title', 'Image Search Result')
-                source_link = item.get('link', '')
+        if not embed_pages:
+            await status_msg.edit(embed=discord.Embed(description="Mal9it ta tswira wla API 3iyan daba, 7awel mn be3d.", color=0x000000))
+            return
 
-                if img_url:
-                    embed = discord.Embed(
-                        title=title[:256],
-                        url=source_link if source_link.startswith("http") else None,
-                        color=0x000000
-                    )
-                    embed.set_image(url=img_url)
-                    embed_pages.append(embed)
+        view = self.bot.Paginator(ctx, pages=embed_pages)
+        initial_embed = view.get_page()
 
-            if not embed_pages:
-                await status_msg.edit(embed=discord.Embed(description="Tswira fiha chy mochkil.", color=0x000000))
-                return
-
-
-            view = self.bot.Paginator(ctx, pages=embed_pages)
-            initial_embed = view.get_page()
-
-            await status_msg.edit(embed=initial_embed, view=view)
-            view.message = status_msg
-
-        except Exception as e:
-            err_embed = discord.Embed(
-                description=f"Chy 7aja mahiyach smo7at. :(\n`{e}`",
-                color=0x000000
-            )
-            await status_msg.edit(embed=err_embed)
+        await status_msg.edit(embed=initial_embed, view=view)
+        view.message = status_msg
 
     @commands.command(name="dictionary", aliases=["definition", "define", "chre7", "chr7", "dict"], help="Njbed lik ay definition mn Urban Dictionary")
     async def dictionary(self, ctx, *, search: str):
@@ -557,28 +574,56 @@ class GlobUtil(commands.Cog):
             }
 
             search = serpapi.GoogleSearch(params)
-            results = search.get_dict()
+            results = await asyncio.to_thread(search.get_dict)
 
-            matches = results.get('visual_matches', [])
-            links = [item['link'] for item in matches if 'link' in item]
+            exact_matches = results.get('exact_matches', [])
+            visual_matches = results.get('visual_matches', [])
 
-            if not links:
+            seen_links = set()
+            exact_lines = []
+            for item in exact_matches:
+                link = item.get('link')
+                if link and link not in seen_links:
+                    seen_links.add(link)
+                    title = item.get('title') or item.get('source') or "Link"
+                    clean_title = title.replace("\n", " ").strip()[:65]
+                    exact_lines.append(f"• [{clean_title}]({link})")
+                    if len(exact_lines) >= 6:
+                        break
+
+            visual_lines = []
+            for item in visual_matches:
+                link = item.get('link')
+                if link and link not in seen_links:
+                    seen_links.add(link)
+                    title = item.get('title') or item.get('source') or "Link"
+                    clean_title = title.replace("\n", " ").strip()[:65]
+                    visual_lines.append(f"• [{clean_title}]({link})")
+                    if len(visual_lines) >= 6:
+                        break
+
+            if not exact_lines and not visual_lines:
                 await wait.edit(
                     embed=discord.Embed(description="Mal9it walo f tal9ib dyal had tswira.", color=0x000000))
                 return
 
-            view = self.bot.Paginator(
-                ctx,
-                pages=links,
-                per_page=10,
-                title=f"Had tswira l9itha f {len(links)} blasa"
+            embed = discord.Embed(
+                title="🔍 Reverse Image Search",
+                color=0x000000
+            )
+            embed.set_thumbnail(url=image)
+            embed.add_field(
+                name="🎯 Exact Matches",
+                value="\n".join(exact_lines) if exact_lines else "Mal9itch exact matches.",
+                inline=False
+            )
+            embed.add_field(
+                name="👁️ Visual Matches",
+                value="\n".join(visual_lines) if visual_lines else "Mal9itch visual matches.",
+                inline=False
             )
 
-            initial_embed = view.get_page()
-            initial_embed.set_thumbnail(url=image)
-
-            await wait.edit(embed=initial_embed, view=view)
-            view.message = wait
+            await wait.edit(embed=embed)
 
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: {e}", color=0x000000))
