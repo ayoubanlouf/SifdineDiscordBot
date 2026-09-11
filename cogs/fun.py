@@ -5972,7 +5972,10 @@ class Fun(commands.Cog):
                         if msg.author.id == player.id and is_flag_guess_correct(msg.content, target_code, correct_name):
                             if not countdown_task.done():
                                 countdown_task.cancel()
-                            await msg.add_reaction("✅")
+                            try:
+                                await msg.add_reaction("✅")
+                            except Exception:
+                                pass
                             guessed_correctly = True
                             player_correct_flags[player.id] = player_correct_flags.get(player.id, 0) + 1
                             break
@@ -6243,7 +6246,10 @@ class Fun(commands.Cog):
                         if msg.author.id == player.id and is_crafting_guess_correct(msg.content, target):
                             if not countdown_task.done():
                                 countdown_task.cancel()
-                            await msg.add_reaction("✅")
+                            try:
+                                await msg.add_reaction("✅")
+                            except Exception:
+                                pass
                             guessed_correctly = True
                             player_correct_items[player.id] = player_correct_items.get(player.id, 0) + 1
                             break
@@ -6365,7 +6371,10 @@ class Fun(commands.Cog):
         )
         diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
         signup_msg = await ctx.send(embed=signup_embed, view=diff_view)
-        await signup_msg.add_reaction(join_emoji)
+        try:
+            await signup_msg.add_reaction(join_emoji)
+        except Exception:
+            pass
 
         await asyncio.sleep(19)
 
@@ -6512,7 +6521,10 @@ class Fun(commands.Cog):
                         if msg.author.id == player.id and is_car_guess_correct(msg.content, target):
                             if not countdown_task.done():
                                 countdown_task.cancel()
-                            await msg.add_reaction("✅")
+                            try:
+                                await msg.add_reaction("✅")
+                            except Exception:
+                                pass
                             guessed_correctly = True
                             player_correct_cars[player.id] = player_correct_cars.get(player.id, 0) + 1
                             break
