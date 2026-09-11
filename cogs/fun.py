@@ -4892,7 +4892,7 @@ class DiceRollView(discord.ui.View):
 
 MINIGAME_DISPLAY_MAP = {
     "flags": ("🚩 Flags", ["flags", "flag", "rayat", "gtf"]),
-    "craftingtable": ("🔨 CraftingTable", ["craftingtable", "crafting", "craft"]),
+    "craftingtable": ("🔨 CraftingTable", ["craftingtable", "crafting", "craft", "recipe"]),
     "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
     "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
     "redtea": ("🔴 RedTea", ["redtea", "rt", "red"]),
@@ -8615,9 +8615,6 @@ class Fun(commands.Cog):
             await ctx.send(embed=summary_embed)
 
         else:
-            player_mentions = ", ".join(p.mention for p in players)
-            await ctx.send(f"🎮 **Multiplayer GeoGuessr:** {player_mentions}!\n• **{total_rounds} rounds**\n• Kul wa7ed 3ndo **1 guess** f round (smit **dawla**!)\n• Dawla li tgalat kat-bloka 3la lkhrin — l9rib kayrbe7 kter!")
-
             player_stakes = {p.id: 0.0 for p in players}
 
             for r in range(1, total_rounds + 1):
@@ -8653,12 +8650,13 @@ class Fun(commands.Cog):
                     if time_left <= 0:
                         break
                     try:
-                        def check_m(m):
+                        def check_m(msg):
                             return (
-                                any(m.author.id == p.id for p in players)
-                                and m.author.id not in guesses
-                                and m.channel.id == ctx.channel.id
+                                any(msg.author.id == p.id for p in players)
+                                and (msg.author.id not in guesses or msg.content.strip().lower() == "exitgame")
+                                and msg.channel.id == ctx.channel.id
                             )
+                        m = await self.bot.wait_for("message", check=check_m, timeout=time_left)
                         if m.content.strip().lower() == "exitgame":
                             quitter = next((p for p in players if p.id == m.author.id), None)
                             if quitter:
