@@ -607,8 +607,8 @@ class Economy(commands.Cog):
         )
         embed.set_thumbnail(url=user.display_avatar.url)
 
-        embed.add_field(name="📈 Recorded Total Income", value=f"🟢 **+{total_income:,}** TAD", inline=False)
-        embed.add_field(name="📉 Recorded Total Expense", value=f"🔴 **-{total_expense:,}** TAD", inline=False)
+        embed.add_field(name="📈Total Income", value=f"🟢 **+{total_income:,}** TAD", inline=False)
+        embed.add_field(name="📉Total Expense", value=f"🔴 **-{total_expense:,}** TAD", inline=False)
         embed.add_field(name="💬 Total Activity Rewards", value=format_tad(w['total_activity_rewards']), inline=False)
 
         embed.set_footer(text=f"Financial Summary • Page 3/3 • {user.display_name}")
