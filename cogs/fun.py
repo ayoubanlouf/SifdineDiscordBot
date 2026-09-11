@@ -1504,9 +1504,18 @@ class AkinatorView(View):
                 self.cog.active_akinator_channels.pop(self.channel_id, None)
 
     async def start_game(self) -> discord.Embed:
-        """Starts the Akinator session asynchronously."""
-        await self.aki.start_game()
-        return self.build_question_embed(self.aki.question)
+        """Starts the Akinator session asynchronously with automatic retries."""
+        last_err = None
+        for attempt in range(3):
+            try:
+                self.aki = AsyncAkinator()
+                await asyncio.wait_for(self.aki.start_game(), timeout=12.0)
+                if self.aki.question:
+                    return self.build_question_embed(self.aki.question)
+            except Exception as e:
+                last_err = e
+                await asyncio.sleep(1.0)
+        raise last_err or RuntimeError("Failed to start Akinator session.")
 
     def build_question_embed(self, question: str) -> discord.Embed:
         embed = discord.Embed(
@@ -1514,8 +1523,10 @@ class AkinatorView(View):
             description=f"**{question}**",
             color=0x000000
         )
+        step_val = (self.aki.step or 0) + 1
+        prog_val = int(self.aki.progression or 0)
         embed.set_footer(
-            text=f"Player: {self.player.display_name} • Step {self.aki.step + 1} ({int(self.aki.progression)}%)"
+            text=f"Player: {self.player.display_name} • Step {step_val} ({prog_val}%)"
         )
         return embed
 
@@ -3665,7 +3676,7 @@ class HangmanChallengeView(View):
 
 # ============ TRIVIA HELPERS & UI CLASSES ============
 
-async def fetch_trivia_batch(session: aiohttp.ClientSession, amount: int = 15, difficulty: str = "medium") -> list[dict]:
+async def fetch_trivia_batch(session: aiohttp.ClientSession, amount: int = 15, difficulty: str = "easy") -> list[dict]:
     diff_param = f"&difficulty={difficulty.lower()}" if difficulty and difficulty.lower() in ("easy", "medium", "hard") else ""
     url = f"https://opentdb.com/api.php?amount={amount}&type=multiple{diff_param}"
     try:
@@ -3957,6 +3968,111 @@ def is_flag_guess_correct(guess: str, code: str, country_name: str) -> bool:
     similarity = difflib.SequenceMatcher(None, norm_guess, norm_target).ratio()
     if similarity >= 0.82:
         return True
+
+    return False
+
+
+# ============ MINECRAFT CRAFTING HELPERS ============
+
+_MC_BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "minecraft"))
+_MC_TEXTURES_DIR = os.path.join(_MC_BASE_DIR, "textures")
+_MC_GUI_PATH = os.path.join(_MC_BASE_DIR, "crafting_table_gui.png")
+_MC_RECIPES_PATH = os.path.join(_MC_BASE_DIR, "recipes.json")
+
+_mc_recipes = None
+_mc_texture_cache = {}
+_mc_gui_image = None
+
+def _load_minecraft_recipes():
+    global _mc_recipes
+    if _mc_recipes is None:
+        if os.path.exists(_MC_RECIPES_PATH):
+            try:
+                with open(_MC_RECIPES_PATH, "r", encoding="utf-8") as f:
+                    _mc_recipes = json.load(f)
+            except Exception:
+                _mc_recipes = []
+        else:
+            _mc_recipes = []
+    return _mc_recipes
+
+def _get_mc_texture(name: str):
+    if not name:
+        return None
+    if name not in _mc_texture_cache:
+        path = os.path.join(_MC_TEXTURES_DIR, f"{name}.png")
+        if os.path.exists(path):
+            try:
+                _mc_texture_cache[name] = Image.open(path).convert("RGBA")
+            except Exception:
+                _mc_texture_cache[name] = None
+        else:
+            _mc_texture_cache[name] = None
+    return _mc_texture_cache[name]
+
+def render_crafting_table(grid: list) -> io.BytesIO:
+    global _mc_gui_image
+    if _mc_gui_image is None:
+        if os.path.exists(_MC_GUI_PATH):
+            try:
+                _mc_gui_image = Image.open(_MC_GUI_PATH).convert("RGBA")
+            except Exception:
+                _mc_gui_image = Image.new("RGBA", (256, 256), (198, 198, 198, 255))
+        else:
+            _mc_gui_image = Image.new("RGBA", (256, 256), (198, 198, 198, 255))
+
+    # Crop the active crafting interface: x=24 to x=155, y=11 to y=72
+    craft_box = (24, 11, 155, 72)
+    base_gui = _mc_gui_image.crop(craft_box)
+
+    scale = 4
+    scaled_w = base_gui.width * scale
+    scaled_h = base_gui.height * scale
+    canvas = base_gui.resize((scaled_w, scaled_h), Image.Resampling.NEAREST)
+
+    for r in range(3):
+        for c in range(3):
+            if r < len(grid) and c < len(grid[r]):
+                item_name = grid[r][c]
+                if item_name:
+                    tex = _get_mc_texture(item_name)
+                    if tex:
+                        item_scaled = tex.resize((16 * scale, 16 * scale), Image.Resampling.NEAREST)
+                        item_x = (6 + c * 18) * scale
+                        item_y = (6 + r * 18) * scale
+                        canvas.paste(item_scaled, (item_x, item_y), item_scaled)
+
+    buf = io.BytesIO()
+    canvas.save(buf, format="PNG", optimize=True)
+    buf.seek(0)
+    return buf
+
+def normalize_crafting_text(text: str) -> str:
+    t = text.lower().strip()
+    if t.startswith("the "):
+        t = t[4:].strip()
+    elif t.startswith("a "):
+        t = t[2:].strip()
+    elif t.startswith("an "):
+        t = t[3:].strip()
+    t = re.sub(r"[.,'\-_/&]+", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+def is_crafting_guess_correct(guess: str, recipe: dict) -> bool:
+    norm_guess = normalize_crafting_text(guess)
+    if not norm_guess:
+        return False
+
+    targets = [recipe.get("displayName", ""), recipe.get("name", "")] + recipe.get("aliases", [])
+    for target in targets:
+        if not target:
+            continue
+        norm_target = normalize_crafting_text(target)
+        if norm_guess == norm_target:
+            return True
+        if len(norm_guess) >= 4 and difflib.SequenceMatcher(None, norm_guess, norm_target).ratio() >= 0.85:
+            return True
 
     return False
 
@@ -4776,6 +4892,7 @@ class DiceRollView(discord.ui.View):
 
 MINIGAME_DISPLAY_MAP = {
     "flags": ("🚩 Flags", ["flags", "flag", "rayat", "gtf"]),
+    "craftingtable": ("🔨 CraftingTable", ["craftingtable", "crafting", "craft"]),
     "blacktea": ("☕ BlackTea", ["blacktea", "bt", "black", "jklm"]),
     "greentea": ("🍵 GreenTea", ["greentea", "gt", "green"]),
     "redtea": ("🔴 RedTea", ["redtea", "rt", "red"]),
@@ -4963,7 +5080,7 @@ MEDIUM_COUNTRIES = EASY_COUNTRIES | {
     "lb", "jo", "kw", "om", "ye", "kz", "uz", "az", "ge", "am", "cy", "mt"
 }
 
-def parse_minigame_args(*args, default_duration=15, default_difficulty="medium"):
+def parse_minigame_args(*args, default_duration=15, default_difficulty="easy"):
     duration = default_duration
     difficulty = default_difficulty
     for arg in args:
@@ -5002,7 +5119,7 @@ async def countdown_reactions(msg: discord.Message, total_duration: float):
 
 
 class MinigameDifficultyView(View):
-    def __init__(self, host_id: int, initial_difficulty: str = "medium"):
+    def __init__(self, host_id: int, initial_difficulty: str = "easy"):
         super().__init__(timeout=25)
         self.host_id = host_id
         self.difficulty = initial_difficulty
@@ -5543,8 +5660,8 @@ class Fun(commands.Cog):
                     print(f"[get_hangman_secret error]: {e}")
         return random.choice(["planet", "castle", "dragon", "monster", "python", "bridge", "silver", "garden", "forest", "wizard"])
 
-    def get_combo(self, difficulty: str = "medium") -> str:
-        diff = difficulty.lower() if difficulty in ("easy", "medium", "hard") else "medium"
+    def get_combo(self, difficulty: str = "easy") -> str:
+        diff = difficulty.lower() if difficulty in ("easy", "medium", "hard") else "easy"
         for attempt in range(2):
             try:
                 cur = self._get_cursor()
@@ -5604,7 +5721,7 @@ class Fun(commands.Cog):
 
     @commands.command(name="flags", aliases=["gtf"], help="N3tik flag o goul lia chno smit dawla.")
     async def flags(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="medium")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
 
@@ -5722,7 +5839,9 @@ class Fun(commands.Cog):
                 break
 
             for player in list(active_players):
-                if not single_player and len(active_players) == 1:
+                if player not in active_players:
+                    continue
+                if not single_player and len(active_players) <= 1:
                     break
 
                 if not match_pool:
@@ -5741,7 +5860,13 @@ class Fun(commands.Cog):
                 round_msg = await ctx.send(player.mention, embed=game_embed)
 
                 def check(m):
-                    return m.author.id == player.id and m.channel.id == ctx.channel.id
+                    if m.channel.id != ctx.channel.id:
+                        return False
+                    if m.author.id == player.id:
+                        return True
+                    if m.content.strip().lower() == "exitgame" and any(p.id == m.author.id for p in active_players):
+                        return True
+                    return False
 
                 start_time = time.time()
                 guessed_correctly = False
@@ -5756,15 +5881,23 @@ class Fun(commands.Cog):
                         msg = await self.bot.wait_for("message", check=check, timeout=time_left)
 
                         if msg.content.strip().lower() == "exitgame":
-                            if not countdown_task.done():
-                                countdown_task.cancel()
-                            hp[player.id] = 0
-                            await ctx.send(f"🚪 **{player.mention}** khrej mn lgame.")
-                            active_players.remove(player)
-                            guessed_correctly = True
-                            break
+                            leaver = next((p for p in active_players if p.id == msg.author.id), None)
+                            if leaver:
+                                hp[leaver.id] = 0
+                                active_players.remove(leaver)
+                                await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame.")
+                                if leaver.id == player.id:
+                                    if not countdown_task.done():
+                                        countdown_task.cancel()
+                                    guessed_correctly = True
+                                    break
+                                elif not single_player and len(active_players) <= 1:
+                                    if not countdown_task.done():
+                                        countdown_task.cancel()
+                                    break
+                            continue
 
-                        if is_flag_guess_correct(msg.content, target_code, correct_name):
+                        if msg.author.id == player.id and is_flag_guess_correct(msg.content, target_code, correct_name):
                             if not countdown_task.done():
                                 countdown_task.cancel()
                             await msg.add_reaction("✅")
@@ -5778,7 +5911,10 @@ class Fun(commands.Cog):
                 if not countdown_task.done():
                     countdown_task.cancel()
 
-                if not guessed_correctly:
+                if not single_player and len(active_players) <= 1:
+                    break
+
+                if not guessed_correctly and player in active_players:
                     hp[player.id] -= 1
                     if hp[player.id] <= 0:
                         await ctx.send(
@@ -5864,9 +6000,280 @@ class Fun(commands.Cog):
                     color=0x000000
                 ))
 
+    @commands.command(name="craftingtable", aliases=["crafting", "craft", "recipe"], help="N3tik recipe ta3 crafting table o 7zer chno l-item li katsawb.")
+    async def craftingtable(self, ctx, *args):
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
+        time_display = f"{round_duration}s"
+        mult = DIFFICULTY_STAKES[difficulty]
+
+        all_recipes = _load_minecraft_recipes()
+        if not all_recipes:
+            await ctx.send(embed=discord.Embed(
+                description="❌ Ma l9itch recipes ta3 Minecraft!",
+                color=0x000000
+            ))
+            return
+
+        join_emoji = "✅"
+        signup_embed = discord.Embed(
+            title="🔨 Crafting Table",
+            description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
+            color=0x000000
+        )
+        diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
+        signup_msg = await ctx.send(embed=signup_embed, view=diff_view)
+        await signup_msg.add_reaction(join_emoji)
+
+        await asyncio.sleep(19)
+
+        difficulty = diff_view.difficulty
+        diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
+        diff_view.stop()
+
+        signup_msg = await ctx.channel.fetch_message(signup_msg.id)
+        reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
+
+        players = []
+        if reaction:
+            async for user in reaction.users():
+                if not user.bot:
+                    players.append(user)
+
+        if not players:
+            await signup_msg.edit(embed=discord.Embed(description="💨 7ta wa7d ma dkhel lgame ._.", color=0x000000), view=None)
+            return
+
+        single_player = len(players) == 1
+        hp = {player.id: 3 for player in players}
+        active_players = list(players)
+
+        # Apply difficulty filter to recipe pool
+        if difficulty == "easy":
+            pool = [r for r in all_recipes if r.get("difficulty") == "easy"] or all_recipes
+        elif difficulty == "medium":
+            pool = [r for r in all_recipes if r.get("difficulty") in ("easy", "medium")] or all_recipes
+        else:
+            pool = list(all_recipes)
+
+        match_pool = list(pool)
+        random.shuffle(match_pool)
+
+        start_embed = discord.Embed(
+            description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
+            color=0x000000
+        )
+        await signup_msg.edit(embed=start_embed, view=None)
+        await asyncio.sleep(2)
+
+        player_correct_items = {p.id: 0 for p in players}
+
+        while len(active_players) > 0:
+            if not single_player and len(active_players) == 1:
+                winner = active_players[0]
+                economy_cog = self.bot.get_cog("Economy")
+                eco_msg = ""
+                player_earnings = {}
+                winner_items = player_correct_items.get(winner.id, 0)
+                if economy_cog:
+                    gross = (len(players) * 50) + int(round((winner_items * 15) * diff_mult))
+                    net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Crafting Table Win")
+                    player_earnings[winner.id] = net
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, winner.id, "craftingtable", earnings=net)
+
+                    for pid, p_items in player_correct_items.items():
+                        if pid != winner.id and p_items > 0:
+                            p_gross = int(round((p_items * 15) * diff_mult))
+                            if p_gross > 0:
+                                p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Crafting Table Reward")
+                                player_earnings[pid] = p_net
+
+                others_msg = ""
+                other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_items[pid]} items)" for pid, net in player_earnings.items() if pid != winner.id]
+                if other_rewards:
+                    others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
+                win_embed = discord.Embed(
+                    description=f"🏆 {winner.mention} rbe7 lgame b **{winner_items} items**!{eco_msg}{others_msg}",
+                    color=0x000000
+                )
+                await ctx.send(embed=win_embed)
+                return
+
+            if not match_pool:
+                await ctx.send(embed=discord.Embed(
+                    description="🏁 **Crafting pool salaw kamlin! Game sala.**",
+                    color=0x000000
+                ))
+                break
+
+            for player in list(active_players):
+                if player not in active_players:
+                    continue
+                if not single_player and len(active_players) <= 1:
+                    break
+
+                if not match_pool:
+                    break
+
+                target = match_pool.pop()
+                correct_name = target["displayName"]
+
+                buf = render_crafting_table(target["grid"])
+                file = discord.File(buf, filename="crafting.png")
+
+                game_embed = discord.Embed(
+                    description=f"🔨 Chno katsawb had recipe?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n📦 Recipes left: **{len(match_pool) + 1}**",
+                    color=0x000000
+                )
+                game_embed.set_image(url="attachment://crafting.png")
+                round_msg = await ctx.send(player.mention, embed=game_embed, file=file)
+
+                def check(m):
+                    if m.channel.id != ctx.channel.id:
+                        return False
+                    if m.author.id == player.id:
+                        return True
+                    if m.content.strip().lower() == "exitgame" and any(p.id == m.author.id for p in active_players):
+                        return True
+                    return False
+
+                start_time = time.time()
+                guessed_correctly = False
+                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+
+                while time.time() - start_time < round_duration:
+                    time_left = round_duration - (time.time() - start_time)
+                    if time_left <= 0:
+                        break
+
+                    try:
+                        msg = await self.bot.wait_for("message", check=check, timeout=time_left)
+
+                        if msg.content.strip().lower() == "exitgame":
+                            leaver = next((p for p in active_players if p.id == msg.author.id), None)
+                            if leaver:
+                                hp[leaver.id] = 0
+                                active_players.remove(leaver)
+                                await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame.")
+                                if leaver.id == player.id:
+                                    if not countdown_task.done():
+                                        countdown_task.cancel()
+                                    guessed_correctly = True
+                                    break
+                                elif not single_player and len(active_players) <= 1:
+                                    if not countdown_task.done():
+                                        countdown_task.cancel()
+                                    break
+                            continue
+
+                        if msg.author.id == player.id and is_crafting_guess_correct(msg.content, target):
+                            if not countdown_task.done():
+                                countdown_task.cancel()
+                            await msg.add_reaction("✅")
+                            guessed_correctly = True
+                            player_correct_items[player.id] = player_correct_items.get(player.id, 0) + 1
+                            break
+
+                    except asyncio.TimeoutError:
+                        break
+
+                if not countdown_task.done():
+                    countdown_task.cancel()
+
+                if not single_player and len(active_players) <= 1:
+                    break
+
+                if not guessed_correctly and player in active_players:
+                    hp[player.id] -= 1
+                    if hp[player.id] <= 0:
+                        await ctx.send(
+                            embed=discord.Embed(description=f"💥 **{player.mention}** t elimina **0 HP**. Ljawab howa **{correct_name}**.",
+                                                color=0x000000))
+                        active_players.remove(player)
+                    else:
+                        await ctx.send(embed=discord.Embed(description=f"⌛ Sala lwe9t {player.mention}: **-1 HP**. Ljawab howa **{correct_name}**.",
+                                            color=0x000000))
+
+                await asyncio.sleep(2)
+
+        if single_player:
+            player = players[0]
+            economy_cog = self.bot.get_cog("Economy")
+            p_items = player_correct_items.get(player.id, 0)
+            gross = 50 + int(round((p_items * 15) * diff_mult))
+            eco_msg = ""
+            if economy_cog and p_items > 0:
+                net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Crafting Table Solo")
+                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                if ctx.guild:
+                    await self.record_minigame_win(ctx.guild.id, player.id, "craftingtable", earnings=net)
+            await ctx.send(embed=discord.Embed(
+                description=f"🎯 Game Over {player.mention}! L9iti **{p_items} items**.{eco_msg}",
+                color=0x000000
+            ))
+        elif not single_player:
+            max_guesses = max(player_correct_items.values()) if player_correct_items else 0
+            if max_guesses > 0:
+                top_players = [p for p in players if player_correct_items.get(p.id, 0) == max_guesses]
+                economy_cog = self.bot.get_cog("Economy")
+                player_earnings = {}
+                if len(top_players) == 1:
+                    winner = top_players[0]
+                    eco_msg = ""
+                    if economy_cog:
+                        gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
+                        net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Crafting Table Win")
+                        player_earnings[winner.id] = net
+                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                        if ctx.guild:
+                            await self.record_minigame_win(ctx.guild.id, winner.id, "craftingtable", earnings=net)
+
+                        for pid, p_items in player_correct_items.items():
+                            if pid != winner.id and p_items > 0:
+                                p_gross = int(round((p_items * 15) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Crafting Table Reward")
+                                    player_earnings[pid] = p_net
+
+                    others_msg = ""
+                    other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_items[pid]} items)" for pid, net in player_earnings.items() if pid != winner.id]
+                    if other_rewards:
+                        others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
+                    await ctx.send(embed=discord.Embed(
+                        description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} items** o rbe7 lgame!{eco_msg}{others_msg}",
+                        color=0x000000
+                    ))
+                else:
+                    winners_mention = " o ".join(p.mention for p in top_players)
+                    if economy_cog:
+                        for pid, p_items in player_correct_items.items():
+                            if p_items > 0:
+                                p_gross = int(round((p_items * 15) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Crafting Table Reward (Tie)")
+                                    player_earnings[pid] = p_net
+
+                    others_msg = ""
+                    rewards_list = [f"<@{pid}>: **+{net}** TAD ({player_correct_items[pid]} items)" for pid, net in player_earnings.items()]
+                    if rewards_list:
+                        others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+
+                    await ctx.send(embed=discord.Embed(
+                        description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} items**!{others_msg}",
+                        color=0x000000
+                    ))
+            else:
+                await ctx.send(embed=discord.Embed(
+                    description="🎯 Game Over! Ta wa7d ma jab chy item s7i7.",
+                    color=0x000000
+                ))
+
     @commands.command(aliases=["jklm"], help="Kteb kelma fiha l7orof li ghan3tik.")
     async def blacktea(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="medium")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
 
@@ -5974,6 +6381,8 @@ class Fun(commands.Cog):
             else:
                 while len(active_players) > 1:
                     for player in list(active_players):
+                        if player not in active_players:
+                            continue
                         if len(active_players) <= 1:
                             break
 
@@ -5983,31 +6392,60 @@ class Fun(commands.Cog):
                         countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
 
                         def check(message):
-                            if message.author.id != player.id or message.channel.id != ctx.channel.id:
+                            if message.channel.id != ctx.channel.id:
+                                return False
+                            if message.content.strip().lower() == "exitgame" and any(p.id == message.author.id for p in active_players):
+                                return True
+                            if message.author.id != player.id:
                                 return False
                             word = message.content.strip().lower()
-                            if word == "exitgame":
-                                return True
                             if combo not in word or word in used_words:
                                 return False
                             return self.is_english_word(word)
 
-                        try:
-                            word_msg = await self.bot.wait_for('message', check=check, timeout=round_duration)
-                            if not countdown_task.done():
-                                countdown_task.cancel()
-                            if word_msg:
+                        start_turn = time.time()
+                        answered = False
+                        while time.time() - start_turn < round_duration:
+                            rem = round_duration - (time.time() - start_turn)
+                            if rem <= 0:
+                                break
+                            try:
+                                word_msg = await self.bot.wait_for('message', check=check, timeout=rem)
                                 if word_msg.content.strip().lower() == "exitgame":
-                                    lives[player.id] = 0
-                                    await ctx.send(f"🚪 **{player.mention}** khrej mn lgame o t elimina.")
-                                    active_players.remove(player)
+                                    leaver = next((p for p in active_players if p.id == word_msg.author.id), None)
+                                    if leaver:
+                                        lives[leaver.id] = 0
+                                        active_players.remove(leaver)
+                                        await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame o t elimina.")
+                                        if leaver.id == player.id:
+                                            if not countdown_task.done():
+                                                countdown_task.cancel()
+                                            answered = True
+                                            break
+                                        elif len(active_players) <= 1:
+                                            if not countdown_task.done():
+                                                countdown_task.cancel()
+                                            break
                                     continue
-                                player_correct_words[player.id] = player_correct_words.get(player.id, 0) + 1
-                                used_words.add(word_msg.content.strip().lower())
-                                await word_msg.add_reaction('✅')
-                        except asyncio.TimeoutError:
-                            if not countdown_task.done():
-                                countdown_task.cancel()
+
+                                if word_msg.author.id == player.id:
+                                    if not countdown_task.done():
+                                        countdown_task.cancel()
+                                    player_correct_words[player.id] = player_correct_words.get(player.id, 0) + 1
+                                    used_words.add(word_msg.content.strip().lower())
+                                    await word_msg.add_reaction('✅')
+                                    answered = True
+                                    break
+                            except asyncio.TimeoutError:
+                                break
+
+                        if not countdown_task.done():
+                            countdown_task.cancel()
+
+                        if len(active_players) <= 1:
+                            break
+
+                        if not answered and player in active_players:
                             lives[player.id] -= 1
                             if lives[player.id] > 0:
                                 await ctx.send(f"⌛ Sala lwe9t: -1 HP (Ba9i: **{lives[player.id]} HP**)")
@@ -6051,7 +6489,7 @@ class Fun(commands.Cog):
 
     @commands.command(aliases=["gt", "green"], help="Kteb kelma fiha l7orof li ghan3tik bzerba.")
     async def greentea(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="medium")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
 
@@ -6121,19 +6559,26 @@ class Fun(commands.Cog):
                         return False
                     return self.is_english_word(word)
 
-                try:
-                    word_msg = await self.bot.wait_for('message', check=check, timeout=round_duration)
-                    if not countdown_task.done():
-                        countdown_task.cancel()
-                    if word_msg:
-                        fast = word_msg.author
+                round_start = time.time()
+                round_won = False
+                while time.time() - round_start < round_duration:
+                    rem = round_duration - (time.time() - round_start)
+                    if rem <= 0:
+                        break
+                    try:
+                        word_msg = await self.bot.wait_for('message', check=check, timeout=rem)
                         if word_msg.content.strip().lower() == "exitgame":
+                            fast = word_msg.author
                             player_ids.discard(fast.id)
                             players = [p for p in players if p.id != fast.id]
                             await ctx.send(f"🚪 **{fast.mention}** khrej mn lgame.")
                             if len(player_ids) <= 1:
                                 break
+                            continue
                         else:
+                            if not countdown_task.done():
+                                countdown_task.cancel()
+                            fast = word_msg.author
                             used_words.add(word_msg.content.strip().lower())
                             points[fast.id] += 1
                             await word_msg.add_reaction('✅')
@@ -6142,9 +6587,18 @@ class Fun(commands.Cog):
                                 description=f"✅ {fast.mention} 5da 1 point. (Total: **{points[fast.id]} pts**)",
                                 color=0x000000
                             ))
-                except asyncio.TimeoutError:
-                    if not countdown_task.done():
-                        countdown_task.cancel()
+                            round_won = True
+                            break
+                    except asyncio.TimeoutError:
+                        break
+
+                if not countdown_task.done():
+                    countdown_task.cancel()
+
+                if len(player_ids) <= 1:
+                    break
+
+                if not round_won:
                     await ctx.send(embed=discord.Embed(
                         description="⌛ Sala lwe9t. 7ta wa7d ma 5da lpoint.",
                         color=0x000000
@@ -6212,7 +6666,7 @@ class Fun(commands.Cog):
 
     @commands.command(aliases=["rt", "red"], help="Kteb atwal kelma fiha l7orof li ghan3tik.")
     async def redtea(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="medium")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
 
@@ -6507,6 +6961,8 @@ class Fun(commands.Cog):
             else:
                 while len(active_players) > 1:
                     for player in list(active_players):
+                        if player not in active_players:
+                            continue
                         if len(active_players) <= 1:
                             break
 
@@ -6526,26 +6982,57 @@ class Fun(commands.Cog):
                         countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
 
                         def check(message):
-                            if message.author.id != player.id or message.channel.id != ctx.channel.id:
+                            if message.channel.id != ctx.channel.id:
+                                return False
+                            if message.content.strip().lower() == "exitgame" and any(p.id == message.author.id for p in active_players):
+                                return True
+                            if message.author.id != player.id:
                                 return False
                             w = message.content.strip().lower()
-                            return w == secret or w == "exitgame"
+                            return w == secret
 
-                        try:
-                            word_msg = await self.bot.wait_for('message', check=check, timeout=round_duration)
-                            if not countdown_task.done():
-                                countdown_task.cancel()
-                            if word_msg:
+                        start_turn = time.time()
+                        answered = False
+                        while time.time() - start_turn < round_duration:
+                            rem = round_duration - (time.time() - start_turn)
+                            if rem <= 0:
+                                break
+                            try:
+                                word_msg = await self.bot.wait_for('message', check=check, timeout=rem)
                                 if word_msg.content.strip().lower() == "exitgame":
-                                    lives[player.id] = 0
-                                    await ctx.send(f"🚪 **{player.mention}** khrej mn lgame o t elimina.\n🧩 Lkelma kanet: **{secret.upper()}**")
-                                    active_players.remove(player)
+                                    leaver = next((p for p in active_players if p.id == word_msg.author.id), None)
+                                    if leaver:
+                                        lives[leaver.id] = 0
+                                        active_players.remove(leaver)
+                                        await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame o t elimina.\n🧩 Lkelma kanet: **{secret.upper()}**")
+                                        if leaver.id == player.id:
+                                            if not countdown_task.done():
+                                                countdown_task.cancel()
+                                            answered = True
+                                            break
+                                        elif len(active_players) <= 1:
+                                            if not countdown_task.done():
+                                                countdown_task.cancel()
+                                            break
                                     continue
-                                player_correct_words[player.id] += 1
-                                await word_msg.add_reaction('✅')
-                        except asyncio.TimeoutError:
-                            if not countdown_task.done():
-                                countdown_task.cancel()
+
+                                if word_msg.author.id == player.id:
+                                    if not countdown_task.done():
+                                        countdown_task.cancel()
+                                    player_correct_words[player.id] += 1
+                                    await word_msg.add_reaction('✅')
+                                    answered = True
+                                    break
+                            except asyncio.TimeoutError:
+                                break
+
+                        if not countdown_task.done():
+                            countdown_task.cancel()
+
+                        if len(active_players) <= 1:
+                            break
+
+                        if not answered and player in active_players:
                             lives[player.id] -= 1
                             if lives[player.id] > 0:
                                 await ctx.send(f"⌛ Sala lwe9t {player.mention}: -1 HP (Ba9i: **{lives[player.id]} HP**). Lkelma kanet: **{secret.upper()}**")
@@ -6696,7 +7183,7 @@ class Fun(commands.Cog):
         challenge_view.message = message
 
     @commands.command(name="akinator", aliases=["aki"], help="Fekker f chy character o khsni n3erfo.")
-    async def akinator_cmd(self, ctx: commands.Context):
+    async def akinator_cmd(self, ctx: commands.Context, *args):
         if ctx.author.id in self.active_akinator_users:
             await ctx.send("❌ Rak deja katl3eb Akinator! Kamel lgame dialk wla dir 🛑 Stop.")
             return
@@ -7009,7 +7496,7 @@ class Fun(commands.Cog):
     @commands.command(name="trivia", aliases=["quiz", "as2ila"], help="Man sayarba7 2 drahm.")
     @not_fraud()
     async def trivia(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="medium")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         if round_duration < 5:
             round_duration = 5
             time_display = "5s (Minimum)"
@@ -7941,7 +8428,7 @@ class Fun(commands.Cog):
 
     @commands.command(name="geoguessr", aliases=["geo", "geoguesser", "geoguess"], help="Khssk t3rf dawla mn tswira.")
     async def geoguessr(self, ctx: commands.Context, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=40, default_difficulty="medium")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=40, default_difficulty="easy")
         diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
 
         _load_geoguessr_assets()
@@ -8172,7 +8659,17 @@ class Fun(commands.Cog):
                                 and m.author.id not in guesses
                                 and m.channel.id == ctx.channel.id
                             )
-                        m = await self.bot.wait_for("message", check=check_m, timeout=time_left)
+                        if m.content.strip().lower() == "exitgame":
+                            quitter = next((p for p in players if p.id == m.author.id), None)
+                            if quitter:
+                                players.remove(quitter)
+                                await ctx.send(f"🚪 **{quitter.mention}** khrej mn lgame.")
+                                if len(players) <= 1:
+                                    if not countdown_task.done():
+                                        countdown_task.cancel()
+                                    break
+                            continue
+
                         cguess = resolve_country_guess(m.content)
                         if cguess:
                             if cguess["code"] in taken_codes:

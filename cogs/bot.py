@@ -362,7 +362,7 @@ class Bot(commands.Cog):
         await ctx.send(embed=embed, view=view if len(view.children) > 0 else None)
 
 
-    @commands.command(name="block", aliases=["blocki", "tjahl", "nkhl"], help="Manb9ach njawb khouna.")
+    @commands.command(name="block", aliases=["blocki", "tjahl", "nkhl", "ignore"], help="Manb9ach njawb khouna.")
     @commands.is_owner()
     async def block(self, ctx, user: FuzzyMember):
         async with self.bot.db.execute("SELECT 1 FROM blacklists WHERE user_id = ?", (user.id,)) as cursor:
@@ -375,7 +375,7 @@ class Bot(commands.Cog):
         await ctx.send(f"Safi blockit `{user}`.")
 
 
-    @commands.command(name="unblock", aliases=["unblocki", "tsal7"], help="Nrje3 njawb khouna.")
+    @commands.command(name="unblock", aliases=["unblocki", "tsal7", "unignore"], help="Nrje3 njawb khouna.")
     @commands.is_owner()
     async def unblock(self, ctx, user: FuzzyMember):
         async with self.bot.db.execute("SELECT 1 FROM blacklists WHERE user_id = ?", (user.id,)) as cursor:
