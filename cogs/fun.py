@@ -5731,7 +5731,7 @@ class Fun(commands.Cog):
                 target = match_pool.pop()
                 correct_name = target["name"]
                 target_code = target["code"]
-                flag_url = f"https://flagcdn.com/w320/{target_code}.png"
+                flag_url = f"https://flagcdn.com/w640/{target_code}.png"
 
                 game_embed = discord.Embed(
                     description=f"❓ Chno smit had dawla?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n🚩 Flags left: **{len(match_pool) + 1}**",
