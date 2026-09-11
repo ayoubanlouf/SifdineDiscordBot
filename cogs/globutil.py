@@ -2582,37 +2582,66 @@ class GlobUtil(commands.Cog):
                             if v.startswith('/'): return 'https://www.wikihow.com' + v
                             return v
                     for a in ['data-src', 'src', 'data-original']:
-                        m = re.search(rf'{a}=["\']([^"\']+)["\']', li_html)
-                        if m and 'wikihow.com/images' in m.group(1) and not m.group(1).endswith('.svg') and 'WH_logo' not in m.group(1):
+                        for m in re.finditer(rf'{a}=["\']([^"\']+)["\']', li_html):
                             v = m.group(1)
-                            if v.startswith('//'): return 'https:' + v
-                            if v.startswith('/'): return 'https://www.wikihow.com' + v
-                            return v
+                            if 'wikihow.com/images' in v and not v.endswith('.svg') and 'WH_logo' not in v and not v.endswith('clear.gif'):
+                                if v.startswith('//'): return 'https:' + v
+                                if v.startswith('/'): return 'https://www.wikihow.com' + v
+                                return v
                     return None
 
                 embeds = []
                 total_steps = len(step_lis)
 
-                for i, li_content in enumerate(step_lis):
-                    b_m = re.search(r'<b[^>]*>(.*?)</b>', li_content, re.DOTALL)
-                    s_title = re.sub(r'<[^>]+>', '', b_m.group(1)).strip() if b_m else f"Step {i+1}"
+                for i, raw_li in enumerate(step_lis):
+                    step_img = extract_img(raw_li)
 
-                    s_div_m = re.search(r'<div[^>]+class=["\'][^"\']*step[^"\']*["\'][^>]*>(.*?)</div>', li_content, re.DOTALL)
-                    body_raw = s_div_m.group(1) if s_div_m else li_content
-                    clean_body = re.sub(r'<(script|style|sup|b|ul|ol)[^>]*>.*?</\1>', '', body_raw, flags=re.DOTALL | re.I)
+                    # 1. Strip script, style, comments, and step_num badges before text extraction
+                    clean_li = re.sub(r'<(script|style)[^>]*>.*?</\1>', '', raw_li, flags=re.DOTALL | re.I)
+                    clean_li = re.sub(r'<!--.*?-->', '', clean_li, flags=re.DOTALL)
+                    clean_li = re.sub(r'<div[^>]+class=["\'][^"\']*step_num[^"\']*["\'][^>]*>.*?</div>', '', clean_li, flags=re.DOTALL | re.I)
+
+                    # 2. Extract step text container (<div class="step">)
+                    step_div_m = re.search(r'<div[^>]+class=["\']step["\'][^>]*>(.*?)</div>', clean_li, flags=re.DOTALL | re.I)
+                    step_html = step_div_m.group(1) if step_div_m else clean_li
+
+                    # 3. Extract bold title (<b\b...>)
+                    b_m = re.search(r'<b\b[^>]*>(.*?)</b>', step_html, flags=re.DOTALL | re.I)
+                    if b_m:
+                        s_title = re.sub(r'<[^>]+>', '', b_m.group(1)).strip()
+                        s_title = html.unescape(s_title)
+                        body_html = step_html[:b_m.start()] + step_html[b_m.end():]
+                    else:
+                        s_title = ""
+                        body_html = step_html
+
+                    # 4. Clean body text
+                    clean_body = re.sub(r'<sup[^>]*>.*?</sup>', '', body_html, flags=re.DOTALL | re.I)
+                    clean_body = re.sub(r'<li\b[^>]*>', '\n• ', clean_body, flags=re.I)
                     clean_body = re.sub(r'<[^>]+>', '', clean_body)
                     clean_body = html.unescape(clean_body)
-                    body = re.sub(r'\s+', ' ', clean_body).strip()
+                    body = re.sub(r'[ \t]+', ' ', clean_body)
+                    body = re.sub(r'\n\s*\n+', '\n\n', body).strip()
 
                     if len(body) > 1000:
                         body = body[:997] + "..."
 
-                    step_img = extract_img(li_content)
+                    # 5. Format description cleanly
+                    if s_title:
+                        if body:
+                            if s_title.endswith(('.', '!', '?', ':')):
+                                step_desc = f"### Step {i+1}: {s_title}\n\n{body}"
+                            else:
+                                step_desc = f"### Step {i+1}\n**{s_title}** {body}"
+                        else:
+                            step_desc = f"### Step {i+1}: {s_title}"
+                    else:
+                        step_desc = f"### Step {i+1}\n\n{body}" if body else f"### Step {i+1}"
 
                     embed = discord.Embed(
                         title=f"📋 {article_title}",
                         url=article_url,
-                        description=f"### Step {i+1}: {s_title}\n\n{body}",
+                        description=step_desc,
                         color=0x000000
                     )
                     if step_img:
@@ -2931,7 +2960,7 @@ class GlobUtil(commands.Cog):
 
         # Page 2: Notes Pyramid
         embed_pyramid = discord.Embed(
-            title=f"{display_title} (Pyramid)",
+            title=display_title,
             url=target_url,
             color=0x000000
         )

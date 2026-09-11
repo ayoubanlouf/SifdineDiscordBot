@@ -166,31 +166,49 @@ class WalletView(discord.ui.View):
         self.target_user = target_user
         self.author = author
         self.cog = cog
-        self.showing_transactions = False
+        self.current_page = "wallet"  # "wallet", "transactions", "summary"
         self.filter_mode = "all"  # "all", "plus", "minus"
         self.message: Optional[discord.Message] = None
         self._update_buttons()
 
     def _update_buttons(self):
         self.clear_items()
-        if not self.showing_transactions:
+        if self.current_page == "wallet":
             btn_tx = discord.ui.Button(label="Recent Transactions", style=discord.ButtonStyle.secondary, emoji="📜")
-            btn_tx.callback = self.toggle_view_callback
+            btn_tx.callback = self.show_transactions_callback
             self.add_item(btn_tx)
-        else:
-            btn_back = discord.ui.Button(label="Back to Wallet", style=discord.ButtonStyle.primary, emoji="🔙")
-            btn_back.callback = self.toggle_view_callback
-            self.add_item(btn_back)
+
+            btn_summary = discord.ui.Button(label="Financial Summary", style=discord.ButtonStyle.secondary, emoji="📊")
+            btn_summary.callback = self.show_summary_callback
+            self.add_item(btn_summary)
+
+        elif self.current_page == "transactions":
+            btn_wallet = discord.ui.Button(label="Wallet Overview", style=discord.ButtonStyle.primary, emoji="💼")
+            btn_wallet.callback = self.show_wallet_callback
+            self.add_item(btn_wallet)
 
             # 3-display toggle: default all, 2nd + (income), 3rd - (expense)
             if self.filter_mode == "all":
-                btn_filter = discord.ui.Button(label="Filter: All (Recent)", style=discord.ButtonStyle.secondary, emoji="🔄")
+                btn_filter = discord.ui.Button(label="Filter: Recent", style=discord.ButtonStyle.secondary, emoji="🔄")
             elif self.filter_mode == "plus":
-                btn_filter = discord.ui.Button(label="Filter: (+) Added", style=discord.ButtonStyle.success, emoji="🟢")
+                btn_filter = discord.ui.Button(label="Filter: Added", style=discord.ButtonStyle.success, emoji="🟢")
             else:
-                btn_filter = discord.ui.Button(label="Filter: (-) Removed", style=discord.ButtonStyle.danger, emoji="🔴")
+                btn_filter = discord.ui.Button(label="Filter: Removed", style=discord.ButtonStyle.danger, emoji="🔴")
             btn_filter.callback = self.toggle_filter_callback
             self.add_item(btn_filter)
+
+            btn_summary = discord.ui.Button(label="Financial Summary", style=discord.ButtonStyle.secondary, emoji="📊")
+            btn_summary.callback = self.show_summary_callback
+            self.add_item(btn_summary)
+
+        elif self.current_page == "summary":
+            btn_wallet = discord.ui.Button(label="Wallet Overview", style=discord.ButtonStyle.primary, emoji="💼")
+            btn_wallet.callback = self.show_wallet_callback
+            self.add_item(btn_wallet)
+
+            btn_tx = discord.ui.Button(label="Recent Transactions", style=discord.ButtonStyle.secondary, emoji="📜")
+            btn_tx.callback = self.show_transactions_callback
+            self.add_item(btn_tx)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
@@ -198,16 +216,23 @@ class WalletView(discord.ui.View):
             return False
         return True
 
-    async def toggle_view_callback(self, interaction: discord.Interaction):
-        self.showing_transactions = not self.showing_transactions
-        if self.showing_transactions:
-            self.filter_mode = "all"
-            self._update_buttons()
-            embed = await self.cog.get_transactions_embed(self.target_user, self.filter_mode)
-        else:
-            self._update_buttons()
-            embed = await self.cog.get_wallet_embed(self.target_user)
+    async def show_wallet_callback(self, interaction: discord.Interaction):
+        self.current_page = "wallet"
+        self._update_buttons()
+        embed = await self.cog.get_wallet_embed(self.target_user)
+        await interaction.response.edit_message(embed=embed, view=self)
 
+    async def show_transactions_callback(self, interaction: discord.Interaction):
+        self.current_page = "transactions"
+        self.filter_mode = "all"
+        self._update_buttons()
+        embed = await self.cog.get_transactions_embed(self.target_user, self.filter_mode)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def show_summary_callback(self, interaction: discord.Interaction):
+        self.current_page = "summary"
+        self._update_buttons()
+        embed = await self.cog.get_wallet_summary_embed(self.target_user)
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def toggle_filter_callback(self, interaction: discord.Interaction):
@@ -522,22 +547,22 @@ class Economy(commands.Cog):
         embed.add_field(name="Status", value=status_str, inline=True)
         embed.add_field(name="Daily Reward", value=daily_val, inline=False)
         embed.add_field(name="Weekly Reward", value=weekly_val, inline=False)
+        embed.set_footer(text=f"Wallet Overview • Page 1/3 • {user.display_name}")
         return embed
 
     async def get_transactions_embed(self, user: Union[discord.Member, discord.User], filter_mode: str = "all") -> discord.Embed:
-        w = await self.get_wallet(user.id)
         if filter_mode == "plus":
-            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? AND amount > 0 ORDER BY created_at DESC LIMIT 6"
-            title = f"📈 Income Transactions (+) — {user.display_name}"
+            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? AND amount > 0 ORDER BY created_at DESC LIMIT 10"
+            title = f"📈 Income Transactions — {user.display_name}"
             empty_msg = "*No income transactions yet.*"
         elif filter_mode == "minus":
-            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? AND amount < 0 ORDER BY created_at DESC LIMIT 6"
-            title = f"📉 Expense Transactions (-) — {user.display_name}"
+            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? AND amount < 0 ORDER BY created_at DESC LIMIT 10"
+            title = f"📉 Expense Transactions — {user.display_name}"
             empty_msg = "*No expense transactions yet.*"
         else:
-            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 6"
+            query = "SELECT amount, context, created_at FROM user_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 10"
             title = f"📜 Recent Transactions — {user.display_name}"
-            empty_msg = "*No Transactions yet.*"
+            empty_msg = "*No transactions yet.*"
 
         async with self.bot.db.execute(query, (user.id,)) as cursor:
             rows = await cursor.fetchall()
@@ -557,11 +582,36 @@ class Economy(commands.Cog):
                 lines.append(f"{sign}**{abs(amt):,}** TAD — *{ctx_desc}* (<t:{ts}:R>)")
             embed.description = "\n".join(lines)
 
-        embed.add_field(
-            name="💬 Passive Chat Mining",
-            value=f"Total: {format_tad(w['total_activity_rewards'])}",
-            inline=False
+        embed.set_footer(text=f"Recent Transactions (Latest 10) • Page 2/3 • {user.display_name}")
+        return embed
+
+    async def get_wallet_summary_embed(self, user: Union[discord.Member, discord.User]) -> discord.Embed:
+        w = await self.get_wallet(user.id)
+
+        query = """
+            SELECT 
+                COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0)
+            FROM user_transactions
+            WHERE user_id = ?
+        """
+        async with self.bot.db.execute(query, (user.id,)) as cursor:
+            row = await cursor.fetchone()
+
+        total_income = row[0] if row else 0
+        total_expense = row[1] if row else 0
+
+        embed = discord.Embed(
+            title=f"📊 Financial Summary — {user.display_name}",
+            color=0x000000
         )
+        embed.set_thumbnail(url=user.display_avatar.url)
+
+        embed.add_field(name="📈 Recorded Total Income", value=f"🟢 **+{total_income:,}** TAD", inline=False)
+        embed.add_field(name="📉 Recorded Total Expense", value=f"🔴 **-{total_expense:,}** TAD", inline=False)
+        embed.add_field(name="💬 Total Activity Rewards", value=format_tad(w['total_activity_rewards']), inline=False)
+
+        embed.set_footer(text=f"Financial Summary • Page 3/3 • {user.display_name}")
         return embed
 
     async def get_vault_embed(self, vault_name: str) -> discord.Embed:
