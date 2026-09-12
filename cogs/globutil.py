@@ -572,7 +572,7 @@ class GlobUtil(commands.Cog):
         await status_msg.edit(embed=initial_embed, view=view)
         view.message = status_msg
 
-    @commands.command(name="dictionary", aliases=["definition", "define", "chre7", "chr7", "dict"], help="Njbed lik ay definition mn Urban Dictionary")
+    @commands.command(name="dictionary", aliases=["urban", "definition", "define", "chre7", "chr7", "dict"], help="Njbed lik ay definition mn Urban Dictionary")
     async def dictionary(self, ctx, *, search: str):
 
         search_query = search.replace(" ", "+")

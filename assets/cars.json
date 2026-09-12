@@ -21,7 +21,7 @@
       "honda accord"
     ],
     "difficulty": "hard",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2003-2005%20Honda%20Accord%20Euro%20Luxury%20sedan%20%282010-09-19%29%2001.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/16/2003-2005_Honda_Accord_Euro_Luxury_sedan_(2010-09-19)_01.jpg"
   },
   {
     "id": "honda_cr_v",
@@ -35,7 +35,7 @@
       "honda cr-v"
     ],
     "difficulty": "hard",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Honda%20CR-V%20e-PHEV%20Advance%20Tech%202WD%20%28VI%29%20%E2%80%93%20f%2005052024.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Honda_CR-V_e-PHEV_Advance_Tech_2WD_(VI)_–_f_05052024.jpg"
   },
   {
     "id": "honda_jazz",
@@ -49,7 +49,7 @@
       "honda fit"
     ],
     "difficulty": "hard",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Honda_Jazz_Hybrid_Executive_%28IV%29_%E2%80%93_f_18102020.jpg/3840px-Honda_Jazz_Hybrid_Executive_%28IV%29_%E2%80%93_f_18102020.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/85/Honda_Jazz_Hybrid_Executive_%28IV%29_%E2%80%93_f_18102020.jpg"
   },
   {
     "id": "toyota_corolla",
@@ -61,7 +61,7 @@
       "toyota corolla"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/1983%20Toyota%20Corolla%20%28KE70%29%20CS%20sedan%20%282015-07-03%29%2001.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/14/1983_Toyota_Corolla_(KE70)_CS_sedan_(2015-07-03)_01.jpg"
   },
   {
     "id": "toyota_yaris",
@@ -73,7 +73,7 @@
       "toyota yaris"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/2020_Toyota_Yaris_Design_HEV_CVT_1.5_Front.jpg/3840px-2020_Toyota_Yaris_Design_HEV_CVT_1.5_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3e/2020_Toyota_Yaris_Design_HEV_CVT_1.5_Front.jpg"
   },
   {
     "id": "toyota_rav4",
@@ -85,7 +85,7 @@
       "toyota rav4"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/2024_Toyota_RAV4_Prime_XSE_Premium_in_Silver_Sky_with_Midnight_Black_roof%2C_front_left.jpg/3840px-2024_Toyota_RAV4_Prime_XSE_Premium_in_Silver_Sky_with_Midnight_Black_roof%2C_front_left.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/2/2d/2024_Toyota_RAV4_Prime_XSE_Premium_in_Silver_Sky_with_Midnight_Black_roof%2C_front_left.jpg"
   },
   {
     "id": "toyota_camry",
@@ -97,7 +97,7 @@
       "toyota camry"
     ],
     "difficulty": "hard",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/2018_Toyota_Camry_%28ASV70R%29_Ascent_sedan_%282018-08-27%29_01.jpg/3840px-2018_Toyota_Camry_%28ASV70R%29_Ascent_sedan_%282018-08-27%29_01.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/ac/2018_Toyota_Camry_%28ASV70R%29_Ascent_sedan_%282018-08-27%29_01.jpg"
   },
   {
     "id": "toyota_prius",
@@ -123,7 +123,7 @@
       "toyota c-hr"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Toyota_C-HR_Hybrid_%28AX20%29_DSC_7239.jpg/3840px-Toyota_C-HR_Hybrid_%28AX20%29_DSC_7239.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Toyota_C-HR_Hybrid_%28AX20%29_DSC_7239.jpg"
   },
   {
     "id": "toyota_land_cruiser",
@@ -187,7 +187,7 @@
       "volkswagen passat"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/VW_Passat_Variant_Elegance_%28B9%29_%E2%80%93_f_18052025.jpg/3840px-VW_Passat_Variant_Elegance_%28B9%29_%E2%80%93_f_18052025.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/9/9b/VW_Passat_Variant_Elegance_%28B9%29_%E2%80%93_f_18052025.jpg"
   },
   {
     "id": "volkswagen_tiguan",
@@ -200,7 +200,7 @@
       "volkswagen tiguan"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Volkswagen_Tiguan_III_IMG_8823_%28cropped%29.jpg/3840px-Volkswagen_Tiguan_III_IMG_8823_%28cropped%29.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/Volkswagen_Tiguan_III_IMG_8823_%28cropped%29.jpg"
   },
   {
     "id": "volkswagen_touareg",
@@ -240,7 +240,7 @@
       "vw t-roc"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/VW_T-Roc_1.5_eTSI_Style_%28II%29_%E2%80%93_f_05052026.jpg/3840px-VW_T-Roc_1.5_eTSI_Style_%28II%29_%E2%80%93_f_05052026.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/11/VW_T-Roc_1.5_eTSI_Style_%28II%29_%E2%80%93_f_05052026.jpg"
   },
   {
     "id": "renault_clio",
@@ -252,7 +252,7 @@
       "renault clio"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Renault_Clio_%28V%2C_Facelift%29_%E2%80%93_f_02092025.jpg/3840px-Renault_Clio_%28V%2C_Facelift%29_%E2%80%93_f_02092025.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3b/Renault_Clio_%28V%2C_Facelift%29_%E2%80%93_f_02092025.jpg"
   },
   {
     "id": "renault_megane",
@@ -264,7 +264,7 @@
       "renault megane"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/2017_Renault_Megane_Dynamique_S_NAV_DC_1.5_Front.jpg/3840px-2017_Renault_Megane_Dynamique_S_NAV_DC_1.5_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/9/9c/2017_Renault_Megane_Dynamique_S_NAV_DC_1.5_Front.jpg"
   },
   {
     "id": "renault_captur",
@@ -276,7 +276,7 @@
       "renault captur"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/2024_Renault_Captur_II_Automesse_Ludwigsburg_2024_IMG_1506.jpg/3840px-2024_Renault_Captur_II_Automesse_Ludwigsburg_2024_IMG_1506.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/03/2024_Renault_Captur_II_Automesse_Ludwigsburg_2024_IMG_1506.jpg"
   },
   {
     "id": "renault_twingo",
@@ -288,7 +288,7 @@
       "renault twingo"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/Renault_Twingo_BS_O24.jpg/3840px-Renault_Twingo_BS_O24.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/9/93/Renault_Twingo_BS_O24.jpg"
   },
   {
     "id": "renault_scenic",
@@ -300,7 +300,7 @@
       "renault scenic"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/2019_Renault_Grand_Scenic_Iconic_TCE_1.3.jpg/3840px-2019_Renault_Grand_Scenic_Iconic_TCE_1.3.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/2/2e/2019_Renault_Grand_Scenic_Iconic_TCE_1.3.jpg"
   },
   {
     "id": "dacia_duster",
@@ -313,7 +313,7 @@
       "renault duster"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Dacia_Duster_TCe_130_Extreme_%28III%29_%E2%80%93_f_13102024.jpg/3840px-Dacia_Duster_TCe_130_Extreme_%28III%29_%E2%80%93_f_13102024.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Dacia_Duster_TCe_130_Extreme_%28III%29_%E2%80%93_f_13102024.jpg"
   },
   {
     "id": "dacia_logan",
@@ -326,7 +326,7 @@
       "renault logan"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Dacia%20Logan%20Facelift%20front%20-%20PSM%202009.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Dacia_Logan_Facelift_front_-_PSM_2009.jpg"
   },
   {
     "id": "dacia_sandero",
@@ -340,7 +340,7 @@
       "stepway"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/2023_Dacia_Sandero_III_DSC_6012.jpg/3840px-2023_Dacia_Sandero_III_DSC_6012.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3e/2023_Dacia_Sandero_III_DSC_6012.jpg"
   },
   {
     "id": "peugeot_208",
@@ -352,7 +352,7 @@
       "peugeot 208"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Peugeot%20e-208%20facelift%201X7A2502.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/45/Peugeot_e-208_facelift_1X7A2502.jpg"
   },
   {
     "id": "peugeot_206",
@@ -364,7 +364,7 @@
       "peugeot 206"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2002%20Peugeot%20206%20LX%201.4%20Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/2/21/2002_Peugeot_206_LX_1.4_Front.jpg"
   },
   {
     "id": "peugeot_207",
@@ -376,7 +376,7 @@
       "peugeot 207"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Peugeot%20207%2002.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Peugeot_207_02.jpg"
   },
   {
     "id": "peugeot_308",
@@ -388,7 +388,7 @@
       "peugeot 308"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2022%20Peugeot%20308%20Allure%20Premium%20SW%20PureTech%20S%26S%20Automatic%201.2%20Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/b/ba/2022_Peugeot_308_Allure_Premium_SW_PureTech_S&S_Automatic_1.2_Front.jpg"
   },
   {
     "id": "peugeot_307",
@@ -400,7 +400,7 @@
       "peugeot 307"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2002%20Peugeot%20307%20Rapier%2016V%201.6%20Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/d8/2002_Peugeot_307_Rapier_16V_1.6_Front.jpg"
   },
   {
     "id": "peugeot_2008",
@@ -412,7 +412,7 @@
       "peugeot 2008"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Peugeot%20e-2008%20Facelift%20Autofr%C3%BChling%20Ulm%20IMG%209302.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/b/bb/Peugeot_e-2008_Facelift_Autofrühling_Ulm_IMG_9302.jpg"
   },
   {
     "id": "peugeot_3008",
@@ -424,7 +424,7 @@
       "peugeot 3008"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Peugeot%20e-3008%20Auto%20Zuerich%202023%201X7A1012.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/d5/Peugeot_e-3008_Auto_Zuerich_2023_1X7A1012.jpg"
   },
   {
     "id": "peugeot_508",
@@ -436,7 +436,7 @@
       "peugeot 508"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/2019_Peugeot_508_GT-Line_BlueHDi_1.5_%28130_PS%29_Front.jpg/3840px-2019_Peugeot_508_GT-Line_BlueHDi_1.5_%28130_PS%29_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/01/2019_Peugeot_508_GT-Line_BlueHDi_1.5_%28130_PS%29_Front.jpg"
   },
   {
     "id": "citron_c3",
@@ -448,7 +448,7 @@
       "citroen c3"
     ],
     "difficulty": "easy",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Citro%C3%ABn_C3_Hybrid_110_%C3%AB-DSC6_Max_%28IV%29_%E2%80%93_f_05042026.jpg/3840px-Citro%C3%ABn_C3_Hybrid_110_%C3%AB-DSC6_Max_%28IV%29_%E2%80%93_f_05042026.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/5/55/Citro%C3%ABn_C3_Hybrid_110_%C3%AB-DSC6_Max_%28IV%29_%E2%80%93_f_05042026.jpg"
   },
   {
     "id": "citron_c4",
@@ -460,7 +460,7 @@
       "citroen c4"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Citroen_C4_%282020%29_1X7A5851.jpg/3840px-Citroen_C4_%282020%29_1X7A5851.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3b/Citroen_C4_%282020%29_1X7A5851.jpg"
   },
   {
     "id": "citron_berlingo",
@@ -472,7 +472,7 @@
       "citroen berlingo"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Citroen%20e-Berlingo%20Auto%20Zuerich%202021%20IMG%200097.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/85/Citroen_e-Berlingo_Auto_Zuerich_2021_IMG_0097.jpg"
   },
   {
     "id": "fiat_500",
@@ -510,7 +510,7 @@
       "fiat panda"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/2018_Fiat_Panda_Easy_1.2.jpg/3840px-2018_Fiat_Panda_Easy_1.2.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/d2/2018_Fiat_Panda_Easy_1.2.jpg"
   },
   {
     "id": "fiat_tipo",
@@ -522,7 +522,7 @@
       "fiat tipo"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tofa%C5%9F-Fiat%20Tipo%201.4%20fl.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/5/50/Tofaş-Fiat_Tipo_1.4_fl.jpg"
   },
   {
     "id": "ford_fiesta",
@@ -534,7 +534,7 @@
       "ford fiesta"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Ford_Fiesta_ST-Line_%28VII%2C_Facelift%29_%E2%80%93_f_30012023.jpg/3840px-Ford_Fiesta_ST-Line_%28VII%2C_Facelift%29_%E2%80%93_f_30012023.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Ford_Fiesta_ST-Line_%28VII%2C_Facelift%29_%E2%80%93_f_30012023.jpg"
   },
   {
     "id": "ford_focus",
@@ -546,7 +546,7 @@
       "ford focus"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/2018_Ford_Focus_ST-Line_X_1.0.jpg/3840px-2018_Ford_Focus_ST-Line_X_1.0.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/7/75/2018_Ford_Focus_ST-Line_X_1.0.jpg"
   },
   {
     "id": "ford_mondeo",
@@ -559,7 +559,7 @@
       "fusion"
     ],
     "difficulty": "hard",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Ford_Mondeo_Turnier_2.0_EcoBlue_ST-Line_%28V%2C_Facelift%29_%E2%80%93_f_18042021.jpg/3840px-Ford_Mondeo_Turnier_2.0_EcoBlue_ST-Line_%28V%2C_Facelift%29_%E2%80%93_f_18042021.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Ford_Mondeo_Turnier_2.0_EcoBlue_ST-Line_%28V%2C_Facelift%29_%E2%80%93_f_18042021.jpg"
   },
   {
     "id": "ford_kuga",
@@ -572,7 +572,7 @@
       "escape"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ford%20Kuga%202.5%20Duratec%20FHEV%20AWD%20Active%20%28III%2C%20Facelift%29%20%E2%80%93%20f%2001012025.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Ford_Kuga_2.5_Duratec_FHEV_AWD_Active_(III,_Facelift)_–_f_01012025.jpg"
   },
   {
     "id": "ford_puma",
@@ -584,7 +584,7 @@
       "ford puma"
     ],
     "difficulty": "hard",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/English%20Ford%20Puma.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/e/e1/English_Ford_Puma.jpg"
   },
   {
     "id": "ford_explorer",
@@ -596,7 +596,7 @@
       "ford explorer"
     ],
     "difficulty": "hard",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2025%20Ford%20Explorer%20Active%20%28facelift%29%2C%20front%2012.20.24.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/b/bf/2025_Ford_Explorer_Active_(facelift),_front_12.20.24.jpg"
   },
   {
     "id": "ford_f_150",
@@ -622,7 +622,7 @@
       "seat ibiza"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/84/2018_SEAT_Ibiza_SE_Technology_MPi_1.0_Front.jpg/3840px-2018_SEAT_Ibiza_SE_Technology_MPi_1.0_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/84/2018_SEAT_Ibiza_SE_Technology_MPi_1.0_Front.jpg"
   },
   {
     "id": "seat_leon",
@@ -646,7 +646,7 @@
       "seat ateca"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/2017_SEAT_Ateca_Xcellence_1.4_Front.jpg/3840px-2017_SEAT_Ateca_Xcellence_1.4_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/b/bc/2017_SEAT_Ateca_Xcellence_1.4_Front.jpg"
   },
   {
     "id": "opel_corsa",
@@ -658,7 +658,7 @@
       "opel corsa"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Opel_Corsa-e_at_IAA_2019_IMG_0738.jpg/3840px-Opel_Corsa-e_at_IAA_2019_IMG_0738.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/e/e9/Opel_Corsa-e_at_IAA_2019_IMG_0738.jpg"
   },
   {
     "id": "opel_astra",
@@ -670,7 +670,7 @@
       "opel astra"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Opel_Astra_1.2_Turbo_Ultimate_%28L%29_%E2%80%93_f_13122024.jpg/3840px-Opel_Astra_1.2_Turbo_Ultimate_%28L%29_%E2%80%93_f_13122024.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/4c/Opel_Astra_1.2_Turbo_Ultimate_%28L%29_%E2%80%93_f_13122024.jpg"
   },
   {
     "id": "opel_insignia",
@@ -694,7 +694,7 @@
       "opel mokka"
     ],
     "difficulty": "hard",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Opel_Mokka-e_IMG_6111.jpg/3840px-Opel_Mokka-e_IMG_6111.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Opel_Mokka-e_IMG_6111.jpg"
   },
   {
     "id": "hyundai_i10",
@@ -706,7 +706,7 @@
       "hyundai i10"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2023%20Hyundai%20i10%20%28AC3%29%20Autofr%C3%BChling%20Ulm%20IMG%209349.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0d/2023_Hyundai_i10_(AC3)_Autofrühling_Ulm_IMG_9349.jpg"
   },
   {
     "id": "hyundai_i20",
@@ -718,7 +718,7 @@
       "hyundai i20"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/Hyundai_i20_%28III%2C_Facelift%29_%E2%80%93_f_11102025.jpg/3840px-Hyundai_i20_%28III%2C_Facelift%29_%E2%80%93_f_11102025.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/e/ea/Hyundai_i20_%28III%2C_Facelift%29_%E2%80%93_f_11102025.jpg"
   },
   {
     "id": "hyundai_i30",
@@ -730,7 +730,7 @@
       "hyundai i30"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2024%20Hyundai%20i30%20Wagon%20Auto%20Zuerich%202024%20DSC%206744.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/2/23/2024_Hyundai_i30_Wagon_Auto_Zuerich_2024_DSC_6744.jpg"
   },
   {
     "id": "hyundai_tucson",
@@ -742,7 +742,7 @@
       "hyundai tucson"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hyundai%20Tucson%20%28NX4%2C%20SWB%29%20Facelift%20IMG%202344.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/5/56/Hyundai_Tucson_(NX4,_SWB)_Facelift_IMG_2344.jpg"
   },
   {
     "id": "hyundai_santa_fe",
@@ -755,7 +755,7 @@
       "hyundai santa fe"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2024%20Hyundai%20Santa%20Fe%20%28MX5%29%20IMG%205295.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c8/2024_Hyundai_Santa_Fe_(MX5)_IMG_5295.jpg"
   },
   {
     "id": "hyundai_kona",
@@ -767,7 +767,7 @@
       "hyundai kona"
     ],
     "difficulty": "hard",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Hyundai_Kona_N_Line_%28SX2%29_DSC_8250.jpg/3840px-Hyundai_Kona_N_Line_%28SX2%29_DSC_8250.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/ac/Hyundai_Kona_N_Line_%28SX2%29_DSC_8250.jpg"
   },
   {
     "id": "hyundai_elantra",
@@ -780,7 +780,7 @@
       "avante"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Hyundai_Avante_2.0_Inspiration_CN8_Raptor_Gray_Matte_%286%29.jpg/3840px-Hyundai_Avante_2.0_Inspiration_CN8_Raptor_Gray_Matte_%286%29.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Hyundai_Avante_2.0_Inspiration_CN8_Raptor_Gray_Matte_%286%29.jpg"
   },
   {
     "id": "kia_picanto",
@@ -792,7 +792,7 @@
       "kia picanto"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/2018_Kia_Picanto_3_Automatic_1.2_Front.jpg/3840px-2018_Kia_Picanto_3_Automatic_1.2_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8d/2018_Kia_Picanto_3_Automatic_1.2_Front.jpg"
   },
   {
     "id": "kia_rio",
@@ -804,7 +804,7 @@
       "kia rio"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2017%20Kia%20Rio%20%28YB%29%20S%205-door%20hatchback%20%282017-07-15%29%2001.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/06/2017_Kia_Rio_(YB)_S_5-door_hatchback_(2017-07-15)_01.jpg"
   },
   {
     "id": "kia_ceed",
@@ -816,7 +816,7 @@
       "kia ceed"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kia%20cee%27d%201.6%20CRDi%20128%20Spirit%20%28JD%29%20%E2%80%93%20Frontansicht%2C%2011.%20April%202015%2C%20D%C3%BCsseldorf.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/31/Kia_cee'd_1.6_CRDi_128_Spirit_(JD)_–_Frontansicht,_11._April_2015,_Düsseldorf.jpg"
   },
   {
     "id": "kia_sportage",
@@ -828,7 +828,7 @@
       "kia sportage"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2025%20Kia%20Sportage%20%28NQ5%29%20Automesse%20Ludwigsburg%202025%20DSC%202532.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/e/e1/2025_Kia_Sportage_(NQ5)_Automesse_Ludwigsburg_2025_DSC_2532.jpg"
   },
   {
     "id": "kia_sorento",
@@ -840,7 +840,7 @@
       "kia sorento"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kia%20Sorento%202.2%20CRDi%20DCT%20AWD%20Platinum%20%28IV%2C%20Facelift%29%20%E2%80%93%20f%2014102025.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/9/99/Kia_Sorento_2.2_CRDi_DCT_AWD_Platinum_(IV,_Facelift)_–_f_14102025.jpg"
   },
   {
     "id": "nissan_micra",
@@ -853,7 +853,7 @@
       "march"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/2015_Nissan_Micra_SR_in_Brilliant_Silver%2C_front_right%2C_2024-10-11.jpg/3840px-2015_Nissan_Micra_SR_in_Brilliant_Silver%2C_front_right%2C_2024-10-11.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0d/2015_Nissan_Micra_SR_in_Brilliant_Silver%2C_front_right%2C_2024-10-11.jpg"
   },
   {
     "id": "nissan_qashqai",
@@ -865,7 +865,7 @@
       "nissan qashqai"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/2024_Nissan_Qashqai_e-Power_IMG_2187.jpg/3840px-2024_Nissan_Qashqai_e-Power_IMG_2187.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/dc/2024_Nissan_Qashqai_e-Power_IMG_2187.jpg"
   },
   {
     "id": "nissan_juke",
@@ -877,7 +877,7 @@
       "nissan juke"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2013%20Nissan%20Juke%20Nismo%20Front%20Left.png"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/b/b1/2013_Nissan_Juke_Nismo_Front_Left.png"
   },
   {
     "id": "nissan_x_trail",
@@ -891,7 +891,7 @@
       "rogue"
     ],
     "difficulty": "hard",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Nissan_X-Trail_%28T33%29_1X7A7179.jpg/3840px-Nissan_X-Trail_%28T33%29_1X7A7179.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/35/Nissan_X-Trail_%28T33%29_1X7A7179.jpg"
   },
   {
     "id": "audi_a3",
@@ -903,7 +903,7 @@
       "audi a3"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Audi_A3_8Y_Sedan_IMG_5936.jpg/3840px-Audi_A3_8Y_Sedan_IMG_5936.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Audi_A3_8Y_Sedan_IMG_5936.jpg"
   },
   {
     "id": "audi_a4",
@@ -915,7 +915,7 @@
       "audi a4"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Audi_A4_B9_sedans_%28FL%29_1X7A2441.jpg/3840px-Audi_A4_B9_sedans_%28FL%29_1X7A2441.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/35/Audi_A4_B9_sedans_%28FL%29_1X7A2441.jpg"
   },
   {
     "id": "audi_a6",
@@ -927,7 +927,7 @@
       "audi a6"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Audi_A6_C9_IAA_2025_DSC_1920.jpg/3840px-Audi_A6_C9_IAA_2025_DSC_1920.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/e/eb/Audi_A6_C9_IAA_2025_DSC_1920.jpg"
   },
   {
     "id": "audi_q3",
@@ -939,7 +939,7 @@
       "audi q3"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Audi_Q3_F3_DSC_7494.jpg/3840px-Audi_Q3_F3_DSC_7494.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Audi_Q3_F3_DSC_7494.jpg"
   },
   {
     "id": "audi_q5",
@@ -951,7 +951,7 @@
       "audi q5"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Audi_Q5_2.0_TDI_quattro_S_line_%28GU%29_%E2%80%93_f_13102025.jpg/3840px-Audi_Q5_2.0_TDI_quattro_S_line_%28GU%29_%E2%80%93_f_13102025.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/6d/Audi_Q5_2.0_TDI_quattro_S_line_%28GU%29_%E2%80%93_f_13102025.jpg"
   },
   {
     "id": "audi_q7",
@@ -963,7 +963,7 @@
       "audi q7"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Audi%20Q7%204M%20FL2%203.0%20V6%20MHEV%20quattro%20Satellite%20Silver%20Metallic%2001%20%28cropped%29.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/5/5f/Audi_Q7_4M_FL2_3.0_V6_MHEV_quattro_Satellite_Silver_Metallic_01_(cropped).jpg"
   },
   {
     "id": "bmw_1_series",
@@ -976,7 +976,7 @@
       "1er"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2018%20BMW%20118i%20SE%20Automatic%201.5.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3d/2018_BMW_118i_SE_Automatic_1.5.jpg"
   },
   {
     "id": "bmw_3_series",
@@ -989,7 +989,7 @@
       "3er"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2017%20BMW%20340i%20%28F30%20LCI%29%20Luxury%20Line%20sedan%20%282018-07-30%29%2001.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/64/2017_BMW_340i_(F30_LCI)_Luxury_Line_sedan_(2018-07-30)_01.jpg"
   },
   {
     "id": "bmw_5_series",
@@ -1002,7 +1002,7 @@
       "5er"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/BMW_G60_520i_1X7A2443.jpg/3840px-BMW_G60_520i_1X7A2443.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/86/BMW_G60_520i_1X7A2443.jpg"
   },
   {
     "id": "bmw_x5",
@@ -1014,7 +1014,7 @@
       "bmw x5"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2003%20BMW%20X5%203.0i%20--%20NHTSA%2001.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/a7/2003_BMW_X5_3.0i_--_NHTSA_01.jpg"
   },
   {
     "id": "bmw_x6",
@@ -1026,7 +1026,7 @@
       "bmw x6"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/BMW_G06_IMG_3142.jpg/3840px-BMW_G06_IMG_3142.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/b/b9/BMW_G06_IMG_3142.jpg"
   },
   {
     "id": "mercedes_benz_a_class",
@@ -1040,7 +1040,7 @@
       "classe a"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/2018_Mercedes-Benz_A200_AMG_Line_Premium_Automatic_1.3_Front.jpg/3840px-2018_Mercedes-Benz_A200_AMG_Line_Premium_Automatic_1.3_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f7/2018_Mercedes-Benz_A200_AMG_Line_Premium_Automatic_1.3_Front.jpg"
   },
   {
     "id": "mercedes_benz_c_class",
@@ -1054,7 +1054,7 @@
       "classe c"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Mercedes-Benz_W206_IMG_6380.jpg/3840px-Mercedes-Benz_W206_IMG_6380.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/b/be/Mercedes-Benz_W206_IMG_6380.jpg"
   },
   {
     "id": "mercedes_benz_e_class",
@@ -1068,7 +1068,7 @@
       "classe e"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Mercedes-Benz_W214_1X7A1841.jpg/3840px-Mercedes-Benz_W214_1X7A1841.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/fd/Mercedes-Benz_W214_1X7A1841.jpg"
   },
   {
     "id": "mercedes_benz_s_class",
@@ -1082,7 +1082,7 @@
       "classe s"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Mercedes-Benz_W223_IMG_6663.jpg/3840px-Mercedes-Benz_W223_IMG_6663.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/5/55/Mercedes-Benz_W223_IMG_6663.jpg"
   },
   {
     "id": "mercedes_benz_cla",
@@ -1095,7 +1095,7 @@
       "cla coupe"
     ],
     "difficulty": "medium",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Mercedes-Benz_C118_IMG_2673.jpg/3840px-Mercedes-Benz_C118_IMG_2673.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/7/71/Mercedes-Benz_C118_IMG_2673.jpg"
   },
   {
     "id": "mercedes_benz_g_class",
@@ -1150,7 +1150,7 @@
       "jeep grand cherokee"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/2022_Jeep_Grand_Cherokee_Summit_Reserve_4x4_in_Bright_White%2C_Front_Left%2C_01-16-2022.jpg/3840px-2022_Jeep_Grand_Cherokee_Summit_Reserve_4x4_in_Bright_White%2C_Front_Left%2C_01-16-2022.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/6c/2022_Jeep_Grand_Cherokee_Summit_Reserve_4x4_in_Bright_White%2C_Front_Left%2C_01-16-2022.jpg"
   },
   {
     "id": "land_rover_range_rover",
@@ -1199,7 +1199,7 @@
       "tesla model y"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Tesla_Model_Y_Premium_%28Facelift%29_%E2%80%93_f_05052026.jpg/3840px-Tesla_Model_Y_Premium_%28Facelift%29_%E2%80%93_f_05052026.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Tesla_Model_Y_Premium_%28Facelift%29_%E2%80%93_f_05052026.jpg"
   },
   {
     "id": "tesla_model_s",
@@ -1506,7 +1506,7 @@
       "rolls royce cullinan"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/2019_Rolls-Royce_Cullinan_V12_Automatic_6.75_Front.jpg/3840px-2019_Rolls-Royce_Cullinan_V12_Automatic_6.75_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0d/2019_Rolls-Royce_Cullinan_V12_Automatic_6.75_Front.jpg"
   },
   {
     "id": "bentley_continental_gt",
@@ -1680,7 +1680,7 @@
       "audi rs5"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Audi%20RS5%20Coupe%20IMG%200912.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/87/Audi_RS5_Coupe_IMG_0912.jpg"
   },
   {
     "id": "audi_rs7",
@@ -2116,7 +2116,7 @@
       "subaru forester"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Subaru_Forester_%28SL%29_e-BOXER_DSC_8811.jpg/3840px-Subaru_Forester_%28SL%29_e-BOXER_DSC_8811.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/48/Subaru_Forester_%28SL%29_e-BOXER_DSC_8811.jpg"
   },
   {
     "id": "subaru_outback",
@@ -2128,7 +2128,7 @@
       "subaru outback"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2023%20Subaru%20Outback%20Limited%20in%20Magnetite%20Gray%20Metallic%2C%20front%20left.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/6a/2023_Subaru_Outback_Limited_in_Magnetite_Gray_Metallic,_front_left.jpg"
   },
   {
     "id": "mitsubishi_lancer_evolution",
@@ -2562,7 +2562,7 @@
       "mclaren artura"
     ],
     "difficulty": "medium",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/2021_McLaren_Artura_%281%29.jpg/3840px-2021_McLaren_Artura_%281%29.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/63/2021_McLaren_Artura_%281%29.jpg"
   },
   {
     "id": "lotus_elise",
@@ -2634,7 +2634,7 @@
       "ford bronco"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ford%20Bronco%20%286th%20generation%29%201X7A0874.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/1a/Ford_Bronco_(6th_generation)_1X7A0874.jpg"
   },
   {
     "id": "ford_ranger",
@@ -2647,7 +2647,7 @@
       "ranger raptor"
     ],
     "difficulty": "easy",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Ford_Ranger_%28T6%2C_P703%29_Wildtrak_IMG_7320.jpg/3840px-Ford_Ranger_%28T6%2C_P703%29_Wildtrak_IMG_7320.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/2/28/Ford_Ranger_%28T6%2C_P703%29_Wildtrak_IMG_7320.jpg"
   },
   {
     "id": "renault_megane_rs",
@@ -2745,7 +2745,7 @@
       "swift sport"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Suzuki_Swift_%282024%29_hybrid_DSC_6076.jpg/3840px-Suzuki_Swift_%282024%29_hybrid_DSC_6076.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/3d/Suzuki_Swift_%282024%29_hybrid_DSC_6076.jpg"
   },
   {
     "id": "volvo_xc90",
@@ -2757,7 +2757,7 @@
       "volvo xc90"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2025%20Volvo%20XC90%20II%20DSC%207423.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/fc/2025_Volvo_XC90_II_DSC_7423.jpg"
   },
   {
     "id": "volvo_v60_polestar",
@@ -2881,7 +2881,7 @@
       "mclaren speedtail"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/McLaren_Speedtail_Genf_2019_1Y7A5636.jpg/3840px-McLaren_Speedtail_Genf_2019_1Y7A5636.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/35/McLaren_Speedtail_Genf_2019_1Y7A5636.jpg"
   },
   {
     "id": "mclaren_f1",
@@ -2893,7 +2893,7 @@
       "f1"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/1996_McLaren_F1_Chassis_No_63_6.1_Front.jpg/3840px-1996_McLaren_F1_Chassis_No_63_6.1_Front.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/16/1996_McLaren_F1_Chassis_No_63_6.1_Front.jpg"
   },
   {
     "id": "ferrari_f40",
@@ -3029,7 +3029,7 @@
       "lamborghini sian"
     ],
     "difficulty": "medium",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Lamborghini_Sian_at_IAA_2019_IMG_0332.jpg/3840px-Lamborghini_Sian_at_IAA_2019_IMG_0332.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/18/Lamborghini_Sian_at_IAA_2019_IMG_0332.jpg"
   },
   {
     "id": "lamborghini_veneno",
@@ -3041,7 +3041,7 @@
       "lamborghini veneno"
     ],
     "difficulty": "medium",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Geneva_MotorShow_2013_-_Lamborghini_Veneno_1.jpg/3840px-Geneva_MotorShow_2013_-_Lamborghini_Veneno_1.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/07/Geneva_MotorShow_2013_-_Lamborghini_Veneno_1.jpg"
   },
   {
     "id": "lamborghini_murcilago",
@@ -3127,7 +3127,7 @@
       "koenigsegg gemera"
     ],
     "difficulty": "medium",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Koenigsegg_Gemera.jpg/3840px-Koenigsegg_Gemera.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Koenigsegg_Gemera.jpg"
   },
   {
     "id": "pagani_zonda",
@@ -3200,7 +3200,7 @@
       "porsche 918"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Porsche%20918%20Spyder%20IAA%202013.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/9/91/Porsche_918_Spyder_IAA_2013.jpg"
   },
   {
     "id": "porsche_356",
@@ -3312,7 +3312,7 @@
       "slr mclaren"
     ],
     "difficulty": "easy",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mercedes-Benz%20SLR%20McLaren%202.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8b/Mercedes-Benz_SLR_McLaren_2.jpg"
   },
   {
     "id": "bmw_m1",
@@ -3449,7 +3449,7 @@
       "lancia fulvia"
     ],
     "difficulty": "hard",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2006%20SAG%20-%20Lancia%20Fulvia%20Coup%C3%A9%20I%201967-01.JPG"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/84/2006_SAG_-_Lancia_Fulvia_Coupé_I_1967-01.JPG"
   },
   {
     "id": "lotus_carlton",
@@ -3473,7 +3473,7 @@
       "lotus esprit"
     ],
     "difficulty": "hard",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Schaffen%20Lotus%20Esprit%2001.JPG"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/84/Schaffen_Lotus_Esprit_01.JPG"
   },
   {
     "id": "tvr_sagaris",
@@ -3572,7 +3572,7 @@
       "toyota century"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2000-2004%20Toyota%20Century%205.0%20TA-GZG50%20%2820241208%29.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/fe/2000-2004_Toyota_Century_5.0_TA-GZG50_(20241208).jpg"
   },
   {
     "id": "nissan_r390_gt1",
@@ -3745,7 +3745,7 @@
       "turbo 2"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/15/1981_Renault_5_Turbo_LC23.jpg/3840px-1981_Renault_5_Turbo_LC23.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/15/1981_Renault_5_Turbo_LC23.jpg"
   },
   {
     "id": "renault_clio_v6",
@@ -3783,7 +3783,7 @@
       "rs2 avant"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/1995_Audi_RS2_Avant_LC25.jpg/3840px-1995_Audi_RS2_Avant_LC25.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/a0/1995_Audi_RS2_Avant_LC25.jpg"
   },
   {
     "id": "bugatti_eb110",
@@ -3897,7 +3897,7 @@
       "plymouth cuda"
     ],
     "difficulty": "medium",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/%2770%20Plymouth%20Barracuda%20%28%2711%20Auto%20classique%20VAQ%20Mont%20St-Hilaire%29.JPG"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/49/'70_Plymouth_Barracuda_('11_Auto_classique_VAQ_Mont_St-Hilaire).JPG"
   },
   {
     "id": "chevrolet_chevelle_ss",
@@ -3909,7 +3909,7 @@
       "chevelle ss"
     ],
     "difficulty": "medium",
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/1970_Chevrolet_Chevelle_SS_396_Sport_Coupe%2C_front_left%2C_06-08-2024.jpg/3840px-1970_Chevrolet_Chevelle_SS_396_Sport_Coupe%2C_front_left%2C_06-08-2024.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/df/1970_Chevrolet_Chevelle_SS_396_Sport_Coupe%2C_front_left%2C_06-08-2024.jpg"
   },
   {
     "id": "vector_w8",
@@ -3981,7 +3981,7 @@
       "wiesmann gt"
     ],
     "difficulty": "hard",
-    "image_url": "https://upload.wikimedia.org/wikipedia/en/thumb/8/8d/Wiesmannlogo.png/800px-Wiesmannlogo.png"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8d/Wiesmannlogo.png"
   },
   {
     "id": "venturi_atlantique",
@@ -4606,7 +4606,7 @@
       "z30"
     ],
     "difficulty": "medium",
-    "image_url": "https://upload.wikimedia.org/wikipedia/en/e/e6/Soarerbadge.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/4d/1988_Toyota_Soarer_2.0GT_Twin_Turbo.jpg"
   },
   {
     "id": "nissan_pulsar_gti_r",

@@ -166,6 +166,7 @@ class MoveModal(Modal, title="La3eb Chess"):
         self.game_view = game_view
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         await self.game_view.process_move_input(interaction, self.move_input.value.strip())
 
 class ChessView(View):
@@ -183,7 +184,7 @@ class ChessView(View):
         self.draw_offered_by: Optional[Union[discord.Member, discord.User]] = None
 
     def get_current_color_symbol(self) -> str:
-        return "⚪ (Byed)" if self.board.turn == chess.WHITE else "⚫ (Khel)"
+        return "⚪ (Byed)" if self.board.turn == chess.WHITE else "⚫ (K7el)"
 
     def is_current_player(self, user: Union[discord.Member, discord.User]) -> bool:
         return user == self.current_turn
@@ -225,7 +226,7 @@ class ChessView(View):
     def build_embed(self) -> discord.Embed:
         embed = discord.Embed(title="♟️ Match dial Chess", color=0x000000)
         embed.add_field(name="Byed ⚪", value=self.player_white.mention, inline=True)
-        embed.add_field(name="Khel ⚫", value=self.player_black.mention, inline=True)
+        embed.add_field(name="K7el ⚫", value=self.player_black.mention, inline=True)
         if self.bet > 0:
             embed.add_field(name="💰 Stake", value=format_tad(self.bet), inline=True)
 
@@ -248,7 +249,7 @@ class ChessView(View):
                 if outcome.winner == chess.WHITE:
                     embed.description = f"🏆 **Checkmate! {self.player_white.mention} (Byed) rbe7!**{eco_suffix}"
                 elif outcome.winner == chess.BLACK:
-                    embed.description = f"🏆 **Checkmate! {self.player_black.mention} (Khel) rbe7!**{eco_suffix}"
+                    embed.description = f"🏆 **Checkmate! {self.player_black.mention} (K7el) rbe7!**{eco_suffix}"
                 else:
                     embed.description = f"🤝 **Ta3adol! ({outcome.termination.name.replace('_', ' ').title()})**{eco_suffix}"
         else:
@@ -479,33 +480,36 @@ class ChessView(View):
         if not legal_moves:
             return
 
-        best_move = None
-        best_value = -999999 if self.board.turn == chess.BLACK else 999999
+        bot_is_white = (self.board.turn == chess.WHITE)
+        best_move = legal_moves[0]
+        best_value = -999999 if bot_is_white else 999999
         ordered = self._order_moves(self.board, legal_moves)
 
-        # Increased depth for harder bot
-        search_depth = 4
-        
+        # Fast tactical depth for snappy response without blocking event loop
+        search_depth = 2
+
         for move in ordered:
             self.board.push(move)
-            if self.board.turn == chess.WHITE:
+            if bot_is_white:
                 value = self._minimax(self.board, search_depth - 1, -999999, 999999, False)
-                if value < best_value:
+                if value > best_value:
                     best_value = value
                     best_move = move
             else:
                 value = self._minimax(self.board, search_depth - 1, -999999, 999999, True)
-                if value > best_value:
+                if value < best_value:
                     best_value = value
                     best_move = move
             self.board.pop()
 
-        if best_move:
-            self.board.push(best_move)
+        self.board.push(best_move)
 
     async def process_move_input(self, interaction: discord.Interaction, move_str: str):
         if self.game_over or not self.is_current_player(interaction.user):
-            await interaction.response.send_message("Mashi nobtsek!", ephemeral=True)
+            if interaction.response.is_done():
+                await interaction.followup.send("Mashi nobtsek!", ephemeral=True)
+            else:
+                await interaction.response.send_message("Mashi nobtsek!", ephemeral=True)
             return
 
         parsed_move = None
@@ -520,7 +524,11 @@ class ChessView(View):
                 parsed_move = None
 
         if not parsed_move or parsed_move not in self.board.legal_moves:
-            await interaction.response.send_message(f"❌ **l move ghalat (`{move_str}`)!** khdem b SAN (mtalan `e4`, `Nf3`) ola UCI (mtalan `e2e4`).", ephemeral=True)
+            err_msg = f"❌ **l move ghalat (`{move_str}`)!** khdem b SAN (mtalan `e4`, `Nf3`) ola UCI (mtalan `e2e4`)."
+            if interaction.response.is_done():
+                await interaction.followup.send(err_msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(err_msg, ephemeral=True)
             return
 
         # Push Human Move
@@ -544,15 +552,18 @@ class ChessView(View):
             if self.board.is_checkmate() and not self.is_bot_game and self.cog and interaction.guild and winner:
                 await self.cog.record_minigame_win(interaction.guild.id, winner.id, "chess", earnings=self.bet if self.bet > 0 else 0)
             board_file = await self.generate_board_file()
-            await interaction.response.edit_message(embed=self.build_embed(), attachments=[board_file], view=self)
+            if interaction.response.is_done():
+                await interaction.followup.edit_message(message_id=interaction.message.id, embed=self.build_embed(), attachments=[board_file], view=None)
+            else:
+                await interaction.response.edit_message(embed=self.build_embed(), attachments=[board_file], view=None)
             return
 
         # Switch Turn
         self.current_turn = self.player_black if self.current_turn == self.player_white else self.player_white
 
-        # Bot Move (Single-Player)
+        # Bot Move (Single-Player) - Offloaded to worker thread so event loop / gateway never blocks
         if self.is_bot_game and self.current_turn == self.player_black:
-            self.make_bot_move()
+            await asyncio.to_thread(self.make_bot_move)
             if self.board.is_game_over():
                 self.game_over = True
                 self.stop()
@@ -573,7 +584,10 @@ class ChessView(View):
                 self.current_turn = self.player_white
 
         board_file = await self.generate_board_file()
-        await interaction.response.edit_message(embed=self.build_embed(), attachments=[board_file], view=self)
+        if interaction.response.is_done():
+            await interaction.followup.edit_message(message_id=interaction.message.id, embed=self.build_embed(), attachments=[board_file], view=self if not self.game_over else None)
+        else:
+            await interaction.response.edit_message(embed=self.build_embed(), attachments=[board_file], view=self if not self.game_over else None)
 
     @discord.ui.button(label="Move", style=discord.ButtonStyle.primary, emoji="♟️")
     async def move_button(self, interaction: discord.Interaction, button: Button):
@@ -1604,24 +1618,36 @@ class AkinatorView(View):
                 self.cleanup_session()
                 self.disable_all_buttons()
                 self.stop()
+                try:
+                    await self.aki.choose()
+                except Exception as e:
+                    print(f"[Akinator Choose Error]: {e}")
                 economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                 eco_msg = ""
                 if economy_cog:
                     net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 100, context="Akinator Completion")
                     eco_msg = f"\n\n🎁 Rbe7ti **+{net}** {TAD_EMOJI} TAD cadeau dial l3ib!"
+                name = getattr(self.aki, "name_proposition", "L Personnage dialk")
+                desc = getattr(self.aki, "description_proposition", "")
+                photo = getattr(self.aki, "photo", None)
                 embed = discord.Embed(
                     title="🎉 Rbe7t! L9it l personnage dialk!",
-                    description=f"**{self.aki.first_guess['name']}**\n{self.aki.first_guess.get('description', '')}{eco_msg}",
+                    description=f"**{name}**\n*{desc}*{eco_msg}",
                     color=0x000000
                 )
-                if self.aki.first_guess.get('absolute_picture_path'):
-                    embed.set_image(url=self.aki.first_guess['absolute_picture_path'])
+                if photo:
+                    embed.set_image(url=photo)
                 await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self)
                 return
             else:
                 self.guessing = False
-                # If Akinator reached high steps (>75), admit defeat and complete game
-                if self.aki.step >= 75:
+                try:
+                    await self.aki.exclude()
+                except Exception as e:
+                    print(f"[Akinator Exclude Error]: {e}")
+
+                # If Akinator reached high steps (>75) or finished after exclude, admit defeat
+                if self.aki.step >= 75 or getattr(self.aki, "finished", False):
                     self.game_over = True
                     self.cleanup_session()
                     self.disable_all_buttons()
@@ -1652,13 +1678,8 @@ class AkinatorView(View):
                     if isinstance(child, Button):
                         child.callback = self.button_callback
 
-                try:
-                    await self.aki.answer("no")
-                    embed = self.build_question_embed(self.aki.question)
-                    await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self)
-                except Exception as e:
-                    print(f"[Akinator Rejection Error]: {e}")
-                    await interaction.followup.send("❌ Ma9ditch nregistery ljawab ta3k, 3awd jrb.", ephemeral=True)
+                embed = self.build_question_embed(self.aki.question)
+                await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self)
                 return
 
         # Turn Processing with Retries
@@ -1682,32 +1703,29 @@ class AkinatorView(View):
             return
 
         # Win Check Logic
-        if self.aki.progression >= 80 or self.aki.step >= 79:
-            try:
-                await self.aki.win()
-                guess = self.aki.first_guess
-                if guess:
-                    self.guessing = True
-                    embed = discord.Embed(
-                        title="🤔 Wach hada howa l personnage li f balek?",
-                        description=f"**{guess['name']}**\n*{guess.get('description', '')}*",
-                        color=0x000000
-                    )
-                    if guess.get('absolute_picture_path'):
-                        embed.set_image(url=guess['absolute_picture_path'])
+        if getattr(self.aki, "win", False) and getattr(self.aki, "name_proposition", None):
+            self.guessing = True
+            name = self.aki.name_proposition
+            desc = getattr(self.aki, "description_proposition", "")
+            photo = getattr(self.aki, "photo", None)
+            embed = discord.Embed(
+                title="🤔 Wach hada howa l personnage li f balek?",
+                description=f"**{name}**\n*{desc}*",
+                color=0x000000
+            )
+            if photo:
+                embed.set_image(url=photo)
 
-                    self.clear_items()
-                    self.add_item(AkinatorButton("Yes", "aki_y", discord.ButtonStyle.success, "✅", 0))
-                    self.add_item(AkinatorButton("No", "aki_n", discord.ButtonStyle.danger, "❌", 0))
+            self.clear_items()
+            self.add_item(AkinatorButton("Yes", "aki_y", discord.ButtonStyle.success, "✅", 0))
+            self.add_item(AkinatorButton("No", "aki_n", discord.ButtonStyle.danger, "❌", 0))
 
-                    for child in self.children:
-                        if isinstance(child, Button):
-                            child.callback = self.button_callback
+            for child in self.children:
+                if isinstance(child, Button):
+                    child.callback = self.button_callback
 
-                    await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self)
-                    return
-            except Exception as e:
-                print(f"[akipy Win Check Error]: {e}")
+            await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self)
+            return
 
         embed = self.build_question_embed(self.aki.question)
         await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=self)
@@ -3827,61 +3845,70 @@ class TriviaQuestionView(View):
 # ============ TYPERACER HELPERS ============
 
 def render_typeracer_image(text: str) -> io.BytesIO:
-    width = 960
-    height = 240
-    img = Image.new("RGBA", (width, height), (0, 0, 0, 255))
+    width = 1000
+    height = 260
+    img = Image.new("RGB", (width, height), (0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Accent line at the very top
-    draw.rectangle([(0, 0), (width, 4)], fill=(255, 255, 255, 255))
+    max_w = width - 60
+    max_h = height - 40
 
-    try:
-        header_font = ImageFont.truetype("arial.ttf", 16)
-        text_font = ImageFont.truetype("arialbd.ttf", 46)
-    except Exception:
-        header_font = ImageFont.load_default()
-        text_font = ImageFont.load_default()
+    best_font = None
+    best_lines = []
+    best_line_spacing = 10
 
-    draw.text((40, 22), "TYPERACER  •  Type the 5 words below as fast as you can!", fill=(160, 160, 160, 255), font=header_font)
+    # Dynamically find the largest bold font size that fits the text on 1 or 2 lines
+    for size in range(85, 24, -2):
+        try:
+            font = ImageFont.truetype("arialbd.ttf", size)
+        except Exception:
+            try:
+                font = ImageFont.truetype("arial.ttf", size)
+            except Exception:
+                font = ImageFont.load_default()
 
-    # Inner container card
-    card_top = 58
-    card_bottom = height - 25
-    draw.rounded_rectangle([(30, card_top), (width - 30, card_bottom)], radius=12, fill=(15, 15, 15, 255), outline=(45, 45, 45, 255), width=2)
+        words = text.split()
+        lines = []
+        cur_line = []
+        for w in words:
+            cur_line.append(w)
+            bbox = draw.textbbox((0, 0), " ".join(cur_line), font=font)
+            if (bbox[2] - bbox[0]) > max_w:
+                cur_line.pop()
+                if cur_line:
+                    lines.append(" ".join(cur_line))
+                cur_line = [w]
+        if cur_line:
+            lines.append(" ".join(cur_line))
 
-    words = text.split()
-    lines = []
-    current_line = []
-    for word in words:
-        current_line.append(word)
-        line_str = " ".join(current_line)
-        bbox = draw.textbbox((0, 0), line_str, font=text_font)
-        if (bbox[2] - bbox[0]) > 860:
-            current_line.pop()
-            lines.append(" ".join(current_line))
-            current_line = [word]
-    if current_line:
-        lines.append(" ".join(current_line))
+        if len(lines) > 2:
+            continue
 
-    card_center_y = (card_top + card_bottom) // 2
+        line_heights = [draw.textbbox((0, 0), l, font=font)[3] - draw.textbbox((0, 0), l, font=font)[1] for l in lines]
+        line_spacing = int(size * 0.25)
+        total_text_h = sum(line_heights) + (len(lines) - 1) * line_spacing
 
-    if len(lines) == 1:
-        line = lines[0]
-        bbox = draw.textbbox((0, 0), line, font=text_font)
-        text_w = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
-        x = (width - text_w) // 2
-        y = card_center_y - (text_h // 2) - bbox[1]
-        draw.text((x, y), line, fill=(255, 255, 255, 255), font=text_font)
-    else:
-        line_spacing = 54
-        total_h = len(lines) * line_spacing
-        y_start = card_center_y - (total_h // 2)
-        for i, line in enumerate(lines):
-            bbox = draw.textbbox((0, 0), line, font=text_font)
-            text_w = bbox[2] - bbox[0]
-            x = (width - text_w) // 2
-            draw.text((x, y_start + i * line_spacing), line, fill=(255, 255, 255, 255), font=text_font)
+        if total_text_h <= max_h:
+            best_font = font
+            best_lines = lines
+            best_line_spacing = line_spacing
+            break
+
+    if not best_lines:
+        best_font = ImageFont.load_default()
+        best_lines = [text]
+        best_line_spacing = 10
+
+    total_text_h = sum([draw.textbbox((0, 0), l, font=best_font)[3] - draw.textbbox((0, 0), l, font=best_font)[1] for l in best_lines]) + (len(best_lines) - 1) * best_line_spacing
+    y_cursor = (height - total_text_h) // 2
+
+    for line in best_lines:
+        bbox = draw.textbbox((0, 0), line, font=best_font)
+        line_w = bbox[2] - bbox[0]
+        line_h = bbox[3] - bbox[1]
+        x = (width - line_w) // 2
+        draw.text((x, y_cursor - bbox[1]), line, fill=(255, 255, 255), font=best_font)
+        y_cursor += line_h + best_line_spacing
 
     output = io.BytesIO()
     img.save(output, format="PNG")
@@ -4119,20 +4146,51 @@ def is_car_guess_correct(guess: str, car: dict) -> bool:
     ] + car.get("aliases", [])
 
     guess_compact = norm_guess.replace(" ", "")
+    guess_digits = re.findall(r"\d+", norm_guess)
+    guess_tokens = set(norm_guess.split())
 
     for target in targets:
         if not target:
             continue
         norm_target = normalize_car_text(target)
         target_compact = norm_target.replace(" ", "")
+        target_digits = re.findall(r"\d+", norm_target)
+        target_tokens = set(norm_target.split())
 
+        # 1. Exact matches (standard or compact)
         if norm_guess == norm_target or guess_compact == target_compact:
             return True
 
-        if len(norm_guess) >= 3 and len(norm_target) >= 3:
-            if difflib.SequenceMatcher(None, norm_guess, norm_target).ratio() >= 0.85:
-                return True
-            if difflib.SequenceMatcher(None, guess_compact, target_compact).ratio() >= 0.85:
+        # 2. Strict digit check: If digits exist in either target or guess, digits MUST match exactly
+        if target_digits or guess_digits:
+            if target_digits != guess_digits:
+                continue
+
+        # 3. Critical short model tokens (<= 2 chars, like 'y', '3', 'e', 'c', 's', 'x', 'm3')
+        # These are distinguishing model grades/letters that must never be mismatched
+        critical_tokens = {tok for tok in target_tokens if len(tok) <= 2 and tok not in ("de", "la", "le", "di", "el", "un")}
+        if critical_tokens:
+            tokens_ok = True
+            for ctok in critical_tokens:
+                if ctok not in guess_tokens:
+                    # check if ends or starts with token in compact form (e.g. 'modely' ending with 'y')
+                    if not (guess_compact.endswith(ctok) or guess_compact.startswith(ctok)):
+                        tokens_ok = False
+                        break
+            if not tokens_ok:
+                continue
+
+        # 4. Fuzzy typo matching:
+        # Only allowed for long model names (>= 5 chars).
+        # Differing tokens cannot be short model identifiers (<= 2 chars like 'z' vs 'y')
+        if len(norm_guess) >= 5 and len(norm_target) >= 5:
+            ratio = difflib.SequenceMatcher(None, norm_guess, norm_target).ratio()
+            compact_ratio = difflib.SequenceMatcher(None, guess_compact, target_compact).ratio()
+
+            if ratio >= 0.88 or compact_ratio >= 0.88:
+                diff_tokens = (target_tokens - guess_tokens) | (guess_tokens - target_tokens)
+                if any(len(dt) <= 2 for dt in diff_tokens):
+                    continue
                 return True
 
     return False
@@ -8897,7 +8955,10 @@ class Fun(commands.Cog):
                             guessed = True
                             if not countdown_task.done():
                                 countdown_task.cancel()
-                            await m.add_reaction("📍")
+                            try:
+                                await m.add_reaction("📍")
+                            except Exception:
+                                pass
                             break
                     except asyncio.TimeoutError:
                         break
@@ -8958,7 +9019,7 @@ class Fun(commands.Cog):
                     f"**Round Breakdown:**\n"
                     + "\n".join([
                         f"• Round {idx+1}: **{h[0]['country']}** — {h[1]} (`{h[3]:,.0f} km` • `{h[2]*100:.0f}%`)"
-                        if h[2] > 0 else
+                        if h[1] != "None" else
                         f"• Round {idx+1}: **{h[0]['country']}** — Time Out (`0%`)"
                         for idx, h in enumerate(round_history)
                     ])
@@ -9033,7 +9094,10 @@ class Fun(commands.Cog):
                             round_stake = proximity * 50
                             guesses[m.author.id] = (cguess, proximity, dist, round_stake)
                             player_stakes[m.author.id] += round_stake
-                            await m.add_reaction("📍")
+                            try:
+                                await m.add_reaction("📍")
+                            except Exception:
+                                pass
                             if len(guesses) >= len(players):
                                 if not countdown_task.done():
                                     countdown_task.cancel()
