@@ -17,7 +17,7 @@ AllBotCommands = {
     "Fun": [
         "truth", "dare", "wouldyourather", "flags", "craftingtable", "guessthecar", "blacktea", "greentea", "redtea", "unscramble",
         "tictactoe", "connectfour", "akinator", "playchess", "rockpaperscissors", "minesweeper", "wordle", "hangman", "trivia",
-        "typeracer", "blackjack", "slots", "mines", "roulette", "higherlower", "coinflip", "dice", "leaderboard", "geoguessr", "guesstherank"
+        "typeracer", "blackjack", "slots", "mines", "roulette", "higherlower", "coinflip", "dice", "leaderboard", "geoguessr", "guesstherank", "chesspuzzle"
     ],
     "Moderation": [
         "prefix", "clearsnipes", "cleareditsnipes", "clearreactionsnipes", "clearallsnipes", "role",

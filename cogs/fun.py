@@ -81,8 +81,8 @@ AsyncClient._AsyncClient__handler = _patched_handler
 # Global cache for piece images
 _PIECE_IMAGE_CACHE = {}
 
-def render_chess_board(board: chess.Board) -> io.BytesIO:
-    """Renders a chess board with loaded piece images and coordinate labels."""
+def render_chess_board(board: chess.Board, orientation: chess.Color = chess.WHITE) -> io.BytesIO:
+    """Renders a chess board with loaded piece images and coordinate labels, supporting rotation."""
     square_size = 64
     board_size = square_size * 8
     margin = 30
@@ -106,9 +106,11 @@ def render_chess_board(board: chess.Board) -> io.BytesIO:
             
             # Coordinates
             if col == 0:
-                draw.text((margin - 18, y1 + 25), str(8 - row), fill=label_color)
+                rank_lbl = str(8 - row) if orientation == chess.WHITE else str(row + 1)
+                draw.text((margin - 18, y1 + 25), rank_lbl, fill=label_color)
             if row == 7:
-                draw.text((x1 + square_size // 2 - 4, margin + board_size + 8), chr(97 + col), fill=label_color)
+                file_lbl = chr(97 + col) if orientation == chess.WHITE else chr(ord('h') - col)
+                draw.text((x1 + square_size // 2 - 4, margin + board_size + 8), file_lbl, fill=label_color)
 
     # Load and draw pieces
     piece_map = {
@@ -123,8 +125,14 @@ def render_chess_board(board: chess.Board) -> io.BytesIO:
     for square in chess.SQUARES:
         piece = board.piece_at(square)
         if piece:
-            col = chess.square_file(square)
-            row = 7 - chess.square_rank(square)
+            f = chess.square_file(square)
+            r = chess.square_rank(square)
+            if orientation == chess.WHITE:
+                col = f
+                row = 7 - r
+            else:
+                col = 7 - f
+                row = r
             
             color_str = "white" if piece.color == chess.WHITE else "black"
             piece_str = piece_map.get(piece.piece_type)
@@ -684,6 +692,235 @@ class ChessChallengeView(View):
         
         await interaction.response.edit_message(content=f"❌ {self.challenged.mention} rfed l match dial chess.", view=None)
         self.stop()
+
+# ============ CHESS PUZZLE (ONE-MOVE TACTICS) CLASSES ============
+
+_CHESS_PUZZLES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "chess_puzzles.json"))
+_chess_puzzles_dataset = None
+
+def _load_chess_puzzles():
+    global _chess_puzzles_dataset
+    if _chess_puzzles_dataset is None:
+        if os.path.exists(_CHESS_PUZZLES_PATH):
+            try:
+                with open(_CHESS_PUZZLES_PATH, "r", encoding="utf-8") as f:
+                    _chess_puzzles_dataset = json.load(f)
+            except Exception:
+                _chess_puzzles_dataset = []
+        else:
+            _chess_puzzles_dataset = []
+    return _chess_puzzles_dataset
+
+
+class ChessPuzzleModal(Modal, title="7ell Chess Puzzle"):
+    move_input = TextInput(
+        label="Dkhel l move ta3k (SAN ola UCI)",
+        placeholder="mtalan Qh7#, Nf7+, Rd8#, d1h5",
+        required=True,
+        max_length=15
+    )
+
+    def __init__(self, puzzle_view: "ChessPuzzleView"):
+        super().__init__()
+        self.puzzle_view = puzzle_view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        await self.puzzle_view.process_guess(interaction, self.move_input.value.strip())
+
+
+class ChessPuzzleView(View):
+    def __init__(self, author: Union[discord.Member, discord.User], cog: "Fun", puzzle: Optional[dict] = None):
+        super().__init__(timeout=120)
+        self.author = author
+        self.cog = cog
+        pool = _load_chess_puzzles()
+        self.puzzle = puzzle or (random.choice(pool) if pool else {})
+        self.board = chess.Board(self.puzzle.get("fen", chess.STARTING_FEN))
+        self.solved = False
+        self.message: Optional[discord.Message] = None
+        self._build_initial_buttons()
+
+    def _build_initial_buttons(self):
+        self.clear_items()
+        submit_btn = Button(label="Submit Move", style=discord.ButtonStyle.primary, emoji="♟️")
+        submit_btn.callback = self._on_submit_clicked
+        quit_btn = Button(label="Quit", style=discord.ButtonStyle.danger, emoji="🚪")
+        quit_btn.callback = self._on_quit_clicked
+        self.add_item(submit_btn)
+        self.add_item(quit_btn)
+
+    def _build_result_buttons(self):
+        self.clear_items()
+        again_btn = Button(label="Play Again", style=discord.ButtonStyle.success, emoji="🔄")
+        again_btn.callback = self._on_play_again_clicked
+        quit_btn = Button(label="Quit", style=discord.ButtonStyle.danger, emoji="🚪")
+        quit_btn.callback = self._on_quit_clicked
+        self.add_item(again_btn)
+        self.add_item(quit_btn)
+
+    async def _on_submit_clicked(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l puzzle mashi dialk!", ephemeral=True)
+            return
+        if self.solved:
+            await interaction.response.send_message("Had l puzzle deja jawbti 3liha!", ephemeral=True)
+            return
+        await interaction.response.send_modal(ChessPuzzleModal(self))
+
+    async def _on_quit_clicked(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l puzzle mashi dialk!", ephemeral=True)
+            return
+        self.solved = True
+        self.stop()
+        for item in self.children:
+            if isinstance(item, Button):
+                item.disabled = True
+        embed = discord.Embed(description="🛑 **Puzzle game salat! Chokran 3la l mosharaka.**", color=0x000000)
+        if interaction.response.is_done():
+            await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=None)
+        else:
+            await interaction.response.edit_message(embed=embed, view=None)
+
+    async def _on_play_again_clicked(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l puzzle mashi dialk!", ephemeral=True)
+            return
+        await interaction.response.defer()
+        pool = _load_chess_puzzles()
+        new_pool = [p for p in pool if p.get("id") != self.puzzle.get("id")]
+        self.puzzle = random.choice(new_pool) if new_pool else (random.choice(pool) if pool else {})
+        self.board = chess.Board(self.puzzle.get("fen", chess.STARTING_FEN))
+        self.solved = False
+        self._build_initial_buttons()
+        board_file = await self.generate_board_file()
+        embed = self.build_puzzle_embed()
+        await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, attachments=[board_file], view=self)
+
+    async def generate_board_file(self) -> discord.File:
+        loop = asyncio.get_running_loop()
+        orientation = chess.BLACK if self.puzzle.get("turn") == "black" else chess.WHITE
+        buffer = await loop.run_in_executor(None, render_chess_board, self.board, orientation)
+        return discord.File(buffer, filename="chess_puzzle.png")
+
+    def build_puzzle_embed(self) -> discord.Embed:
+        turn_str = "⚪ **White to Move!**" if self.puzzle.get("turn") == "white" else "⚫ **Black to Move!**"
+        embed = discord.Embed(
+            title="♟️ One-Move Chess Tactic",
+            description=(
+                f"{turn_str}\n\n"
+                f"🎯 **Objective:** L9a l best tactical move!\n"
+                f"💰 **Reward:** **+50** {TAD_EMOJI} TAD\n\n"
+                f"Clicki 3la **Submit Move** bach tdkhel l move dialk."
+            ),
+            color=0x000000
+        )
+        embed.set_image(url="attachment://chess_puzzle.png")
+        embed.set_footer(text=f"Player: {self.author.display_name}")
+        return embed
+
+    async def process_guess(self, interaction: discord.Interaction, move_str: str):
+        if interaction.user.id != self.author.id:
+            await interaction.followup.send("❌ Had l puzzle mashi dialk!", ephemeral=True)
+            return
+        if self.solved:
+            return
+
+        self.solved = True
+        parsed_move = None
+
+        # Try parsing user move string via SAN or UCI
+        try:
+            parsed_move = self.board.parse_san(move_str)
+        except Exception:
+            try:
+                parsed_move = chess.Move.from_uci(move_str.lower())
+                if parsed_move not in self.board.legal_moves:
+                    parsed_move = None
+            except Exception:
+                clean_str = move_str.replace("#", "").replace("+", "").strip()
+                try:
+                    parsed_move = self.board.parse_san(clean_str)
+                except Exception:
+                    parsed_move = None
+
+        is_correct = False
+        played_san = move_str
+        is_checkmate = False
+        if parsed_move and parsed_move in self.board.legal_moves:
+            test_b = self.board.copy()
+            test_b.push(parsed_move)
+            is_checkmate = test_b.is_checkmate()
+            # Correct if it matches the puzzle solution move OR delivers checkmate
+            if parsed_move.uci() == self.puzzle.get("solution_uci") or is_checkmate:
+                is_correct = True
+                try:
+                    played_san = self.board.san(parsed_move)
+                except Exception:
+                    played_san = move_str
+                self.board.push(parsed_move)
+
+        economy_cog = self.cog.bot.get_cog("Economy")
+        eco_msg = ""
+        theme_info = self.puzzle.get("theme_display", "Tactical Advantage")
+        rating_info = f" • Rating: ~{self.puzzle.get('rating')}" if self.puzzle.get("rating") else ""
+
+        if is_correct:
+            if economy_cog:
+                net, tax = await economy_cog.apply_tax_and_add_balance(
+                    self.author.id, 50, context="Chess Puzzle Win"
+                )
+                eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (🔥 `{tax:,}` TAD tax burned)!"
+                if interaction.guild:
+                    await self.cog.record_minigame_win(interaction.guild.id, self.author.id, "chesspuzzle", earnings=net)
+
+            outcome_header = "🎯 **S7I7! MHYEEEB!**"
+            mate_tag = " (🎯 Checkmate!)" if is_checkmate else " (🎯 Best Tactical Move!)"
+            details = (
+                f"{outcome_header}{eco_msg}\n\n"
+                f"🎮 L move dialek: **{played_san}**{mate_tag}\n"
+                f"💡 Motif: **{theme_info}**{rating_info}"
+            )
+        else:
+            # Play the correct solution move on the board to reveal it to the player
+            sol_move = None
+            try:
+                sol_move = self.board.parse_san(self.puzzle.get("solution_san", ""))
+            except Exception:
+                try:
+                    sol_move = chess.Move.from_uci(self.puzzle.get("solution_uci", ""))
+                except Exception:
+                    pass
+            if sol_move and sol_move in self.board.legal_moves:
+                self.board.push(sol_move)
+
+            outcome_header = "❌ **GHALAT! Majbtihach.**"
+            details = (
+                f"{outcome_header}\n\n"
+                f"🎮 L move dialek: `{move_str}`\n"
+                f"🏆 L move s7i7: **{self.puzzle.get('solution_san')}**\n"
+                f"💡 Motif: **{theme_info}**{rating_info}\n"
+                f"💰 Reward: **0** TAD"
+            )
+
+        self._build_result_buttons()
+        board_file = await self.generate_board_file()
+
+        res_embed = discord.Embed(
+            title="♟️ Chess Tactic — Natija",
+            description=details,
+            color=0x000000
+        )
+        res_embed.set_image(url="attachment://chess_puzzle.png")
+        res_embed.set_footer(text="Clicki 🔄 Play Again bach t7ell puzzle khor ola 🚪 Quit")
+
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=res_embed,
+            attachments=[board_file],
+            view=self
+        )
 
 # ============ TIC-TAC-TOE UI CLASSES (Module Level) ============
 
@@ -1625,8 +1862,8 @@ class AkinatorView(View):
                 economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                 eco_msg = ""
                 if economy_cog:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 100, context="Akinator Completion")
-                    eco_msg = f"\n\n🎁 Rbe7ti **+{net}** {TAD_EMOJI} TAD cadeau dial l3ib!"
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 50, context="Akinator Completion")
+                    eco_msg = f"\n\n🎁 Rbe7ti **+{net}** {TAD_EMOJI} TAD cadeau mn 3endi!"
                 name = getattr(self.aki, "name_proposition", "L Personnage dialk")
                 desc = getattr(self.aki, "description_proposition", "")
                 photo = getattr(self.aki, "photo", None)
@@ -1655,8 +1892,8 @@ class AkinatorView(View):
                     economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                     eco_msg = ""
                     if economy_cog:
-                        net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 100, context="Akinator Completion")
-                        eco_msg = f"\n\n🎁 Rbe7ti **+{net}** {TAD_EMOJI} TAD cadeau dial l3ib!"
+                        net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 50, context="Akinator Completion")
+                        eco_msg = f"\n\n🎁 Rbe7ti **+{net}** {TAD_EMOJI} TAD cadeau mn 3endi!"
                     embed = discord.Embed(
                         title="🏆 Bravo! Ghlbtini!",
                         description=f"Ma9dertch n3ref chkoun f balek, 3refti tkhebiha 3lia!{eco_msg}",
@@ -5045,6 +5282,7 @@ MINIGAME_DISPLAY_MAP = {
     "typeracer": ("🏎️ TypeRacer", ["typeracer", "tr", "type", "monkeytype"]),
     "geoguessr": ("🌍 GeoGuessr", ["geoguessr", "geo", "geoguesser", "geoguess"]),
     "guesstherank": ("🎖️ GuessTheRank", ["guesstherank", "gtr", "guessrank"]),
+    "chesspuzzle": ("🧩 ChessPuzzle", ["chesspuzzle", "puzzle", "cpuzzle", "chesstactic", "tactic", "chessquiz"]),
 }
 
 class LeaderboardSelect(discord.ui.Select):
@@ -9239,6 +9477,19 @@ class Fun(commands.Cog):
         )
         await wait_msg.edit(content=content, embed=None, view=view)
         view.message = wait_msg
+
+    @commands.command(name="chesspuzzle", aliases=["puzzle", "chessquiz", "lichess"], help="7ell puzzle dial chess.")
+    async def chesspuzzle(self, ctx: commands.Context):
+        pool = _load_chess_puzzles()
+        if not pool:
+            await ctx.send("❌ Mal9itch puzzles f had lwe9t, 7awel mn be3d.")
+            return
+
+        view = ChessPuzzleView(ctx.author, self)
+        board_file = await view.generate_board_file()
+        embed = view.build_puzzle_embed()
+        msg = await ctx.send(embed=embed, file=board_file, view=view)
+        view.message = msg
 
 
 async def setup(bot):
