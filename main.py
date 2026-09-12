@@ -370,11 +370,43 @@ async def setup_hook():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS blacklists (user_id INTEGER PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS disabled_commands (guild_id INTEGER, command_name TEXT, PRIMARY KEY (guild_id, command_name))")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, earnings INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, earnings INTEGER DEFAULT 0, losses INTEGER DEFAULT 0, loss_amount INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
     try:
         await bot.db.execute("ALTER TABLE minigame_leaderboard ADD COLUMN earnings INTEGER DEFAULT 0")
     except Exception:
         pass
+    try:
+        await bot.db.execute("ALTER TABLE minigame_leaderboard ADD COLUMN losses INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        await bot.db.execute("ALTER TABLE minigame_leaderboard ADD COLUMN loss_amount INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS minigame_win_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id INTEGER,
+            user_id INTEGER,
+            game TEXT,
+            earnings INTEGER DEFAULT 0,
+            timestamp INTEGER
+        )
+    """)
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_minigame_win_logs_guild_time ON minigame_win_logs (guild_id, timestamp DESC)")
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_minigame_win_logs_guild_game_time ON minigame_win_logs (guild_id, game, timestamp DESC)")
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS minigame_loss_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id INTEGER,
+            user_id INTEGER,
+            game TEXT,
+            loss_amount INTEGER DEFAULT 0,
+            timestamp INTEGER
+        )
+    """)
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_minigame_loss_logs_guild_time ON minigame_loss_logs (guild_id, timestamp DESC)")
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_minigame_loss_logs_guild_game_time ON minigame_loss_logs (guild_id, game, timestamp DESC)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_logs (guild_id INTEGER PRIMARY KEY, channel_id INTEGER)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS reminders (user_id INTEGER, channel_id INTEGER, reminder_text TEXT, end_time INTEGER)")
     await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_reminders_end_time ON reminders (end_time)")

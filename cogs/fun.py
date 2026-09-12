@@ -274,7 +274,13 @@ class ChessView(View):
             self.game_over = True
             self.stop()
             winner = self.player_black if self.current_turn == self.player_white else self.player_white
+            loser = self.current_turn
             eco_str = await self.handle_economy_payout(winner=winner)
+            if not self.is_bot_game and self.cog and self.message and self.message.guild:
+                await self.cog.record_minigame_win(self.message.guild.id, winner.id, "chess", earnings=self.bet if self.bet > 0 else 0)
+                await self.cog.record_minigame_loss(self.message.guild.id, loser.id, "chess", loss_amount=self.bet if self.bet > 0 else 0)
+            elif self.is_bot_game and loser == self.player_white and self.cog and self.message and self.message.guild:
+                await self.cog.record_minigame_loss(self.message.guild.id, loser.id, "chess", loss_amount=0)
             embed = self.build_embed()
             embed.description = f"⏰ **Sala lwe9t! {self.current_turn.mention} khser b l inactivity. {winner.mention} rbe7!**{eco_str}"
             try:
@@ -558,7 +564,9 @@ class ChessView(View):
                     is_draw = True
             await self.handle_economy_payout(winner=winner, is_draw=is_draw)
             if self.board.is_checkmate() and not self.is_bot_game and self.cog and interaction.guild and winner:
+                loser = self.player_black if winner == self.player_white else self.player_white
                 await self.cog.record_minigame_win(interaction.guild.id, winner.id, "chess", earnings=self.bet if self.bet > 0 else 0)
+                await self.cog.record_minigame_loss(interaction.guild.id, loser.id, "chess", loss_amount=self.bet if self.bet > 0 else 0)
             board_file = await self.generate_board_file()
             if interaction.response.is_done():
                 await interaction.followup.edit_message(message_id=interaction.message.id, embed=self.build_embed(), attachments=[board_file], view=None)
@@ -587,7 +595,11 @@ class ChessView(View):
                         is_draw = True
                 await self.handle_economy_payout(winner=winner, is_draw=is_draw)
                 if self.board.is_checkmate() and not self.is_bot_game and self.cog and interaction.guild and winner:
+                    loser = self.player_black if winner == self.player_white else self.player_white
                     await self.cog.record_minigame_win(interaction.guild.id, winner.id, "chess", earnings=self.bet if self.bet > 0 else 0)
+                    await self.cog.record_minigame_loss(interaction.guild.id, loser.id, "chess", loss_amount=self.bet if self.bet > 0 else 0)
+                elif self.board.is_checkmate() and self.is_bot_game and winner == self.player_black and self.cog and interaction.guild:
+                    await self.cog.record_minigame_loss(interaction.guild.id, self.player_white.id, "chess", loss_amount=0)
             else:
                 self.current_turn = self.player_white
 
@@ -637,9 +649,13 @@ class ChessView(View):
         self.game_over = True
         self.stop()
         winner = self.player_black if interaction.user == self.player_white else self.player_white
+        loser = interaction.user
         eco_str = await self.handle_economy_payout(winner=winner)
         if not self.is_bot_game and self.cog and interaction.guild:
             await self.cog.record_minigame_win(interaction.guild.id, winner.id, "chess", earnings=self.bet if self.bet > 0 else 0)
+            await self.cog.record_minigame_loss(interaction.guild.id, loser.id, "chess", loss_amount=self.bet if self.bet > 0 else 0)
+        elif self.is_bot_game and self.cog and interaction.guild:
+            await self.cog.record_minigame_loss(interaction.guild.id, loser.id, "chess", loss_amount=0)
         
         embed = self.build_embed()
         embed.description = f"🏳️ **{interaction.user.mention} steslem! {winner.mention} rbe7!**{eco_str}"
@@ -1049,6 +1065,8 @@ class TicTacToeView(View):
 
                 if self.is_bot_game:
                     content = f"⏰ **{current_player.mention} sala lik lwe9t!** Rb7tk!"
+                    if self.cog and self.message and self.message.guild:
+                        await self.cog.record_minigame_loss(self.message.guild.id, current_player.id, "tictactoe", loss_amount=0)
                 else:
                     content = f"⏰ **{current_player.mention} sala lih lwe9t!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
                     if self.bet > 0 and self.cog:
@@ -1060,9 +1078,11 @@ class TicTacToeView(View):
                             await economy_cog.add_balance(winner.id, w_payout, context="TTT Wager Win (Timeout)")
                         if self.message and self.message.guild:
                             await self.cog.record_minigame_win(self.message.guild.id, winner.id, "tictactoe", earnings=w_payout - self.bet)
+                            await self.cog.record_minigame_loss(self.message.guild.id, current_player.id, "tictactoe", loss_amount=self.bet)
                         content += f"\n💰 Rbe7ti {format_tad(w_payout)}!"
                     elif self.cog and self.message and self.message.guild:
                         await self.cog.record_minigame_win(self.message.guild.id, winner.id, "tictactoe")
+                        await self.cog.record_minigame_loss(self.message.guild.id, current_player.id, "tictactoe", loss_amount=0)
 
                 if self.message:
                     await self.message.edit(content=content, view=self)
@@ -1169,6 +1189,7 @@ class TicTacToeView(View):
                 await economy_cog.add_balance(self.player_o.id, d_split, context="TTT Draw Split")
             elif winner in ("X", "O"):
                 winning_user = self.player_x if winner == "X" else self.player_o
+                losing_user = self.player_o if winner == "X" else self.player_x
                 if self.bet > 0 and economy_cog:
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     if burned > 0:
@@ -1176,12 +1197,16 @@ class TicTacToeView(View):
                     await economy_cog.add_balance(winning_user.id, w_payout, context="TTT Wager Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe", earnings=w_payout - self.bet)
+                        await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "tictactoe", loss_amount=self.bet)
                 elif self.is_bot_game and winner == "X" and economy_cog:
                     net, tax = await economy_cog.apply_tax_and_add_balance(self.player_x.id, 5000, context="TTT Bot Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player_x.id, "tictactoe", earnings=net)
+                elif self.is_bot_game and winner == "O" and self.cog and interaction.guild:
+                    await self.cog.record_minigame_loss(interaction.guild.id, self.player_x.id, "tictactoe", loss_amount=0)
                 elif not self.is_bot_game and self.cog and interaction.guild:
                     await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe")
+                    await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "tictactoe", loss_amount=0)
 
             await interaction.response.edit_message(content=self.get_status_content(), view=self)
             self.stop()
@@ -1197,6 +1222,8 @@ class TicTacToeView(View):
             if winner:
                 self.game_over = True
                 self.disable_all_buttons()
+                if winner == "O" and self.cog and interaction.guild:
+                    await self.cog.record_minigame_loss(interaction.guild.id, self.player_x.id, "tictactoe", loss_amount=0)
                 self.stop()
             else:
                 self.current_turn = self.player_x
@@ -1540,6 +1567,8 @@ class ConnectFourView(View):
 
                 if self.is_bot_game:
                     content = f"{self.render_board()}\n\n⏰ **{current_player.mention} sala lik lwe9t!** Rb7tk!"
+                    if self.cog and self.message and self.message.guild:
+                        await self.cog.record_minigame_loss(self.message.guild.id, current_player.id, "connectfour", loss_amount=0)
                 else:
                     content = f"{self.render_board()}\n\n⏰ **{current_player.mention} sala lih lwe9t!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
                     if self.bet > 0 and self.cog:
@@ -1551,9 +1580,11 @@ class ConnectFourView(View):
                             await economy_cog.add_balance(winner.id, w_payout, context="ConnectFour Win (Timeout)")
                         if self.message and self.message.guild:
                             await self.cog.record_minigame_win(self.message.guild.id, winner.id, "connectfour", earnings=w_payout - self.bet)
+                            await self.cog.record_minigame_loss(self.message.guild.id, current_player.id, "connectfour", loss_amount=self.bet)
                         content += f"\n💰 Rbe7ti {format_tad(w_payout)}!"
                     elif self.cog and self.message and self.message.guild:
                         await self.cog.record_minigame_win(self.message.guild.id, winner.id, "connectfour")
+                        await self.cog.record_minigame_loss(self.message.guild.id, current_player.id, "connectfour", loss_amount=0)
 
                 if self.message:
                     await self.message.edit(content=content, view=self)
@@ -1606,6 +1637,7 @@ class ConnectFourView(View):
                 await economy_cog.apply_tax_and_add_balance(self.player_red.id, 1000, context="ConnectFour Bot Draw")
             elif winner in ("🔴", "🟡"):
                 winning_user = self.player_red if winner == "🔴" else self.player_yellow
+                losing_user = self.player_yellow if winner == "🔴" else self.player_red
                 if self.bet > 0 and economy_cog:
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     if burned > 0:
@@ -1613,12 +1645,14 @@ class ConnectFourView(View):
                     await economy_cog.add_balance(winning_user.id, w_payout, context="ConnectFour Wager Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour", earnings=w_payout - self.bet)
+                        await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "connectfour", loss_amount=self.bet)
                 elif self.is_bot_game and winner == "🔴" and economy_cog:
                     net, tax = await economy_cog.apply_tax_and_add_balance(self.player_red.id, 5000, context="ConnectFour Bot Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player_red.id, "connectfour", earnings=net)
                 elif not self.is_bot_game and self.cog and interaction.guild:
                     await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour")
+                    await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "connectfour", loss_amount=0)
 
             await interaction.response.edit_message(content=self.get_status_content(), view=self)
             self.stop()
@@ -1638,6 +1672,8 @@ class ConnectFourView(View):
                     economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                     if economy_cog:
                         await economy_cog.apply_tax_and_add_balance(self.player_red.id, 1000, context="ConnectFour Bot Draw")
+                elif winner == "🟡" and self.cog and interaction.guild:
+                    await self.cog.record_minigame_loss(interaction.guild.id, self.player_red.id, "connectfour", loss_amount=0)
                 self.stop()
             else:
                 self.current_turn = self.player_red
@@ -2038,6 +2074,10 @@ class RPSBotView(View):
             outcome = f"Nta khtarti **{emoji_map[player_choice]}** o ana khtart **{emoji_map[bot_choice]}**."
             if self.bet > 0:
                 outcome += f"\n\n💥 **Khserti (0x):** -{format_tad(self.bet)}."
+                if self.cog and interaction.guild:
+                    await self.cog.record_minigame_loss(interaction.guild.id, self.player.id, "rockpaperscissors", loss_amount=self.bet)
+            elif self.cog and interaction.guild:
+                await self.cog.record_minigame_loss(interaction.guild.id, self.player.id, "rockpaperscissors", loss_amount=0)
 
         embed = discord.Embed(
             title=title,
@@ -2147,6 +2187,7 @@ class RPSMultiplayerView(View):
                 winning_user = self.player2
 
             if winning_user:
+                losing_user = self.player1 if winning_user == self.player2 else self.player2
                 if self.bet > 0:
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
@@ -2156,9 +2197,11 @@ class RPSMultiplayerView(View):
                         await economy_cog.add_balance(winning_user.id, w_payout, context="RPS Wager Win")
                     if self.cog and interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors", earnings=w_payout - self.bet)
+                        await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "rockpaperscissors", loss_amount=self.bet)
                     outcome += f"\n\n💰 **{winning_user.mention}** rbe7 {format_tad(w_payout)} (`{burned:,}` {TAD_EMOJI} tax)!"
                 elif self.cog and interaction.guild:
                     await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "rockpaperscissors")
+                    await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "rockpaperscissors", loss_amount=0)
 
             embed = discord.Embed(
                 title=title,
@@ -2533,6 +2576,7 @@ class MinesweeperMultiplayerView(View):
             net_profit = winner_payout - self.bet
             if self.message and self.message.guild:
                 await self.cog.record_minigame_win(self.message.guild.id, winner.id, "minesweeper", earnings=net_profit)
+                await self.cog.record_minigame_loss(self.message.guild.id, loser.id, "minesweeper", loss_amount=self.bet)
             return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • `{tax_burned:,}` TAD tax)!"
 
     def get_content(self, extra: str = "") -> str:
@@ -2959,6 +3003,7 @@ class WordleMultiplayerMatch:
             net_profit = winner_payout - self.bet
             if self.channel_msg and self.channel_msg.guild:
                 await self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "wordle", earnings=net_profit)
+                await self.cog.record_minigame_loss(self.channel_msg.guild.id, loser.id, "wordle", loss_amount=self.bet)
             return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • `{tax_burned:,}` TAD tax)!"
 
     def get_player_dm_content(self, player: discord.Member) -> str:
@@ -3581,6 +3626,7 @@ class HangmanMultiplayerMatch:
             net_profit = winner_payout - self.bet
             if self.channel_msg and self.channel_msg.guild:
                 await self.cog.record_minigame_win(self.channel_msg.guild.id, winner.id, "hangman", earnings=net_profit)
+                await self.cog.record_minigame_loss(self.channel_msg.guild.id, loser.id, "hangman", loss_amount=self.bet)
             return f"\n\n💰 **Wager Payout:** {winner.mention} rbe7 **+{format_tad(winner_payout)}** (Gross: {self.bet*2:,} TAD • `{tax_burned:,}` TAD tax)!"
 
     def get_player_dm_content(self, player: discord.Member) -> str:
@@ -4601,8 +4647,12 @@ class BlackjackView(discord.ui.View):
                 tax = await economy_cog.apply_lost_gamble_tax(self.bet, context="Blackjack Loss")
                 tax_str = f" (`{tax:,}` TAD tax)" if tax > 0 else ""
                 outcome_text += f"\n\n💥 Khesrti l bet: -{format_tad(self.bet)}{tax_str}."
+                if self.message and self.message.guild:
+                    await self.cog.record_minigame_loss(self.message.guild.id, self.author.id, "blackjack", loss_amount=self.bet)
         elif is_win and self.message and self.message.guild:
             await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "blackjack")
+        elif not is_win and not is_push and self.message and self.message.guild:
+            await self.cog.record_minigame_loss(self.message.guild.id, self.author.id, "blackjack", loss_amount=0)
 
         embed = self.get_embed(dealer_reveal=True, outcome_text=outcome_text)
         file = self.get_render_file(dealer_reveal=True)
@@ -4854,6 +4904,10 @@ class MinesGambleView(discord.ui.View):
                 tax = await economy_cog.apply_lost_gamble_tax(self.bet, context="Mines Loss")
             tax_str = f" (`{tax:,}` TAD tax)" if tax > 0 else ""
 
+            g_id = self.message.guild.id if (self.message and self.message.guild) else (interaction.guild.id if interaction.guild else None)
+            if g_id and self.cog:
+                await self.cog.record_minigame_loss(g_id, self.author.id, "mines", loss_amount=self.bet if self.bet > 0 else 0)
+
             embed = discord.Embed(
                 title="💥 BOOM! Game Over",
                 description=f"💣 Tferg3at 3lik bomb f tile `({x+1}, {y+1})`! Khesrti -{format_tad(self.bet)}{tax_str}.",
@@ -5004,6 +5058,10 @@ class HigherLowerView(discord.ui.View):
             if self.bet > 0 and economy_cog:
                 tax = await economy_cog.apply_lost_gamble_tax(self.bet, context="HigherLower Loss")
             tax_str = f" (`{tax:,}` TAD tax)" if tax > 0 else ""
+
+            g_id = self.message.guild.id if (self.message and self.message.guild) else (interaction.guild.id if interaction.guild else None)
+            if g_id and self.cog:
+                await self.cog.record_minigame_loss(g_id, self.author.id, "higherlower", loss_amount=self.bet if self.bet > 0 else 0)
 
             embed = discord.Embed(
                 title="💥 Ghalat! Game Over",
@@ -5167,8 +5225,12 @@ class CoinflipView(discord.ui.View):
                 tax_str = f" (`{tax:,}` TAD tax)" if tax > 0 else ""
                 embed.add_field(name="💰 Stake", value=format_tad(self.bet), inline=True)
                 embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(self.bet)}**{tax_str}", inline=False)
+                if self.message and self.message.guild:
+                    await self.cog.record_minigame_loss(self.message.guild.id, self.author.id, "coinflip", loss_amount=self.bet)
         elif won and self.message and self.message.guild:
             await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "coinflip")
+        elif not won and self.message and self.message.guild:
+            await self.cog.record_minigame_loss(self.message.guild.id, self.author.id, "coinflip", loss_amount=0)
 
         coin_path = os.path.join("assets", "coin", "Heads.png" if result == "ras" else "Tails.png")
         if os.path.exists(coin_path):
@@ -5286,23 +5348,13 @@ MINIGAME_DISPLAY_MAP = {
 }
 
 class LeaderboardSelect(discord.ui.Select):
-    def __init__(self, minigame_map: dict):
-        options = []
-        for game_key, (display_name, _) in minigame_map.items():
-            parts = display_name.split(" ", 1)
-            emoji_part = parts[0] if len(parts) > 1 else None
-            label_part = parts[1] if len(parts) > 1 else display_name
-            options.append(discord.SelectOption(
-                label=label_part,
-                value=game_key,
-                emoji=emoji_part
-            ))
-        super().__init__(placeholder="🎯 Khtar minigame bach tchouf ranking dialha...", min_values=1, max_values=1, options=options, row=0)
+    def __init__(self, placeholder: str, options: list[discord.SelectOption], row: int = 0):
+        super().__init__(placeholder=placeholder, min_values=1, max_values=1, options=options, row=row)
 
     async def callback(self, interaction: discord.Interaction):
         view: LeaderboardInteractiveView = self.view
         selected_game = self.values[0]
-        await view.show_game_page(interaction, selected_game, sort_by="wins", page=0)
+        await view.show_game_page(interaction, selected_game, timeframe=view.timeframe, page=0)
 
 
 class LeaderboardInteractiveView(discord.ui.View):
@@ -5312,7 +5364,7 @@ class LeaderboardInteractiveView(discord.ui.View):
         self.cog = cog
         self.minigame_map = minigame_map
         self.current_game: Optional[str] = None
-        self.sort_by: str = "wins"  # "wins" or "earnings"
+        self.timeframe: str = "weekly"  # "weekly" or "alltime"
         self.current_page: int = 0
         self.per_page: int = 10
         self.rows_cache = []
@@ -5323,7 +5375,30 @@ class LeaderboardInteractiveView(discord.ui.View):
     def setup_overview(self):
         self.clear_items()
         self.current_game = None
-        self.add_item(LeaderboardSelect(self.minigame_map))
+
+        casino_keys = {"blackjack", "slots", "mines", "roulette", "higherlower", "coinflip", "dice"}
+        casino_options = []
+        puzzle_options = []
+
+        for game_key, (display_name, _) in self.minigame_map.items():
+            parts = display_name.split(" ", 1)
+            emoji_part = parts[0] if len(parts) > 1 else None
+            label_part = parts[1] if len(parts) > 1 else display_name
+            opt = discord.SelectOption(
+                label=label_part,
+                value=game_key,
+                emoji=emoji_part
+            )
+            if game_key in casino_keys:
+                casino_options.append(opt)
+            else:
+                puzzle_options.append(opt)
+
+        if casino_options:
+            self.add_item(LeaderboardSelect("🎰 Casino & Gambling Leaderboards...", casino_options[:25], row=0))
+
+        if puzzle_options:
+            self.add_item(LeaderboardSelect("🧠 Puzzles, Quiz & Casual Leaderboards...", puzzle_options[:25], row=1))
 
     async def show_overview(self, interaction: Optional[discord.Interaction] = None):
         self.setup_overview()
@@ -5333,29 +5408,38 @@ class LeaderboardInteractiveView(discord.ui.View):
         else:
             self.message = await self.ctx.send(embed=embed, view=self)
 
-    async def show_game_page(self, interaction: Optional[discord.Interaction] = None, game_key: Optional[str] = None, sort_by: str = "wins", page: int = 0):
+    async def show_game_page(self, interaction: Optional[discord.Interaction] = None, game_key: Optional[str] = None, timeframe: str = "weekly", page: int = 0):
         if game_key:
             self.current_game = game_key
-        self.sort_by = sort_by
+        self.timeframe = timeframe
         self.current_page = page
 
-        order_col = "earnings" if sort_by == "earnings" else "wins"
-        async with self.cog.bot.db.execute(f"""
-            SELECT user_id, wins, earnings FROM minigame_leaderboard
-            WHERE guild_id = ? AND game = ?
-            ORDER BY {order_col} DESC
-        """, (self.ctx.guild.id, self.current_game)) as cursor:
-            self.rows_cache = await cursor.fetchall()
+        if self.timeframe == "weekly":
+            seven_days_ago = int(time.time()) - (7 * 86400)
+            async with self.cog.bot.db.execute("""
+                SELECT user_id, COUNT(*) as wins, SUM(earnings) as earnings FROM minigame_win_logs
+                WHERE guild_id = ? AND game = ? AND timestamp >= ?
+                GROUP BY user_id
+                ORDER BY earnings DESC, wins DESC
+            """, (self.ctx.guild.id, self.current_game, seven_days_ago)) as cursor:
+                self.rows_cache = await cursor.fetchall()
+        else:
+            async with self.cog.bot.db.execute("""
+                SELECT user_id, wins, earnings FROM minigame_leaderboard
+                WHERE guild_id = ? AND game = ?
+                ORDER BY earnings DESC, wins DESC
+            """, (self.ctx.guild.id, self.current_game)) as cursor:
+                self.rows_cache = await cursor.fetchall()
 
         self.clear_items()
 
         total_pages = max(1, (len(self.rows_cache) + self.per_page - 1) // self.per_page)
         self.current_page = max(0, min(self.current_page, total_pages - 1))
 
-        # Pagination & Switch Buttons
+        # Pagination Buttons (Row 0)
         prev_btn = discord.ui.Button(label="◀️", style=discord.ButtonStyle.secondary, disabled=(self.current_page == 0), row=0)
         async def prev_callback(i: discord.Interaction):
-            await self.show_game_page(i, self.current_game, self.sort_by, self.current_page - 1)
+            await self.show_game_page(i, self.current_game, self.timeframe, self.current_page - 1)
         prev_btn.callback = prev_callback
         self.add_item(prev_btn)
 
@@ -5364,22 +5448,22 @@ class LeaderboardInteractiveView(discord.ui.View):
 
         next_btn = discord.ui.Button(label="▶️", style=discord.ButtonStyle.secondary, disabled=(self.current_page >= total_pages - 1), row=0)
         async def next_callback(i: discord.Interaction):
-            await self.show_game_page(i, self.current_game, self.sort_by, self.current_page + 1)
+            await self.show_game_page(i, self.current_game, self.timeframe, self.current_page + 1)
         next_btn.callback = next_callback
         self.add_item(next_btn)
 
-        # Sort Switcher Button
-        if sort_by == "wins":
-            sort_btn = discord.ui.Button(label="Sort by Money 💰", style=discord.ButtonStyle.success, emoji="💰", row=1)
-            async def sort_callback(i: discord.Interaction):
-                await self.show_game_page(i, self.current_game, "earnings", 0)
-            sort_btn.callback = sort_callback
+        # Timeframe Switcher Button (Row 1: Weekly <-> All-Time)
+        if self.timeframe == "weekly":
+            tf_btn = discord.ui.Button(label="All-Time 👑", style=discord.ButtonStyle.primary, emoji="👑", row=1)
+            async def tf_callback(i: discord.Interaction):
+                await self.show_game_page(i, self.current_game, "alltime", 0)
+            tf_btn.callback = tf_callback
         else:
-            sort_btn = discord.ui.Button(label="Sort by Wins 🏆", style=discord.ButtonStyle.primary, emoji="🏆", row=1)
-            async def sort_callback(i: discord.Interaction):
-                await self.show_game_page(i, self.current_game, "wins", 0)
-            sort_btn.callback = sort_callback
-        self.add_item(sort_btn)
+            tf_btn = discord.ui.Button(label="Weekly 🗓️", style=discord.ButtonStyle.success, emoji="🗓️", row=1)
+            async def tf_callback(i: discord.Interaction):
+                await self.show_game_page(i, self.current_game, "weekly", 0)
+            tf_btn.callback = tf_callback
+        self.add_item(tf_btn)
 
         # Back to Overview Button
         back_btn = discord.ui.Button(label="Back to Overview", style=discord.ButtonStyle.danger, emoji="🔙", row=1)
@@ -5396,15 +5480,15 @@ class LeaderboardInteractiveView(discord.ui.View):
 
     def get_game_embed(self, total_pages: int) -> discord.Embed:
         game_display, _ = self.minigame_map.get(self.current_game, (self.current_game.title(), []))
-        sort_title = "💰 Sorted by Gains" if self.sort_by == "earnings" else "🏆 Sorted by Wins"
+        tf_title = "🗓️ Weekly (Past 7 Days)" if self.timeframe == "weekly" else "👑 All-Time"
         embed = discord.Embed(
             title=f"{game_display} Leaderboard",
-            description=f"*{sort_title}* — **{self.ctx.guild.name}**\n\n",
+            description=f"*{tf_title} • Sorted by Gains* — **{self.ctx.guild.name}**\n\n",
             color=0x000000
         )
 
         if not self.rows_cache:
-            embed.description += "*No records yet.*"
+            embed.description += "*No records yet for this period.*"
             return embed
 
         start_idx = self.current_page * self.per_page
@@ -5416,13 +5500,10 @@ class LeaderboardInteractiveView(discord.ui.View):
             rank_str = medals[i] if i < 3 else f"**#{i+1}**"
             win_str = f"**{wins}** win" if wins == 1 else f"**{wins}** wins"
             earn_str = format_tad(earnings)
-            if self.sort_by == "earnings":
-                lines.append(f"{rank_str} <@{uid}> — {earn_str} *({win_str})*")
-            else:
-                lines.append(f"{rank_str} <@{uid}> — {win_str} *({earn_str})*")
+            lines.append(f"{rank_str} <@{uid}> — {earn_str} *({win_str})*")
 
         embed.description += "\n".join(lines)
-        embed.set_footer(text=f"Page {self.current_page + 1}/{total_pages}")
+        embed.set_footer(text=f"Page {self.current_page + 1}/{total_pages} • Sorted by Gains")
         return embed
 
 
@@ -5973,14 +6054,41 @@ class Fun(commands.Cog):
         if not guild_id:
             return
         try:
+            now_ts = int(time.time())
+            g_name = game.lower()
+            clean_earnings = max(0, earnings)
             await self.bot.db.execute("""
-                INSERT INTO minigame_leaderboard (guild_id, user_id, game, wins, earnings)
-                VALUES (?, ?, ?, 1, ?)
-                ON CONFLICT(guild_id, user_id, game) DO UPDATE SET wins = wins + 1, earnings = earnings + ?
-            """, (guild_id, user_id, game.lower(), max(0, earnings), max(0, earnings)))
+                INSERT INTO minigame_leaderboard (guild_id, user_id, game, wins, earnings, losses, loss_amount)
+                VALUES (?, ?, ?, 1, ?, 0, 0)
+                ON CONFLICT(guild_id, user_id, game) DO UPDATE SET wins = COALESCE(wins, 0) + 1, earnings = COALESCE(earnings, 0) + ?
+            """, (guild_id, user_id, g_name, clean_earnings, clean_earnings))
+            await self.bot.db.execute("""
+                INSERT INTO minigame_win_logs (guild_id, user_id, game, earnings, timestamp)
+                VALUES (?, ?, ?, ?, ?)
+            """, (guild_id, user_id, g_name, clean_earnings, now_ts))
             await self.bot.db.commit()
         except Exception as e:
             print(f"[record_minigame_win error]: {e}")
+
+    async def record_minigame_loss(self, guild_id: Optional[int], user_id: int, game: str, loss_amount: int = 0):
+        if not guild_id:
+            return
+        try:
+            now_ts = int(time.time())
+            g_name = game.lower()
+            clean_loss = max(0, loss_amount)
+            await self.bot.db.execute("""
+                INSERT INTO minigame_leaderboard (guild_id, user_id, game, wins, earnings, losses, loss_amount)
+                VALUES (?, ?, ?, 0, 0, 1, ?)
+                ON CONFLICT(guild_id, user_id, game) DO UPDATE SET losses = COALESCE(losses, 0) + 1, loss_amount = COALESCE(loss_amount, 0) + ?
+            """, (guild_id, user_id, g_name, clean_loss, clean_loss))
+            await self.bot.db.execute("""
+                INSERT INTO minigame_loss_logs (guild_id, user_id, game, loss_amount, timestamp)
+                VALUES (?, ?, ?, ?, ?)
+            """, (guild_id, user_id, g_name, clean_loss, now_ts))
+            await self.bot.db.commit()
+        except Exception as e:
+            print(f"[record_minigame_loss error]: {e}")
 
     def get_typeracer_text(self) -> str:
         count = 5
@@ -8494,58 +8602,165 @@ class Fun(commands.Cog):
     # ============ REWORKED LEADERBOARD & CASINO COMMANDS ============
 
     async def get_main_leaderboard_embed(self, guild: discord.Guild) -> discord.Embed:
-        async with self.bot.db.execute("""
-            SELECT game, user_id, wins FROM minigame_leaderboard
-            WHERE guild_id = ?
-            ORDER BY wins DESC LIMIT 1
-        """, (guild.id,)) as cursor:
-            top_wins_row = await cursor.fetchone()
+        seven_days_ago = int(time.time()) - (7 * 86400)
 
+        # 1. User with the most weekly earnings across the guild
         async with self.bot.db.execute("""
-            SELECT game, user_id, earnings FROM minigame_leaderboard
+            SELECT user_id, SUM(earnings) as total_earnings
+            FROM minigame_win_logs
+            WHERE guild_id = ? AND timestamp >= ?
+            GROUP BY user_id
+            ORDER BY total_earnings DESC LIMIT 1
+        """, (guild.id, seven_days_ago)) as cursor:
+            top_weekly_row = await cursor.fetchone()
+
+        # 2. User with the most weekly losses across the guild
+        async with self.bot.db.execute("""
+            SELECT user_id, SUM(loss_amount) as total_losses
+            FROM minigame_loss_logs
+            WHERE guild_id = ? AND timestamp >= ?
+            GROUP BY user_id
+            ORDER BY total_losses DESC LIMIT 1
+        """, (guild.id, seven_days_ago)) as cursor:
+            top_weekly_loss_row = await cursor.fetchone()
+
+        # 3. User with the most all-time earnings across the guild
+        async with self.bot.db.execute("""
+            SELECT user_id, SUM(earnings) as total_earnings
+            FROM minigame_leaderboard
             WHERE guild_id = ?
-            ORDER BY earnings DESC LIMIT 1
+            GROUP BY user_id
+            ORDER BY total_earnings DESC LIMIT 1
         """, (guild.id,)) as cursor:
-            top_gains_row = await cursor.fetchone()
+            top_alltime_row = await cursor.fetchone()
+
+        # 4. User with the most all-time losses across the guild
+        async with self.bot.db.execute("""
+            SELECT user_id, SUM(loss_amount) as total_losses
+            FROM minigame_leaderboard
+            WHERE guild_id = ?
+            GROUP BY user_id
+            ORDER BY total_losses DESC LIMIT 1
+        """, (guild.id,)) as cursor:
+            top_alltime_loss_row = await cursor.fetchone()
 
         embed = discord.Embed(
-            title=f"🏆 Minigame Hall of Fame — {guild.name}",
+            title=f"🏆 Minigame Leaderboard — {guild.name}",
             description="Khtar minigame mn lmenu lte7t bach tchouf rankings dialha.\n",
             color=0x000000
         )
 
-        if top_wins_row and top_wins_row[2] > 0:
-            g_key, u_id, w_count = top_wins_row
-            d_name = MINIGAME_DISPLAY_MAP.get(g_key, (g_key.title(), []))[0]
-            win_str = f"**{w_count}** win" if w_count == 1 else f"**{w_count}** wins"
+        # Field 1: Most Weekly Earnings
+        if top_weekly_row and top_weekly_row[1] > 0:
+            u_id, e_count = top_weekly_row
+            top_game_str = ""
+            async with self.bot.db.execute("""
+                SELECT game, SUM(earnings) as game_earnings
+                FROM minigame_win_logs
+                WHERE guild_id = ? AND user_id = ? AND timestamp >= ?
+                GROUP BY game
+                ORDER BY game_earnings DESC LIMIT 1
+            """, (guild.id, u_id, seven_days_ago)) as g_cur:
+                g_row = await g_cur.fetchone()
+                if g_row:
+                    d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
+                    top_game_str = f" *(Top Game: **{d_name}**)*"
+
             embed.add_field(
-                name="🏆 Most Wins",
-                value=f"**{d_name}** • <@{u_id}> ({win_str})",
+                name="🗓️ Most Weekly Earnings",
+                value=f"<@{u_id}> — {format_tad(e_count)}{top_game_str}",
                 inline=False
             )
         else:
             embed.add_field(
-                name="🏆 Most Wins",
-                value="*No wins yet.*",
+                name="🗓️ Most Weekly Earnings",
+                value="*No weekly earnings yet.*",
                 inline=False
             )
 
-        if top_gains_row and top_gains_row[2] > 0:
-            g_key, u_id, e_count = top_gains_row
-            d_name = MINIGAME_DISPLAY_MAP.get(g_key, (g_key.title(), []))[0]
+        # Field 2: Most Weekly Losses
+        if top_weekly_loss_row and top_weekly_loss_row[1] > 0:
+            u_id, l_count = top_weekly_loss_row
+            top_game_str = ""
+            async with self.bot.db.execute("""
+                SELECT game, SUM(loss_amount) as game_losses
+                FROM minigame_loss_logs
+                WHERE guild_id = ? AND user_id = ? AND timestamp >= ?
+                GROUP BY game
+                ORDER BY game_losses DESC LIMIT 1
+            """, (guild.id, u_id, seven_days_ago)) as g_cur:
+                g_row = await g_cur.fetchone()
+                if g_row:
+                    d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
+                    top_game_str = f" *(Top Game: **{d_name}**)*"
+
             embed.add_field(
-                name="💰 Most Earnings",
-                value=f"**{d_name}** • <@{u_id}> ({format_tad(e_count)})",
+                name="📉 Most Weekly Losses",
+                value=f"<@{u_id}> — **-{l_count:,}** {TAD_EMOJI} TAD{top_game_str}",
                 inline=False
             )
         else:
             embed.add_field(
-                name="💰 Most Earnings",
+                name="📉 Most Weekly Losses",
+                value="*No weekly losses yet.*",
+                inline=False
+            )
+
+        # Field 3: Most All-Time Earnings
+        if top_alltime_row and top_alltime_row[1] > 0:
+            u_id, e_count = top_alltime_row
+            top_game_str = ""
+            async with self.bot.db.execute("""
+                SELECT game, earnings
+                FROM minigame_leaderboard
+                WHERE guild_id = ? AND user_id = ?
+                ORDER BY earnings DESC LIMIT 1
+            """, (guild.id, u_id)) as g_cur:
+                g_row = await g_cur.fetchone()
+                if g_row:
+                    d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
+                    top_game_str = f" *(Top Game: **{d_name}**)*"
+
+            embed.add_field(
+                name="👑 Most All-Time Earnings",
+                value=f"<@{u_id}> — {format_tad(e_count)}{top_game_str}",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="👑 Most All-Time Earnings",
                 value="*No earnings yet.*",
                 inline=False
             )
 
-        embed.set_footer(text="Dropdown lte7t kat affichi ga3 l minigames available.")
+        # Field 4: Most All-Time Losses
+        if top_alltime_loss_row and top_alltime_loss_row[1] > 0:
+            u_id, l_count = top_alltime_loss_row
+            top_game_str = ""
+            async with self.bot.db.execute("""
+                SELECT game, loss_amount
+                FROM minigame_leaderboard
+                WHERE guild_id = ? AND user_id = ?
+                ORDER BY loss_amount DESC LIMIT 1
+            """, (guild.id, u_id)) as g_cur:
+                g_row = await g_cur.fetchone()
+                if g_row:
+                    d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
+                    top_game_str = f" *(Top Game: **{d_name}**)*"
+
+            embed.add_field(
+                name="💥 Most All-Time Losses",
+                value=f"<@{u_id}> — **-{l_count:,}** {TAD_EMOJI} TAD{top_game_str}",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="💥 Most All-Time Losses",
+                value="*No losses yet.*",
+                inline=False
+            )
+
+        embed.set_footer(text="Dropdowns lte7t kat affichi ga3 l minigames available.")
         return embed
 
     @commands.command(name="leaderboard", aliases=["lb", "top"], help="Leaderboard ta3 lminigames (sat lb [game]).")
@@ -8575,7 +8790,7 @@ class Fun(commands.Cog):
                 ))
                 return
 
-            await view.show_game_page(interaction=None, game_key=target_key, sort_by="wins", page=0)
+            await view.show_game_page(interaction=None, game_key=target_key, timeframe="weekly", page=0)
 
     @commands.command(aliases=['cf', 'drhm'], help="Nlou7 derhem o chouf wach jak ras wla njma (sat coinflip [ras/njma] [bet:500]).")
     @not_fraud()
@@ -8642,8 +8857,12 @@ class Fun(commands.Cog):
                 tax_str = f" (`{tax:,}` TAD tax)" if tax > 0 else ""
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
                 embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(bet)}**{tax_str}", inline=False)
+                if ctx.guild:
+                    await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "coinflip", loss_amount=bet)
         elif won and ctx.guild:
             await self.record_minigame_win(ctx.guild.id, ctx.author.id, "coinflip")
+        elif not won and ctx.guild:
+            await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "coinflip", loss_amount=0)
 
         coin_path = os.path.join("assets", "coin", "Heads.png" if result == "ras" else "Tails.png")
         if os.path.exists(coin_path):
@@ -8696,15 +8915,22 @@ class Fun(commands.Cog):
                 if net_profit > 0:
                     embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • `{tax:,}` TAD tax)", inline=False)
                 elif net_profit < 0:
-                    tax = await economy_cog.apply_lost_gamble_tax(abs(net_profit), context="Dice Partial Loss")
+                    lost_amt = abs(net_profit)
+                    tax = await economy_cog.apply_lost_gamble_tax(lost_amt, context="Dice Partial Loss")
                     tax_str = f" • `{tax:,}` TAD tax" if tax > 0 else ""
-                    embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(abs(net_profit))}** (Refund: {net_payout:,} TAD{tax_str})", inline=False)
+                    embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(lost_amt)}** (Refund: {net_payout:,} TAD{tax_str})", inline=False)
+                    if ctx.guild:
+                        await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "dice", loss_amount=lost_amt)
                 else:
                     embed.add_field(name="💵 Net Payout", value=f"⚪ **+0 TAD** (Refund: {net_payout:,} TAD)", inline=False)
             else:
                 tax = await economy_cog.apply_lost_gamble_tax(bet, context="Dice Loss")
                 tax_str = f" (`{tax:,}` TAD tax)" if tax > 0 else ""
                 embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(bet)}**{tax_str}", inline=False)
+                if ctx.guild:
+                    await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "dice", loss_amount=bet)
+        elif mult < 1.0 and ctx.guild:
+            await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "dice", loss_amount=0)
         else:
             embed.set_footer(text="Bghiti t9emmer b flous? Kteb sat dice 100")
 
@@ -8836,8 +9062,12 @@ class Fun(commands.Cog):
                 tax_str = f" (`{tax:,}` TAD tax)" if tax > 0 else ""
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
                 embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(bet)}**{tax_str}", inline=False)
+                if ctx.guild:
+                    await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "slots", loss_amount=bet)
         elif payout_mult > 0 and ctx.guild:
             await self.record_minigame_win(ctx.guild.id, ctx.author.id, "slots")
+        elif payout_mult == 0 and ctx.guild:
+            await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "slots", loss_amount=0)
 
         await spin_msg.edit(embed=embed)
 
@@ -9048,8 +9278,12 @@ class Fun(commands.Cog):
                 tax_str = f" (`{tax:,}` TAD tax)" if tax > 0 else ""
                 embed.add_field(name="💰 Stake", value=format_tad(bet), inline=True)
                 embed.add_field(name="💵 Net Payout", value=f"🔴 **-{format_tad(bet)}**{tax_str}", inline=False)
+                if ctx.guild:
+                    await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "roulette", loss_amount=bet)
         elif won and ctx.guild:
             await self.record_minigame_win(ctx.guild.id, ctx.author.id, "roulette")
+        elif not won and ctx.guild:
+            await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "roulette", loss_amount=0)
 
         await spin_msg.edit(embed=embed)
 
