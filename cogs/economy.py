@@ -342,7 +342,7 @@ class Economy(commands.Cog):
         # Ensure user wallet exists
         await self.get_wallet(user_id)
 
-        if context == "chat_activity":
+        if context in ("chat_activity", "vc_activity"):
             await self.bot.db.execute(
                 "UPDATE user_wallets SET balance = balance + ?, total_activity_rewards = total_activity_rewards + ? WHERE user_id = ?",
                 (amount, amount, user_id)
@@ -353,7 +353,7 @@ class Economy(commands.Cog):
                 (amount, user_id)
             )
 
-        if context and context != "chat_activity":
+        if context and context not in ("chat_activity", "vc_activity"):
             now_ts = int(time.time())
             await self.bot.db.execute(
                 "INSERT INTO user_transactions (user_id, amount, context, created_at) VALUES (?, ?, ?, ?)",

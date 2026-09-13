@@ -19,6 +19,7 @@ import json
 import math
 import http.cookiejar
 import urllib.request
+import urllib.parse
 
 from converters import FuzzyMember
 from assets.wordle_words import WORDLE_TARGETS
@@ -4489,6 +4490,75 @@ def _clean_car_image_url(url: str) -> str:
     return url
 
 
+_CAR_IMAGE_CACHE: dict = {}
+
+async def _get_compressed_car_image(session: Optional[aiohttp.ClientSession], image_url: str) -> Optional[io.BytesIO]:
+    if not image_url:
+        return None
+
+    if image_url in _CAR_IMAGE_CACHE:
+        buf = io.BytesIO(_CAR_IMAGE_CACHE[image_url])
+        buf.seek(0)
+        return buf
+
+    headers = {
+        "User-Agent": "SifdineDiscordBot/1.0 (https://github.com/ayoubanlouf/SifdineDiscordBot; contact@sifdine.bot) aiohttp/3.9"
+    }
+
+    urls_to_try = []
+    if "upload.wikimedia.org" in image_url or "Special:FilePath" in image_url:
+        filename = image_url.split("/")[-1].split("?")[0]
+        filename_decoded = urllib.parse.unquote(filename)
+        urls_to_try.append(f"https://commons.wikimedia.org/wiki/Special:FilePath/{urllib.parse.quote(filename_decoded)}?width=1000")
+    urls_to_try.append(image_url)
+
+    raw_data = None
+    close_session = False
+    if session is None or session.closed:
+        session = aiohttp.ClientSession()
+        close_session = True
+
+    try:
+        for url in urls_to_try:
+            try:
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5), allow_redirects=True) as resp:
+                    if resp.status == 200:
+                        raw_data = await resp.read()
+                        if raw_data and len(raw_data) > 500:
+                            break
+            except Exception:
+                continue
+    finally:
+        if close_session:
+            await session.close()
+
+    if not raw_data:
+        return None
+
+    try:
+        def _process():
+            with Image.open(io.BytesIO(raw_data)) as img:
+                img = img.convert("RGB")
+                img.thumbnail((900, 650), Image.Resampling.LANCZOS)
+                out = io.BytesIO()
+                img.save(out, format="JPEG", quality=88, optimize=True)
+                return out.getvalue()
+
+        compressed_bytes = await asyncio.to_thread(_process)
+        _CAR_IMAGE_CACHE[image_url] = compressed_bytes
+        if len(_CAR_IMAGE_CACHE) > 25:
+            first_key = next(iter(_CAR_IMAGE_CACHE))
+            _CAR_IMAGE_CACHE.pop(first_key, None)
+
+        buf = io.BytesIO(compressed_bytes)
+        buf.seek(0)
+        return buf
+    except Exception as e:
+        print(f"[_get_compressed_car_image error]: {e}")
+        return None
+
+
+
 # ============ PLAYING CARDS & TABLE RENDERING ============
 
 SUITS = ["♠️", "♥️", "♦️", "♣️"]
@@ -6814,6 +6884,11 @@ class Fun(commands.Cog):
         match_pool = list(pool)
         random.shuffle(match_pool)
 
+        # Prefetch first cars so round 1 and 2 start with 0ms delay
+        if match_pool:
+            for pre_car in match_pool[-2:]:
+                asyncio.create_task(_get_compressed_car_image(self.bot.session, _clean_car_image_url(pre_car.get("image_url", ""))))
+
         start_embed = discord.Embed(
             description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
             color=0x000000
@@ -6881,8 +6956,19 @@ class Fun(commands.Cog):
                     color=0x000000
                 )
                 car_img = _clean_car_image_url(target.get("image_url", ""))
-                game_embed.set_image(url=car_img)
-                round_msg = await ctx.send(player.mention, embed=game_embed)
+                compressed_buf = await _get_compressed_car_image(self.bot.session, car_img)
+                if compressed_buf:
+                    car_file = discord.File(compressed_buf, filename="car.jpg")
+                    game_embed.set_image(url="attachment://car.jpg")
+                    round_msg = await ctx.send(player.mention, embed=game_embed, file=car_file)
+                else:
+                    game_embed.set_image(url=car_img)
+                    round_msg = await ctx.send(player.mention, embed=game_embed)
+
+                # Prefetch next car in background while player is guessing
+                if match_pool:
+                    next_target_url = _clean_car_image_url(match_pool[-1].get("image_url", ""))
+                    asyncio.create_task(_get_compressed_car_image(self.bot.session, next_target_url))
 
                 def check(m):
                     if m.channel.id != ctx.channel.id:

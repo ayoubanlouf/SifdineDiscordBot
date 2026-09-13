@@ -26,6 +26,7 @@ class Events(commands.Cog):
             bot.reaction_cache = {}
 
         self.cleanup_snipe_cache.start()
+        self.vc_activity_tracker.start()
 
     async def cog_load(self):
         try:
@@ -389,6 +390,56 @@ class Events(commands.Cog):
 
     def cog_unload(self):
         self.cleanup_snipe_cache.cancel()
+        self.vc_activity_tracker.cancel()
+
+    @tasks.loop(minutes=1.0)
+    async def vc_activity_tracker(self):
+        economy_cog = self.bot.get_cog("Economy")
+        if not economy_cog:
+            return
+
+        awarded_users = set()
+
+        for guild in self.bot.guilds:
+            channels = list(guild.voice_channels) + list(getattr(guild, "stage_channels", []))
+            for channel in channels:
+                if channel == guild.afk_channel:
+                    continue
+
+                # Filter human members
+                human_members = [m for m in channel.members if not m.bot]
+                # Anti-alone / anti-farming: must have at least 2 non-bot members
+                if len(human_members) < 2:
+                    continue
+
+                # Anti-farming: at least 2 non-bot members must be undeafened (prevents farming with deafened/AFK alts)
+                undeafened_members = [
+                    m for m in human_members
+                    if m.voice and not m.voice.self_deaf and not m.voice.deaf
+                ]
+                if len(undeafened_members) < 2:
+                    continue
+
+                for member in undeafened_members:
+                    # Member must be unmuted (neither self-muted nor server-muted nor suppressed)
+                    if member.voice.self_mute or member.voice.mute or getattr(member.voice, "suppress", False):
+                        continue
+
+                    if member.id in awarded_users:
+                        continue
+
+                    try:
+                        w = await economy_cog.get_wallet(member.id)
+                        if w.get("is_fraud", 0) == 0:
+                            reward = random.randint(5, 15)
+                            await economy_cog.add_balance(member.id, reward, context="vc_activity")
+                            awarded_users.add(member.id)
+                    except Exception:
+                        pass
+
+    @vc_activity_tracker.before_loop
+    async def before_vc_activity(self):
+        await self.bot.wait_until_ready()
 
     @tasks.loop(hours=1)
     async def cleanup_snipe_cache(self):
