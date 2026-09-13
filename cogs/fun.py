@@ -5270,7 +5270,6 @@ class TowerGameView(discord.ui.View):
         if self.game_over:
             return
 
-        await interaction.response.defer()
         winning_door = self.winning_doors[self.current_floor]
         economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
 
@@ -5287,17 +5286,15 @@ class TowerGameView(discord.ui.View):
                     item.disabled = True
 
                 gross_payout = int(round(self.bet * current_mult))
-                net_profit = gross_payout - self.bet
-                tax = 0
-                if self.bet > 0 and economy_cog:
-                    net_payout, tax = await economy_cog.apply_tax_and_add_balance(
-                        self.author.id, gross_payout, context="Tower Jackpot (16.0x)", vault="casino"
-                    )
-                    net_profit = net_payout - self.bet
+                tax = round(gross_payout * 0.02)
+                net_payout = gross_payout - tax
+                if net_payout <= 0 and gross_payout > 0:
+                    net_payout = 1
+                    tax = gross_payout - 1
+                net_profit = net_payout - self.bet
 
                 guild = getattr(interaction, "guild", None) or (self.message.guild if self.message else None)
-                if guild and self.cog:
-                    await self.cog.record_minigame_win(guild.id, self.author.id, "tower", earnings=max(0, net_profit))
+                guild_id = guild.id if guild else None
 
                 board_bytes = await asyncio.to_thread(render_tower_board, self.current_floor, self.story_doors, "won")
                 file = discord.File(board_bytes, filename="tower.jpg")
@@ -5318,11 +5315,22 @@ class TowerGameView(discord.ui.View):
                 )
                 embed.set_image(url="attachment://tower.jpg")
                 embed.set_footer(text="Sifdine Casino • Max Payout Achieved!")
-                try:
-                    await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
-                except Exception:
-                    if self.message:
-                        await self.message.edit(embed=embed, attachments=[file], view=self)
+                await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
+
+                # Execute database payout asynchronously in background so Discord never times out
+                if self.bet > 0 and economy_cog:
+                    async def _payout_summit():
+                        try:
+                            await economy_cog.apply_tax_and_add_balance(
+                                self.author.id, gross_payout, context="Tower Jackpot (16.0x)", vault="casino"
+                            )
+                            if guild_id and self.cog:
+                                await self.cog.record_minigame_win(guild_id, self.author.id, "tower", earnings=max(0, net_profit))
+                        except Exception as e:
+                            print(f"[Tower summit payout error]: {e}")
+                    asyncio.create_task(_payout_summit())
+                elif guild_id and self.cog:
+                    asyncio.create_task(self.cog.record_minigame_win(guild_id, self.author.id, "tower"))
                 return
 
             else:
@@ -5349,11 +5357,7 @@ class TowerGameView(discord.ui.View):
                 embed.set_image(url="attachment://tower.jpg")
                 author_name = getattr(self.author, "display_name", str(self.author))
                 embed.set_footer(text=f" {author_name} • Khtar door wla Cash Out")
-                try:
-                    await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
-                except Exception:
-                    if self.message:
-                        await self.message.edit(embed=embed, attachments=[file], view=self)
+                await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
 
         else:
             # Trap door!
@@ -5364,9 +5368,6 @@ class TowerGameView(discord.ui.View):
 
             for item in self.children:
                 item.disabled = True
-
-            if self.bet > 0 and economy_cog:
-                await economy_cog.process_gamble_loss(self.bet, context=f"Tower Loss (Story {self.current_floor})")
 
             board_bytes = await asyncio.to_thread(render_tower_board, self.current_floor, self.story_doors, "lost")
             file = discord.File(board_bytes, filename="tower.jpg")
@@ -5381,11 +5382,10 @@ class TowerGameView(discord.ui.View):
                 color=0x000000
             )
             embed.set_image(url="attachment://tower.jpg")
-            try:
-                await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
-            except Exception:
-                if self.message:
-                    await self.message.edit(embed=embed, attachments=[file], view=self)
+            await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
+
+            if self.bet > 0 and economy_cog:
+                asyncio.create_task(economy_cog.process_gamble_loss(self.bet, context=f"Tower Loss (Story {self.current_floor})"))
 
     async def handle_cashout(self, interaction: discord.Interaction):
         if self.game_over:
@@ -5394,7 +5394,6 @@ class TowerGameView(discord.ui.View):
             await interaction.response.send_message("⚠️ Khassek tfot Story 1 9bel ma dir Cash Out!", ephemeral=True)
             return
 
-        await interaction.response.defer()
         self.game_over = True
         self.stop()
         for item in self.children:
@@ -5402,19 +5401,16 @@ class TowerGameView(discord.ui.View):
 
         mult = self.multipliers[self.current_floor - 1]
         gross_payout = int(round(self.bet * mult))
-        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
-
-        net_profit = gross_payout - self.bet
-        tax = 0
-        if self.bet > 0 and economy_cog:
-            net_payout, tax = await economy_cog.apply_tax_and_add_balance(
-                self.author.id, gross_payout, context=f"Tower Cashout ({mult:.1f}x)", vault="casino"
-            )
-            net_profit = net_payout - self.bet
+        tax = round(gross_payout * 0.02)
+        net_payout = gross_payout - tax
+        if net_payout <= 0 and gross_payout > 0:
+            net_payout = 1
+            tax = gross_payout - 1
+        net_profit = net_payout - self.bet
 
         guild = getattr(interaction, "guild", None) or (self.message.guild if self.message else None)
-        if guild and self.cog:
-            await self.cog.record_minigame_win(guild.id, self.author.id, "tower", earnings=max(0, net_profit))
+        guild_id = guild.id if guild else None
+        economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
 
         board_bytes = await asyncio.to_thread(render_tower_board, self.current_floor - 1, self.story_doors, "cashed_out")
         file = discord.File(board_bytes, filename="tower.jpg")
@@ -5435,11 +5431,22 @@ class TowerGameView(discord.ui.View):
         )
         embed.set_image(url="attachment://tower.jpg")
         embed.set_footer(text="Sifdine Casino • Winnings deposited to your wallet")
-        try:
-            await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
-        except Exception:
-            if self.message:
-                await self.message.edit(embed=embed, attachments=[file], view=self)
+        await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
+
+        # Execute database payout asynchronously in background so Discord never times out
+        if self.bet > 0 and economy_cog:
+            async def _payout_cashout():
+                try:
+                    await economy_cog.apply_tax_and_add_balance(
+                        self.author.id, gross_payout, context=f"Tower Cashout ({mult:.1f}x)", vault="casino"
+                    )
+                    if guild_id and self.cog:
+                        await self.cog.record_minigame_win(guild_id, self.author.id, "tower", earnings=max(0, net_profit))
+                except Exception as e:
+                    print(f"[Tower cashout payout error]: {e}")
+            asyncio.create_task(_payout_cashout())
+        elif guild_id and self.cog:
+            asyncio.create_task(self.cog.record_minigame_win(guild_id, self.author.id, "tower"))
 
     async def on_timeout(self):
         if not self.game_over and self.message:
