@@ -23,7 +23,7 @@ import urllib.parse
 
 from converters import FuzzyMember
 from assets.wordle_words import WORDLE_TARGETS
-from cogs.economy import parse_bet_argument, format_tad, TAD_EMOJI, calculate_pvp_payout, not_fraud, TAX_RATE
+from cogs.economy import parse_bet_argument, format_tad, TAD_EMOJI, calculate_pvp_payout, not_fraud, TAX_RATE, get_current_week_start_ts, get_next_week_start_ts
 
 # Compatibility shim for newer akinator API variations
 import akinator
@@ -5949,13 +5949,13 @@ class LeaderboardInteractiveView(discord.ui.View):
         self.current_page = page
 
         if self.timeframe == "weekly":
-            seven_days_ago = int(time.time()) - (7 * 86400)
+            week_start_ts = get_current_week_start_ts()
             async with self.cog.bot.db.execute("""
                 SELECT user_id, COUNT(*) as wins, SUM(earnings) as earnings FROM minigame_win_logs
                 WHERE guild_id = ? AND game = ? AND timestamp >= ?
                 GROUP BY user_id
                 ORDER BY earnings DESC, wins DESC
-            """, (self.ctx.guild.id, self.current_game, seven_days_ago)) as cursor:
+            """, (self.ctx.guild.id, self.current_game, week_start_ts)) as cursor:
                 self.rows_cache = await cursor.fetchall()
         else:
             async with self.cog.bot.db.execute("""
@@ -6014,10 +6014,11 @@ class LeaderboardInteractiveView(discord.ui.View):
 
     def get_game_embed(self, total_pages: int) -> discord.Embed:
         game_display, _ = self.minigame_map.get(self.current_game, (self.current_game.title(), []))
-        tf_title = "🗓️ Weekly (Past 7 Days)" if self.timeframe == "weekly" else "👑 All-Time"
+        tf_title = "🗓️ Weekly (This Week)" if self.timeframe == "weekly" else "👑 All-Time"
+        reset_str = f" • Resets <t:{get_next_week_start_ts()}:R>" if self.timeframe == "weekly" else ""
         embed = discord.Embed(
             title=f"{game_display} Leaderboard",
-            description=f"*{tf_title} • Sorted by Gains* — **{self.ctx.guild.name}**\n\n",
+            description=f"*{tf_title}{reset_str} • Sorted by Gains* — **{self.ctx.guild.name}**\n\n",
             color=0x000000
         )
 
@@ -9152,7 +9153,8 @@ class Fun(commands.Cog):
     # ============ REWORKED LEADERBOARD & CASINO COMMANDS ============
 
     async def get_main_leaderboard_embed(self, guild: discord.Guild) -> discord.Embed:
-        seven_days_ago = int(time.time()) - (7 * 86400)
+        week_start_ts = get_current_week_start_ts()
+        next_week_ts = get_next_week_start_ts()
 
         # 1. User with the most weekly earnings across the guild
         async with self.bot.db.execute("""
@@ -9161,7 +9163,7 @@ class Fun(commands.Cog):
             WHERE guild_id = ? AND timestamp >= ?
             GROUP BY user_id
             ORDER BY total_earnings DESC LIMIT 1
-        """, (guild.id, seven_days_ago)) as cursor:
+        """, (guild.id, week_start_ts)) as cursor:
             top_weekly_row = await cursor.fetchone()
 
         # 2. User with the most weekly losses across the guild
@@ -9171,7 +9173,7 @@ class Fun(commands.Cog):
             WHERE guild_id = ? AND timestamp >= ?
             GROUP BY user_id
             ORDER BY total_losses DESC LIMIT 1
-        """, (guild.id, seven_days_ago)) as cursor:
+        """, (guild.id, week_start_ts)) as cursor:
             top_weekly_loss_row = await cursor.fetchone()
 
         # 3. User with the most all-time earnings across the guild
@@ -9210,20 +9212,20 @@ class Fun(commands.Cog):
                 WHERE guild_id = ? AND user_id = ? AND timestamp >= ?
                 GROUP BY game
                 ORDER BY game_earnings DESC LIMIT 1
-            """, (guild.id, u_id, seven_days_ago)) as g_cur:
+            """, (guild.id, u_id, week_start_ts)) as g_cur:
                 g_row = await g_cur.fetchone()
                 if g_row:
                     d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
                     top_game_str = f" *(Top Game: **{d_name}**)*"
 
             embed.add_field(
-                name="🗓️ Most Weekly Earnings",
+                name=f"🗓️ Most Weekly Earnings (Resets <t:{next_week_ts}:R>)",
                 value=f"<@{u_id}> — {format_tad(e_count)}{top_game_str}",
                 inline=False
             )
         else:
             embed.add_field(
-                name="🗓️ Most Weekly Earnings",
+                name=f"🗓️ Most Weekly Earnings (Resets <t:{next_week_ts}:R>)",
                 value="*No weekly earnings yet.*",
                 inline=False
             )
@@ -9238,20 +9240,20 @@ class Fun(commands.Cog):
                 WHERE guild_id = ? AND user_id = ? AND timestamp >= ?
                 GROUP BY game
                 ORDER BY game_losses DESC LIMIT 1
-            """, (guild.id, u_id, seven_days_ago)) as g_cur:
+            """, (guild.id, u_id, week_start_ts)) as g_cur:
                 g_row = await g_cur.fetchone()
                 if g_row:
                     d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
                     top_game_str = f" *(Top Game: **{d_name}**)*"
 
             embed.add_field(
-                name="📉 Most Weekly Losses",
+                name=f"📉 Most Weekly Losses (Resets <t:{next_week_ts}:R>)",
                 value=f"<@{u_id}> — **-{l_count:,}** {TAD_EMOJI} TAD{top_game_str}",
                 inline=False
             )
         else:
             embed.add_field(
-                name="📉 Most Weekly Losses",
+                name=f"📉 Most Weekly Losses (Resets <t:{next_week_ts}:R>)",
                 value="*No weekly losses yet.*",
                 inline=False
             )

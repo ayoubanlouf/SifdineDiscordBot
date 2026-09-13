@@ -18,6 +18,21 @@ def format_tad(amount: int) -> str:
     return f"**{amount:,}** {TAD_EMOJI} TAD"
 
 
+def get_current_week_start_ts() -> int:
+    """Returns the Unix timestamp for the start of the current week (Monday 00:00 Casablanca time)."""
+    now_casa = datetime.now(CASA_TZ)
+    current_week_start = (now_casa - timedelta(days=now_casa.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(current_week_start.timestamp())
+
+
+def get_next_week_start_ts() -> int:
+    """Returns the Unix timestamp for the start of the next week (Next Monday 00:00 Casablanca time)."""
+    now_casa = datetime.now(CASA_TZ)
+    current_week_start = (now_casa - timedelta(days=now_casa.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    next_week_start = current_week_start + timedelta(days=7)
+    return int(next_week_start.timestamp())
+
+
 def parse_bet_argument(*args, user_balance: Optional[int] = None) -> Tuple[Optional[int], list]:
     """
     Intelligently parses explicit or natural bet inputs:
@@ -528,10 +543,8 @@ class Economy(commands.Cog):
         else:
             daily_val = f"⏳ Resets <t:{next_midnight_ts}:R>\n🔥 Streak: `{daily_streak}/7`"
 
-        current_week_start = (now_casa - timedelta(days=now_casa.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-        current_week_start_ts = int(current_week_start.timestamp())
-        next_week_start = current_week_start + timedelta(days=7)
-        next_week_start_ts = int(next_week_start.timestamp())
+        current_week_start_ts = get_current_week_start_ts()
+        next_week_start_ts = get_next_week_start_ts()
 
         if not last_weekly or last_weekly < current_week_start_ts:
             weekly_val = "✅ Available to claim"
@@ -820,10 +833,8 @@ class Economy(commands.Cog):
         last_weekly = row[0] if row else 0
 
         # Cooldown check: resets for everyone at Sunday midnight (00:00 Monday) Casablanca timezone
-        current_week_start = (now_casa - timedelta(days=now_casa.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-        current_week_start_ts = int(current_week_start.timestamp())
-        next_week_start = current_week_start + timedelta(days=7)
-        next_week_start_ts = int(next_week_start.timestamp())
+        current_week_start_ts = get_current_week_start_ts()
+        next_week_start_ts = get_next_week_start_ts()
 
         if last_weekly and last_weekly >= current_week_start_ts:
             await ctx.send(embed=discord.Embed(
