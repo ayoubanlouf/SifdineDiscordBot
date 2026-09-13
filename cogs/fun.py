@@ -4490,16 +4490,9 @@ def _clean_car_image_url(url: str) -> str:
     return url
 
 
-_CAR_IMAGE_CACHE: dict = {}
-
 async def _get_compressed_car_image(session: Optional[aiohttp.ClientSession], image_url: str) -> Optional[io.BytesIO]:
     if not image_url:
         return None
-
-    if image_url in _CAR_IMAGE_CACHE:
-        buf = io.BytesIO(_CAR_IMAGE_CACHE[image_url])
-        buf.seek(0)
-        return buf
 
     headers = {
         "User-Agent": "SifdineDiscordBot/1.0 (https://github.com/ayoubanlouf/SifdineDiscordBot; contact@sifdine.bot) aiohttp/3.9"
@@ -4509,7 +4502,7 @@ async def _get_compressed_car_image(session: Optional[aiohttp.ClientSession], im
     if "upload.wikimedia.org" in image_url or "Special:FilePath" in image_url:
         filename = image_url.split("/")[-1].split("?")[0]
         filename_decoded = urllib.parse.unquote(filename)
-        urls_to_try.append(f"https://commons.wikimedia.org/wiki/Special:FilePath/{urllib.parse.quote(filename_decoded)}?width=1000")
+        urls_to_try.append(f"https://commons.wikimedia.org/wiki/Special:FilePath/{urllib.parse.quote(filename_decoded)}?width=960")
     urls_to_try.append(image_url)
 
     raw_data = None
@@ -4521,10 +4514,15 @@ async def _get_compressed_car_image(session: Optional[aiohttp.ClientSession], im
     try:
         for url in urls_to_try:
             try:
-                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5), allow_redirects=True) as resp:
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=4), allow_redirects=True) as resp:
                     if resp.status == 200:
-                        raw_data = await resp.read()
-                        if raw_data and len(raw_data) > 500:
+                        cl = resp.headers.get("Content-Length")
+                        if cl and int(cl) > 2500000:
+                            # Skip raw multi-megabyte originals to protect container RAM
+                            continue
+                        data = await resp.read()
+                        if data and len(data) > 500:
+                            raw_data = data
                             break
             except Exception:
                 continue
@@ -4535,27 +4533,33 @@ async def _get_compressed_car_image(session: Optional[aiohttp.ClientSession], im
     if not raw_data:
         return None
 
+    # If already a compact thumbnail (< 600 KB, which Wikimedia 960px thumbnails always are ~150 KB),
+    # bypass Pillow entirely! This prevents memory spikes and saves 100% of image decode RAM.
+    if len(raw_data) <= 600 * 1024:
+        buf = io.BytesIO(raw_data)
+        buf.seek(0)
+        return buf
+
+    # For rare images > 600 KB, use memory-efficient draft scaling
     try:
-        def _process():
+        def _quick_downscale():
             with Image.open(io.BytesIO(raw_data)) as img:
+                img.draft("RGB", (960, 650))
                 img = img.convert("RGB")
-                img.thumbnail((900, 650), Image.Resampling.LANCZOS)
+                img.thumbnail((960, 650), Image.Resampling.BILINEAR)
                 out = io.BytesIO()
-                img.save(out, format="JPEG", quality=88, optimize=True)
+                img.save(out, format="JPEG", quality=82, optimize=True)
                 return out.getvalue()
 
-        compressed_bytes = await asyncio.to_thread(_process)
-        _CAR_IMAGE_CACHE[image_url] = compressed_bytes
-        if len(_CAR_IMAGE_CACHE) > 25:
-            first_key = next(iter(_CAR_IMAGE_CACHE))
-            _CAR_IMAGE_CACHE.pop(first_key, None)
-
+        compressed_bytes = await asyncio.to_thread(_quick_downscale)
         buf = io.BytesIO(compressed_bytes)
         buf.seek(0)
         return buf
     except Exception as e:
-        print(f"[_get_compressed_car_image error]: {e}")
-        return None
+        print(f"[_get_compressed_car_image downscale error]: {e}")
+        buf = io.BytesIO(raw_data)
+        buf.seek(0)
+        return buf
 
 
 
@@ -7349,10 +7353,9 @@ class Fun(commands.Cog):
         match_pool = list(pool)
         random.shuffle(match_pool)
 
-        # Prefetch first cars so round 1 and 2 start with 0ms delay
+        # Prefetch first car so round 1 starts with 0ms delay
         if match_pool:
-            for pre_car in match_pool[-2:]:
-                asyncio.create_task(_get_compressed_car_image(self.bot.session, _clean_car_image_url(pre_car.get("image_url", ""))))
+            asyncio.create_task(_get_compressed_car_image(self.bot.session, _clean_car_image_url(match_pool[-1].get("image_url", ""))))
 
         start_embed = discord.Embed(
             description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
