@@ -1138,7 +1138,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="removetad", aliases=["tax"], help="N9ess flous mn wallet dial chy user .")
     @commands.is_owner()
-    async def tax_user(self, ctx: commands.Context, target: discord.User, amount: AmountConverter):
+    async def tax_user(self, ctx: commands.Context, target: FuzzyMember, amount: AmountConverter):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
@@ -1184,7 +1184,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="addtad", aliases=["reward"], help="Zid flous l wallet dial chy user.")
     @commands.is_owner()
-    async def reward_user(self, ctx: commands.Context, target: discord.User, amount: AmountConverter):
+    async def reward_user(self, ctx: commands.Context, target: FuzzyMember, amount: AmountConverter):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
@@ -1200,7 +1200,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="addxp", help="Zid XP l chy user.")
     @commands.is_owner()
-    async def add_xp_cmd(self, ctx: commands.Context, target: discord.User, amount: int):
+    async def add_xp_cmd(self, ctx: commands.Context, target: FuzzyMember, amount: int):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
@@ -1212,7 +1212,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="removexp", help="N9ess XP l chy user.")
     @commands.is_owner()
-    async def remove_xp_cmd(self, ctx: commands.Context, target: discord.User, amount: int):
+    async def remove_xp_cmd(self, ctx: commands.Context, target: FuzzyMember, amount: int):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
@@ -1225,7 +1225,7 @@ class Economy(commands.Cog):
     # ============ USER LEVELING COMMANDS ============
 
     @commands.command(name="rank", aliases=["level", "lvl"], help="Chouf level ta3k wla ta3 chy user.")
-    async def rank_cmd(self, ctx: commands.Context, target: Optional[discord.User] = None):
+    async def rank_cmd(self, ctx: commands.Context, target: Optional[FuzzyMember] = None):
         user = target or ctx.author
         user_data = await self.get_user_level(user.id)
         next_lvl, next_rew = get_next_milestone_info(user_data["level"])
@@ -1329,7 +1329,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="fraud", aliases=["nssab", "scammer", "cheater"], help="Blocki user mn l economy system (mention wla ID).")
     @commands.is_owner()
-    async def fraud_user(self, ctx: commands.Context, target: discord.User):
+    async def fraud_user(self, ctx: commands.Context, target: FuzzyMember):
         w = await self.get_wallet(target.id)
         if w.get("is_fraud", 0) == 1:
             await ctx.send(f"⚠️ **{target.mention}** aslan mmarki **Fraud** mn 9bel!")
@@ -1347,7 +1347,7 @@ class Economy(commands.Cog):
 
     @commands.command(name="legit", aliases=["n9i"], help="Unblocki user mn l economy system (mention wla ID).")
     @commands.is_owner()
-    async def legit_user(self, ctx: commands.Context, target: discord.User):
+    async def legit_user(self, ctx: commands.Context, target: FuzzyMember):
         w = await self.get_wallet(target.id)
         if w.get("is_fraud", 0) == 0:
             await ctx.send(f"⚠️ **{target.mention}** aslan **Legit** (machiy fraud).")
