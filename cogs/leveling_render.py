@@ -11,18 +11,39 @@ def _get_font(size: int, bold: bool = False):
     if key in _FONTS_CACHE:
         return _FONTS_CACHE[key]
 
-    if bold:
-        font_names = ["segoeuib.ttf", "arialbd.ttf", "calibrib.ttf", "DejaVuSans-Bold.ttf"]
-    else:
-        font_names = ["segoeui.ttf", "arial.ttf", "calibri.ttf", "DejaVuSans.ttf"]
-    
-    for name in font_names:
+    target_file = "segoeuib.ttf" if bold else "segoeui.ttf"
+    local_path = os.path.join("assets", "fonts", target_file)
+    if os.path.exists(local_path):
         try:
-            f = ImageFont.truetype(name, size)
+            f = ImageFont.truetype(local_path, size)
             _FONTS_CACHE[key] = f
             return f
         except Exception:
-            p = os.path.join("C:/Windows/Fonts", name)
+            pass
+
+    font_names = ["segoeuib.ttf", "arialbd.ttf", "calibrib.ttf", "DejaVuSans-Bold.ttf"] if bold else ["segoeui.ttf", "arial.ttf", "calibri.ttf", "DejaVuSans.ttf"]
+    
+    # Check assets directory
+    for name in font_names:
+        p = os.path.join("assets", "fonts", name)
+        if os.path.exists(p):
+            try:
+                f = ImageFont.truetype(p, size)
+                _FONTS_CACHE[key] = f
+                return f
+            except Exception:
+                pass
+
+    # Check standard system font directories (Windows & Linux)
+    search_dirs = [
+        "C:/Windows/Fonts",
+        "/usr/share/fonts/truetype/dejavu",
+        "/usr/share/fonts/truetype",
+        "/usr/share/fonts"
+    ]
+    for d in search_dirs:
+        for name in font_names:
+            p = os.path.join(d, name)
             if os.path.exists(p):
                 try:
                     f = ImageFont.truetype(p, size)
@@ -30,7 +51,15 @@ def _get_font(size: int, bold: bool = False):
                     return f
                 except Exception:
                     pass
-    
+
+    for name in font_names:
+        try:
+            f = ImageFont.truetype(name, size)
+            _FONTS_CACHE[key] = f
+            return f
+        except Exception:
+            pass
+
     f = ImageFont.load_default()
     _FONTS_CACHE[key] = f
     return f
@@ -248,14 +277,14 @@ def render_level_card(
 
     # --- BOTTOM ROW: Lifetime XP + Milestone Glass Cards ---
     stat_y = int(168 * scale)
-    stat_h = 58 * scale
+    stat_h = 60 * scale
 
     # Card 1: Lifetime Mined
     stat1_w = int(185 * scale)
     stat1_box = [content_x, stat_y, content_x + stat1_w, stat_y + stat_h]
     draw.rounded_rectangle(stat1_box, radius=12 * scale, fill=(16, 16, 18, 210), outline=(255, 255, 255, 22), width=scale)
-    draw.text((content_x + int(14 * scale), stat_y + int(13 * scale)), "LIFETIME XP MINED", fill=(130, 130, 138, 255), font=font_label)
-    draw.text((content_x + int(14 * scale), stat_y + int(36 * scale)), f"{total_xp:,} XP", fill=(255, 255, 255, 255), font=font_val)
+    draw.text((content_x + int(14 * scale), stat_y + int(11 * scale)), "LIFETIME XP MINED", fill=(130, 130, 138, 255), font=font_label)
+    draw.text((content_x + int(14 * scale), stat_y + int(32 * scale)), f"{total_xp:,} XP", fill=(255, 255, 255, 255), font=font_val)
 
     # Card 2: Next Milestone Reward (with Tails.png coin icon)
     stat2_x = content_x + stat1_w + int(14 * scale)
@@ -263,17 +292,17 @@ def render_level_card(
     stat2_box = [stat2_x, stat_y, stat2_x + stat2_w, stat_y + stat_h]
     draw.rounded_rectangle(stat2_box, radius=12 * scale, fill=(16, 16, 18, 210), outline=(255, 255, 255, 30), width=scale)
 
-    draw.text((stat2_x + int(14 * scale), stat_y + int(13 * scale)), f"NEXT MILESTONE (LVL {next_milestone_level})", fill=(195, 198, 208, 240), font=font_label)
+    draw.text((stat2_x + int(14 * scale), stat_y + int(11 * scale)), f"NEXT MILESTONE (LVL {next_milestone_level})", fill=(195, 198, 208, 240), font=font_label)
 
-    coin_size = int(24 * scale)
+    coin_size = int(21 * scale)
     coin_x = stat2_x + int(14 * scale)
-    coin_y = stat_y + int(33 * scale)
+    coin_y = stat_y + int(31 * scale)
     coin_img = _get_tails_coin(coin_size)
     if coin_img:
         card.paste(coin_img, (coin_x, coin_y), coin_img)
 
     text_x = coin_x + coin_size + int(8 * scale)
-    draw.text((text_x, stat_y + int(36 * scale)), f"+{next_milestone_reward:,} TAD Cash Payout", fill=(245, 245, 250, 255), font=font_val)
+    draw.text((text_x, stat_y + int(32 * scale)), f"+{next_milestone_reward:,} TAD Cash Payout", fill=(245, 245, 250, 255), font=font_val)
 
     # Downsample 2x to 1x via Lanczos for pixel-perfect retina anti-aliasing
     final_card = card.resize((w_base, h_base), Image.Resampling.LANCZOS)

@@ -1261,7 +1261,7 @@ class Economy(commands.Cog):
         embed.set_footer(text=f"#{user_data['rank']} - Level {user_data['level']}")
         await ctx.send(embed=embed, file=file)
 
-    @commands.command(name="levels", aliases=["ranks"], help="Chouf tertib t levels ta3 bnadm.")
+    @commands.command(name="levels", aliases=["ranks", "lvls"], help="Chouf tertib t levels ta3 bnadm.")
     async def levels_leaderboard(self, ctx: commands.Context):
         async with self.bot.db.execute(
             "SELECT user_id, level, total_xp FROM user_levels WHERE total_xp > 0 ORDER BY level DESC, total_xp DESC LIMIT 250"
@@ -1307,7 +1307,7 @@ class Economy(commands.Cog):
                     else:
                         u = self.bot.get_user(u_id)
                         u_name = f"**{u.name}**" if u else f"<@{u_id}>"
-                    lines.append(f"{medal} {u_name} — **Level {lvl}** • `{txp:,} XP`")
+                    lines.append(f"{medal} {u_name} • `Level {lvl}`")
 
                 embed.description = "\n".join(lines)
                 embed.set_footer(text=f"Page {page_idx + 1}/{total_pages} • Top {len(rows_list)} {scope_name}")
