@@ -5103,7 +5103,7 @@ def render_tower_board(current_floor: int, story_doors: dict, game_state: str = 
     draw.text((w // 2, 40), title_text, fill=title_color, font=font_title, anchor="mm")
 
     door_w, door_h = 110, 118
-    multipliers = {4: "30.0x", 3: "15.0x", 2: "7.0x", 1: "2.0x"}
+    multipliers = {4: "50.0x", 3: "20.0x", 2: "8.0x", 1: "3.0x"}
     titles = {4: "SUMMIT 4", 3: "STORY 3", 2: "STORY 2", 1: "STORY 1"}
 
     row_start_y = 74
@@ -5242,7 +5242,7 @@ class TowerGameView(discord.ui.View):
             4: ["closed", "closed", "closed"],
         }
 
-        self.multipliers = {1: 2.0, 2: 7.0, 3: 15.0, 4: 30.0}
+        self.multipliers = {1: 3.0, 2: 8.0, 3: 20.0, 4: 50.0}
 
         self.door_buttons = [TowerDoorButton(i) for i in range(3)]
         for btn in self.door_buttons:
@@ -5283,7 +5283,7 @@ class TowerGameView(discord.ui.View):
             current_mult = self.multipliers[self.current_floor]
 
             if self.current_floor == 4:
-                # Summit Reached! (30.0x JACKPOT!)
+                # Summit Reached! (50.0x JACKPOT!)
                 self.game_over = True
                 self.stop()
                 for item in self.children:
@@ -5310,10 +5310,10 @@ class TowerGameView(discord.ui.View):
                         f"💰 **Gross Payout:** **{gross_payout:,}** TAD (`{tax:,}` TAD tax split)\n"
                     )
                 else:
-                    desc = f"🎉 **{self.author.mention}** climbed all 4 stories to the summit! Multiplier: **30.0x** 👑"
+                    desc = f"🎉 **{self.author.mention}** climbed all 4 stories to the summit! Multiplier: **50.0x** 👑"
 
                 embed = discord.Embed(
-                    title="👑 TOWER CONQUERED — 30.0x JACKPOT!",
+                    title="👑 TOWER CONQUERED — 50.0x JACKPOT!",
                     description=desc,
                     color=0x000000
                 )
@@ -5326,7 +5326,7 @@ class TowerGameView(discord.ui.View):
                     async def _payout_summit():
                         try:
                             await economy_cog.apply_tax_and_add_balance(
-                                self.author.id, gross_payout, context="Tower Jackpot (30.0x)", vault="casino"
+                                self.author.id, gross_payout, context="Tower Jackpot (50.0x)", vault="casino"
                             )
                             if guild_id and self.cog:
                                 await self.cog.record_minigame_win(guild_id, self.author.id, "tower", earnings=max(0, net_profit))
@@ -9155,53 +9155,51 @@ class Fun(commands.Cog):
 
     # ============ REWORKED LEADERBOARD & CASINO COMMANDS ============
 
-    async def get_main_leaderboard_embed(self, guild: discord.Guild) -> discord.Embed:
+    async def get_main_leaderboard_embed(self, guild: Optional[discord.Guild] = None) -> discord.Embed:
         week_start_ts = get_current_week_start_ts()
         next_week_ts = get_next_week_start_ts()
 
-        # 1. User with the most weekly earnings across the guild
+        # 1. User with the most weekly earnings globally
         async with self.bot.db.execute("""
             SELECT user_id, SUM(earnings) as total_earnings
             FROM minigame_win_logs
-            WHERE guild_id = ? AND timestamp >= ?
+            WHERE timestamp >= ?
             GROUP BY user_id
             ORDER BY total_earnings DESC LIMIT 1
-        """, (guild.id, week_start_ts)) as cursor:
+        """, (week_start_ts,)) as cursor:
             top_weekly_row = await cursor.fetchone()
 
-        # 2. User with the most weekly losses across the guild
+        # 2. User with the most weekly losses globally
         async with self.bot.db.execute("""
             SELECT user_id, SUM(loss_amount) as total_losses
             FROM minigame_loss_logs
-            WHERE guild_id = ? AND timestamp >= ?
+            WHERE timestamp >= ?
             GROUP BY user_id
             ORDER BY total_losses DESC LIMIT 1
-        """, (guild.id, week_start_ts)) as cursor:
+        """, (week_start_ts,)) as cursor:
             top_weekly_loss_row = await cursor.fetchone()
 
-        # 3. User with the most all-time earnings across the guild
+        # 3. User with the most all-time earnings globally
         async with self.bot.db.execute("""
             SELECT user_id, SUM(earnings) as total_earnings
             FROM minigame_leaderboard
-            WHERE guild_id = ?
             GROUP BY user_id
             ORDER BY total_earnings DESC LIMIT 1
-        """, (guild.id,)) as cursor:
+        """) as cursor:
             top_alltime_row = await cursor.fetchone()
 
-        # 4. User with the most all-time losses across the guild
+        # 4. User with the most all-time losses globally
         async with self.bot.db.execute("""
             SELECT user_id, SUM(loss_amount) as total_losses
             FROM minigame_leaderboard
-            WHERE guild_id = ?
             GROUP BY user_id
             ORDER BY total_losses DESC LIMIT 1
-        """, (guild.id,)) as cursor:
+        """) as cursor:
             top_alltime_loss_row = await cursor.fetchone()
 
         embed = discord.Embed(
-            title=f"🏆 Minigame Leaderboard — {guild.name}",
-            description="Khtar minigame mn lmenu lte7t bach tchouf rankings dialha.\n",
+            title="🏆 Minigames Leaderboard (Global)",
+            description="Khtar minigame mn lmenu lte7t bach tchouf rankings dialha f had lserver.\n",
             color=0x000000
         )
 
@@ -9212,10 +9210,10 @@ class Fun(commands.Cog):
             async with self.bot.db.execute("""
                 SELECT game, SUM(earnings) as game_earnings
                 FROM minigame_win_logs
-                WHERE guild_id = ? AND user_id = ? AND timestamp >= ?
+                WHERE user_id = ? AND timestamp >= ?
                 GROUP BY game
                 ORDER BY game_earnings DESC LIMIT 1
-            """, (guild.id, u_id, week_start_ts)) as g_cur:
+            """, (u_id, week_start_ts)) as g_cur:
                 g_row = await g_cur.fetchone()
                 if g_row:
                     d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
@@ -9240,10 +9238,10 @@ class Fun(commands.Cog):
             async with self.bot.db.execute("""
                 SELECT game, SUM(loss_amount) as game_losses
                 FROM minigame_loss_logs
-                WHERE guild_id = ? AND user_id = ? AND timestamp >= ?
+                WHERE user_id = ? AND timestamp >= ?
                 GROUP BY game
                 ORDER BY game_losses DESC LIMIT 1
-            """, (guild.id, u_id, week_start_ts)) as g_cur:
+            """, (u_id, week_start_ts)) as g_cur:
                 g_row = await g_cur.fetchone()
                 if g_row:
                     d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
@@ -9266,11 +9264,12 @@ class Fun(commands.Cog):
             u_id, e_count = top_alltime_row
             top_game_str = ""
             async with self.bot.db.execute("""
-                SELECT game, earnings
+                SELECT game, SUM(earnings) as game_earnings
                 FROM minigame_leaderboard
-                WHERE guild_id = ? AND user_id = ?
-                ORDER BY earnings DESC LIMIT 1
-            """, (guild.id, u_id)) as g_cur:
+                WHERE user_id = ?
+                GROUP BY game
+                ORDER BY game_earnings DESC LIMIT 1
+            """, (u_id,)) as g_cur:
                 g_row = await g_cur.fetchone()
                 if g_row:
                     d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
@@ -9293,11 +9292,12 @@ class Fun(commands.Cog):
             u_id, l_count = top_alltime_loss_row
             top_game_str = ""
             async with self.bot.db.execute("""
-                SELECT game, loss_amount
+                SELECT game, SUM(loss_amount) as game_losses
                 FROM minigame_leaderboard
-                WHERE guild_id = ? AND user_id = ?
-                ORDER BY loss_amount DESC LIMIT 1
-            """, (guild.id, u_id)) as g_cur:
+                WHERE user_id = ?
+                GROUP BY game
+                ORDER BY game_losses DESC LIMIT 1
+            """, (u_id,)) as g_cur:
                 g_row = await g_cur.fetchone()
                 if g_row:
                     d_name = MINIGAME_DISPLAY_MAP.get(g_row[0], (g_row[0].title(), []))[0]
@@ -9315,11 +9315,11 @@ class Fun(commands.Cog):
                 inline=False
             )
 
-        embed.set_footer(text="Dropdowns lte7t kat affichi ga3 l minigames available.")
+        embed.set_footer(text="Dropdowns lte7t kat affichi ga3 l minigames available f had server.")
         return embed
 
-    @commands.command(name="leaderboard", aliases=["lb", "top"], help="Leaderboard ta3 lminigames (sat lb [game]).")
-    async def leaderboard(self, ctx: commands.Context, *args):
+    @commands.command(name="minigames", aliases=["mg", "leaderboard", "lb", "top"], help="Leaderboard ta3 lminigames (sat mg [game]).")
+    async def minigames(self, ctx: commands.Context, *args):
         if not ctx.guild:
             await ctx.send("❌ Had l command khedama ghir f servers.")
             return
@@ -9698,7 +9698,7 @@ class Fun(commands.Cog):
             description=(
                 f"👤 **Player:** {ctx.author.mention}\n"
                 f"{bet_str}"
-                f"🚪 **Story 1/4** • Khtar door mn bach ttle3 l **2.0x**!"
+                f"🚪 **Story 1/4** • Khtar door mn bach ttle3 l **3.0x**!"
             ),
             color=0x000000
         )

@@ -17,7 +17,7 @@ AllBotCommands = {
     "Fun": [
         "truth", "dare", "wouldyourather", "flags", "craftingtable", "guessthecar", "blacktea", "greentea", "redtea", "unscramble",
         "tictactoe", "connectfour", "akinator", "playchess", "rockpaperscissors", "minesweeper", "wordle", "hangman", "trivia",
-        "typeracer", "blackjack", "slots", "mines", "roulette", "higherlower", "coinflip", "dice", "leaderboard", "geoguessr", "guesstherank", "chesspuzzle"
+        "typeracer", "blackjack", "slots", "mines", "tower", "roulette", "higherlower", "coinflip", "dice", "minigames", "geoguessr", "guesstherank", "chesspuzzle"
     ],
     "Moderation": [
         "prefix", "clearsnipes", "cleareditsnipes", "clearreactionsnipes", "clearallsnipes", "role",
@@ -33,7 +33,8 @@ AllBotCommands = {
         "buzzeverywhere", "customcaption", "dailystruggle", "gruplan", "isthis", "tuxedopooh", "nekofact", "magik", "trapcard", "transgender"
     ],
     "Economy": [
-        "wallet", "bank", "casino", "daily", "weekly", "pay", "tax", "reward", "fraud", "legit", "wallets", "fraudlist"
+        "wallet", "wallets", "rank", "levels", "daily", "weekly", "pay", "bank", "casino",
+        "addtad", "removetad", "setvault", "addxp", "removexp", "fraud", "legit", "fraudlist"
     ],
     "Triggers": [
         "👀", "🧠", "🧽", "👎", "🚨", "🎤", "🤖", "🦅", "🐦", "📺", "🚀", "💡"

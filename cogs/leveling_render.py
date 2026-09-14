@@ -36,14 +36,69 @@ def _get_font(size: int, bold: bool = False):
     return f
 
 
+_COIN_CACHE = {}
+
 def _get_tails_coin(size: int) -> Optional[Image.Image]:
+    if size in _COIN_CACHE:
+        return _COIN_CACHE[size].copy()
     coin_path = os.path.join("assets", "coin", "Tails.png")
     if os.path.exists(coin_path):
         try:
-            return Image.open(coin_path).convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
+            img = Image.open(coin_path).convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
+            _COIN_CACHE[size] = img
+            return img.copy()
         except Exception:
             pass
     return None
+
+
+_BASE_CARD_CACHE: Optional[Image.Image] = None
+
+def _get_base_card() -> Image.Image:
+    global _BASE_CARD_CACHE
+    if _BASE_CARD_CACHE is not None:
+        return _BASE_CARD_CACHE.copy()
+
+    scale = 2
+    w_base, h_base = 820, 270
+    w, h = w_base * scale, h_base * scale
+
+    card = Image.new("RGBA", (w, h), (0, 0, 0, 255))
+
+    auras = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    adraw = ImageDraw.Draw(auras)
+    adraw.ellipse([int(15 * scale), int(15 * scale), int(250 * scale), int(250 * scale)], fill=(255, 255, 255, 18))
+    adraw.ellipse([int(580 * scale), int(15 * scale), int(840 * scale), int(240 * scale)], fill=(255, 255, 255, 14))
+    auras = auras.filter(ImageFilter.GaussianBlur(30 * scale))
+    card = Image.alpha_composite(card, auras)
+    auras.close()
+
+    glass = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    gdraw = ImageDraw.Draw(glass)
+    c_box = [int(16 * scale), int(16 * scale), int((w_base - 16) * scale), int((h_base - 16) * scale)]
+    radius_c = 24 * scale
+
+    gdraw.rounded_rectangle(c_box, radius=radius_c, fill=(18, 18, 20, 160))
+    gdraw.rounded_rectangle(c_box, radius=radius_c, outline=(255, 255, 255, 42), width=int(1.5 * scale))
+
+    streak = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    sdraw = ImageDraw.Draw(streak)
+    sdraw.polygon([
+        (int(170 * scale), int(16 * scale)),
+        (int(280 * scale), int(16 * scale)),
+        (int(90 * scale), int((h_base - 16) * scale)),
+        (int(20 * scale), int((h_base - 16) * scale)),
+    ], fill=(255, 255, 255, 8))
+    glass = Image.alpha_composite(glass, streak)
+    streak.close()
+
+    card = Image.alpha_composite(card, glass)
+    glass.close()
+
+    _BASE_CARD_CACHE = card
+    import gc
+    gc.collect()
+    return _BASE_CARD_CACHE.copy()
 
 
 def render_level_card(
@@ -65,40 +120,8 @@ def render_level_card(
     w_base, h_base = 820, 270
     w, h = w_base * scale, h_base * scale
 
-    # 1. Pure Pitch Black Canvas (#000000)
-    card = Image.new("RGBA", (w, h), (0, 0, 0, 255))
-
-    # 2. Subtle Monochrome Ambient Lighting Halos
-    auras = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    adraw = ImageDraw.Draw(auras)
-    adraw.ellipse([int(15 * scale), int(15 * scale), int(250 * scale), int(250 * scale)], fill=(255, 255, 255, 18))
-    adraw.ellipse([int(580 * scale), int(15 * scale), int(840 * scale), int(240 * scale)], fill=(255, 255, 255, 14))
-    auras = auras.filter(ImageFilter.GaussianBlur(40 * scale))
-    card = Image.alpha_composite(card, auras)
-
-    # 3. Main Glassmorphic Container Panel
-    glass = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    gdraw = ImageDraw.Draw(glass)
-    c_box = [int(16 * scale), int(16 * scale), int((w_base - 16) * scale), int((h_base - 16) * scale)]
-    radius_c = 24 * scale
-
-    # Translucent frosted glass tint
-    gdraw.rounded_rectangle(c_box, radius=radius_c, fill=(18, 18, 20, 160))
-    # Glass refraction rim
-    gdraw.rounded_rectangle(c_box, radius=radius_c, outline=(255, 255, 255, 42), width=int(1.5 * scale))
-
-    # Diagonal specular refraction beam across the glass card
-    streak = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    sdraw = ImageDraw.Draw(streak)
-    sdraw.polygon([
-        (int(170 * scale), int(16 * scale)),
-        (int(280 * scale), int(16 * scale)),
-        (int(90 * scale), int((h_base - 16) * scale)),
-        (int(20 * scale), int((h_base - 16) * scale)),
-    ], fill=(255, 255, 255, 8))
-    glass = Image.alpha_composite(glass, streak)
-    card = Image.alpha_composite(card, glass)
-
+    # Re-use cached pristine glass card canvas (zero memory churn)
+    card = _get_base_card()
     draw = ImageDraw.Draw(card)
 
     # 4. Avatar (Circular with Monochrome Silver/Chrome Clay Ring)
@@ -258,4 +281,29 @@ def render_level_card(
     buf = io.BytesIO()
     final_card.save(buf, format="PNG", optimize=True)
     buf.seek(0)
+
+    # Free all PIL Image objects and run GC to keep RAM strictly below 100MB
+    try:
+        card.close()
+        final_card.close()
+        del card, auras, glass, streak, final_card
+        if 'fill_layer' in locals():
+            fill_layer.close()
+            del fill_layer
+        if 'av_img' in locals():
+            av_img.close()
+            del av_img
+        if 'mask' in locals():
+            mask.close()
+            del mask
+        import gc
+        gc.collect()
+    except Exception:
+        pass
+
     return buf
+
+
+async def setup(bot):
+    pass
+

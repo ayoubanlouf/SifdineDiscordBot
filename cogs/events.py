@@ -232,7 +232,7 @@ class Events(commands.Cog):
                                 reward = random.randint(5, 15)
                                 await economy_cog.add_balance(message.author.id, reward, context="chat_activity")
                                 chat_xp = random.randint(15, 25)
-                                await economy_cog.add_xp(message.author.id, chat_xp, channel=message.channel)
+                                await economy_cog.add_xp(message.author.id, chat_xp, channel=message.channel, message=message)
                         except Exception:
                             pass
 

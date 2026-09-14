@@ -157,18 +157,40 @@ def not_fraud():
     return commands.check(predicate)
 
 
-class WalletsPaginationView(discord.ui.View):
-    def __init__(self, author: discord.Member, pages: list):
+class LeaderboardFilterPaginationView(discord.ui.View):
+    def __init__(self, author: Union[discord.Member, discord.User], server_pages: list, global_pages: list, initial_scope: str = "server"):
         super().__init__(timeout=90)
         self.author = author
-        self.pages = pages
+        self.pages_dict = {
+            "server": server_pages,
+            "global": global_pages
+        }
+        self.scope = initial_scope if self.pages_dict.get(initial_scope) else "global"
         self.current_page = 0
         self.message: Optional[discord.Message] = None
         self._update_buttons()
 
+    @property
+    def current_pages(self):
+        return self.pages_dict.get(self.scope, [])
+
     def _update_buttons(self):
+        pages = self.current_pages
+        total = len(pages)
         self.prev_button.disabled = (self.current_page == 0)
-        self.next_button.disabled = (self.current_page >= len(self.pages) - 1)
+        self.next_button.disabled = (self.current_page >= total - 1 or total <= 1)
+
+        has_server = bool(self.pages_dict.get("server"))
+        has_global = bool(self.pages_dict.get("global"))
+
+        if self.scope == "server":
+            self.toggle_scope_button.label = "🌐 Global"
+            self.toggle_scope_button.style = discord.ButtonStyle.secondary
+            self.toggle_scope_button.disabled = not has_global
+        else:
+            self.toggle_scope_button.label = "🏢 Server"
+            self.toggle_scope_button.style = discord.ButtonStyle.primary
+            self.toggle_scope_button.disabled = not has_server
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
@@ -181,14 +203,21 @@ class WalletsPaginationView(discord.ui.View):
         if self.current_page > 0:
             self.current_page -= 1
             self._update_buttons()
-            await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+            await interaction.response.edit_message(embed=self.current_pages[self.current_page], view=self)
 
     @discord.ui.button(label="▶️", style=discord.ButtonStyle.primary)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.current_page < len(self.pages) - 1:
+        if self.current_page < len(self.current_pages) - 1:
             self.current_page += 1
             self._update_buttons()
-            await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+            await interaction.response.edit_message(embed=self.current_pages[self.current_page], view=self)
+
+    @discord.ui.button(label="🌐 Global", style=discord.ButtonStyle.secondary)
+    async def toggle_scope_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.scope = "global" if self.scope == "server" else "server"
+        self.current_page = 0
+        self._update_buttons()
+        await interaction.response.edit_message(embed=self.current_pages[self.current_page], view=self)
 
     async def on_timeout(self):
         for item in self.children:
@@ -198,6 +227,9 @@ class WalletsPaginationView(discord.ui.View):
                 await self.message.edit(view=self)
             except Exception:
                 pass
+
+
+WalletsPaginationView = LeaderboardFilterPaginationView
 
 
 class WalletView(discord.ui.View):
@@ -456,7 +488,7 @@ class Economy(commands.Cog):
             "claimed_milestones": claimed
         }
 
-    async def add_xp(self, user_id: int, xp_amount: int, channel: Optional[discord.TextChannel] = None) -> dict:
+    async def add_xp(self, user_id: int, xp_amount: int, channel: Optional[discord.TextChannel] = None, message: Optional[discord.Message] = None) -> dict:
         if xp_amount <= 0 or self.is_bot_user(user_id):
             return await self.get_user_level(user_id)
 
@@ -489,26 +521,32 @@ class Economy(commands.Cog):
         await self.bot.db.commit()
 
         # Announce ONLY milestones (standard level-ups are silent!)
-        if milestones_awarded and channel:
+        if milestones_awarded and (channel or message):
             try:
                 for m_lvl, m_rew in milestones_awarded:
-                    u = self.bot.get_user(user_id)
-                    user_mention = u.mention if u else f"<@{user_id}>"
+                    user_name = None
+                    if message and hasattr(message, "author") and message.author.id == user_id:
+                        user_name = message.author.display_name
+                    else:
+                        u = self.bot.get_user(user_id)
+                        user_name = u.display_name if u else "Player"
+
                     embed = discord.Embed(
-                        title="🎉 MILESTONE UNLOCKED!",
-                        description=(
-                            f"👑 **Mbroook {user_mention}!** Wsselti l **Level {m_lvl}**!\n\n"
-                            f"🎁 Chediti **+{format_tad(m_rew)}** cash reward f wallet dialek!"
-                        ),
+                        title=f"Mbrok a {user_name}",
+                        description=f"Wselti level {m_lvl}! Chediti `{m_rew:,}` TAD {TAD_EMOJI}",
                         color=0x000000
                     )
-                    coin_path = os.path.join("assets", "coin", "Tails.png")
-                    if os.path.exists(coin_path):
-                        f = discord.File(coin_path, filename="coin.png")
-                        embed.set_thumbnail(url="attachment://coin.png")
-                        await channel.send(embed=embed, file=f)
-                    else:
-                        await channel.send(embed=embed)
+
+                    if message:
+                        try:
+                            await message.reply(embed=embed, mention_author=True)
+                            continue
+                        except Exception:
+                            pass
+
+                    target_channel = channel or (message.channel if message else None)
+                    if target_channel:
+                        await target_channel.send(embed=embed)
             except Exception:
                 pass
 
@@ -853,60 +891,67 @@ class Economy(commands.Cog):
         msg = await ctx.send(embed=embed, view=view)
         view.message = msg
 
-    @commands.command(name="wallets", aliases=["bsatm", "bzatm", "rich", "richest"], help="Chouf top 50 richest members f had server.")
+    @commands.command(name="wallets", aliases=["bsatm", "bzatm", "rich", "richest"], help="Chouf tertib tl flous ta3 bnadm.")
     @not_fraud()
     async def wallets(self, ctx: commands.Context):
-        if not ctx.guild:
-            await ctx.send("❌ Had l command khedama ghir f servers.")
-            return
+        async with self.bot.db.execute(
+            "SELECT user_id, balance FROM user_wallets WHERE is_fraud = 0 ORDER BY balance DESC LIMIT 250"
+        ) as cursor:
+            all_rows = await cursor.fetchall()
 
-        guild_member_ids = [m.id for m in ctx.guild.members if not m.bot]
-        if not guild_member_ids:
-            await ctx.send("❌ Ta wa7d ma l9inah f server.")
-            return
-
-        placeholders = ",".join("?" for _ in guild_member_ids)
-        query = f"""
-            SELECT user_id, balance FROM user_wallets 
-            WHERE user_id IN ({placeholders}) AND is_fraud = 0 
-            ORDER BY balance DESC LIMIT 50
-        """
-        async with self.bot.db.execute(query, tuple(guild_member_ids)) as cursor:
-            rows = await cursor.fetchall()
-
-        if not rows:
+        if not all_rows:
             await ctx.send("❌ Ba9i ta 7sab ma mssjl f l'economy.")
             return
 
-        chunk_size = 10
-        chunks = [rows[i:i + chunk_size] for i in range(0, len(rows), chunk_size)]
-        total_pages = len(chunks)
+        guild_member_ids = set(m.id for m in ctx.guild.members if not m.bot) if ctx.guild else set()
+        server_rows = [r for r in all_rows if r[0] in guild_member_ids][:50] if ctx.guild else []
+        global_rows = all_rows[:50]
 
-        embeds = []
         medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+        chunk_size = 10
 
-        for page_idx, chunk in enumerate(chunks):
-            embed = discord.Embed(
-                title=f"💰 Richest Wallets — {ctx.guild.name}",
-                color=0x000000
-            )
-            if ctx.guild.icon:
-                embed.set_thumbnail(url=ctx.guild.icon.url)
+        def _build_embeds(rows_list, is_server: bool):
+            if not rows_list:
+                return []
+            chunks = [rows_list[i:i + chunk_size] for i in range(0, len(rows_list), chunk_size)]
+            embeds = []
+            total_pages = len(chunks)
+            title = f"💰 Richest Wallets — {ctx.guild.name}" if (is_server and ctx.guild) else "💰 Richest Wallets — Global"
+            scope_name = "members" if is_server else "global"
 
-            lines = []
-            for rank_offset, (u_id, bal) in enumerate(chunk):
-                overall_rank = page_idx * chunk_size + rank_offset + 1
-                rank_badge = medals.get(overall_rank, f"`#{overall_rank}`")
-                member = ctx.guild.get_member(u_id)
-                member_str = member.mention if member else f"<@{u_id}>"
-                lines.append(f"{rank_badge} {member_str} • {format_tad(bal)}")
+            for page_idx, chunk in enumerate(chunks):
+                embed = discord.Embed(title=title, color=0x000000)
+                if is_server and ctx.guild and ctx.guild.icon:
+                    embed.set_thumbnail(url=ctx.guild.icon.url)
 
-            embed.description = "\n".join(lines)
-            embed.set_footer(text=f"Page {page_idx + 1}/{total_pages} • Top {len(rows)} members")
-            embeds.append(embed)
+                lines = []
+                for rank_offset, (u_id, bal) in enumerate(chunk):
+                    overall_rank = page_idx * chunk_size + rank_offset + 1
+                    rank_badge = medals.get(overall_rank, f"`#{overall_rank}`")
+                    member = ctx.guild.get_member(u_id) if ctx.guild else None
+                    if member:
+                        member_str = member.mention
+                    else:
+                        u = self.bot.get_user(u_id)
+                        member_str = f"**{u.name}**" if u else f"<@{u_id}>"
+                    lines.append(f"{rank_badge} {member_str} • {format_tad(bal)}")
 
-        view = WalletsPaginationView(ctx.author, embeds)
-        msg = await ctx.send(embed=embeds[0], view=view)
+                embed.description = "\n".join(lines)
+                embed.set_footer(text=f"Page {page_idx + 1}/{total_pages} • Top {len(rows_list)} {scope_name}")
+                embeds.append(embed)
+            return embeds
+
+        server_embeds = _build_embeds(server_rows, is_server=True)
+        global_embeds = _build_embeds(global_rows, is_server=False)
+
+        initial_scope = "server" if server_embeds else "global"
+        view = LeaderboardFilterPaginationView(
+            ctx.author,
+            server_pages=server_embeds,
+            global_pages=global_embeds,
+            initial_scope=initial_scope
+        )
+        msg = await ctx.send(embed=view.current_pages[0], view=view)
         view.message = msg
 
     @commands.command(name="daily", aliases=["day"], help="Ched chy baraka tlflous kola nhar.")
@@ -953,7 +998,7 @@ class Economy(commands.Cog):
         streak_bonus = (streak - 1) * 250
         reward = 1000 + streak_bonus
         new_bal = await self.add_balance(user_id, reward, context=f"Daily Reward (Streak {streak}x)")
-        await self.add_xp(user_id, 50, channel=ctx.channel)
+        await self.add_xp(user_id, 50, channel=ctx.channel, message=ctx.message)
 
         await self.bot.db.execute(
             "INSERT INTO economy_cooldowns (user_id, last_daily, daily_streak) VALUES (?, ?, ?) "
@@ -1002,7 +1047,7 @@ class Economy(commands.Cog):
 
         reward = 5000
         new_bal = await self.add_balance(user_id, reward, context="Weekly Reward")
-        await self.add_xp(user_id, 250, channel=ctx.channel)
+        await self.add_xp(user_id, 250, channel=ctx.channel, message=ctx.message)
 
         await self.bot.db.execute(
             "INSERT INTO economy_cooldowns (user_id, last_weekly) VALUES (?, ?) "
@@ -1091,7 +1136,7 @@ class Economy(commands.Cog):
 
     # ============ MODERATOR COMMANDS ============
 
-    @commands.command(name="removetad", aliases=["tax"], help="N9ess flous mn wallet dial user (mention wla ID).")
+    @commands.command(name="removetad", aliases=["tax"], help="N9ess flous mn wallet dial chy user .")
     @commands.is_owner()
     async def tax_user(self, ctx: commands.Context, target: discord.User, amount: AmountConverter):
         if amount <= 0:
@@ -1137,7 +1182,7 @@ class Economy(commands.Cog):
         await self.bot.db.commit()
         await ctx.send(f"✅ Balance dial **{v_name.capitalize()}** tbeddel l: {format_tad(amount)}")
 
-    @commands.command(name="addtad", aliases=["reward"], help="Zid flous l wallet dial user (mention wla ID).")
+    @commands.command(name="addtad", aliases=["reward"], help="Zid flous l wallet dial chy user.")
     @commands.is_owner()
     async def reward_user(self, ctx: commands.Context, target: discord.User, amount: AmountConverter):
         if amount <= 0:
@@ -1153,19 +1198,19 @@ class Economy(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="addxp", help="Zid XP l user (Owner only).")
+    @commands.command(name="addxp", help="Zid XP l chy user.")
     @commands.is_owner()
     async def add_xp_cmd(self, ctx: commands.Context, target: discord.User, amount: int):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
-        data = await self.add_xp(target.id, amount, channel=ctx.channel)
+        data = await self.add_xp(target.id, amount, channel=ctx.channel, message=ctx.message)
         await ctx.send(
             f"✅ Zdna **{amount:,} XP** l **{target.mention}**!\n"
             f"⭐ **New Level:** {data['level']} (`{data['current_xp']:,}/{data['xp_needed']:,} XP` • Total: `{data['total_xp']:,} XP`)"
         )
 
-    @commands.command(name="removexp", help="N9ess XP mn user (Owner only).")
+    @commands.command(name="removexp", help="N9ess XP l chy user.")
     @commands.is_owner()
     async def remove_xp_cmd(self, ctx: commands.Context, target: discord.User, amount: int):
         if amount <= 0:
@@ -1179,7 +1224,7 @@ class Economy(commands.Cog):
 
     # ============ USER LEVELING COMMANDS ============
 
-    @commands.command(name="rank", aliases=["level", "lvl"], help="Chouf level card o progression dialek wla dial user.")
+    @commands.command(name="rank", aliases=["level", "lvl"], help="Chouf level ta3k wla ta3 chy user.")
     async def rank_cmd(self, ctx: commands.Context, target: Optional[discord.User] = None):
         user = target or ctx.author
         user_data = await self.get_user_level(user.id)
@@ -1188,7 +1233,8 @@ class Economy(commands.Cog):
         avatar_bytes = None
         if user.display_avatar:
             try:
-                avatar_bytes = await user.display_avatar.with_format("png").with_size(256).read()
+                # 128px avatar maintains razor sharpness while keeping RAM strictly minimal
+                avatar_bytes = await user.display_avatar.with_format("png").with_size(128).read()
             except Exception:
                 avatar_bytes = None
 
@@ -1207,43 +1253,79 @@ class Economy(commands.Cog):
         )
 
         file = discord.File(buf, filename="rank.png")
-        embed = discord.Embed(color=0x000000)
+        embed = discord.Embed(
+            title=f"Rank card ta3 {user.display_name}",
+            color=0x000000
+        )
         embed.set_image(url="attachment://rank.png")
+        embed.set_footer(text=f"#{user_data['rank']} - Level {user_data['level']}")
         await ctx.send(embed=embed, file=file)
 
-    @commands.command(name="levels", aliases=["toplevels", "ranklb", "levellb"], help="Chouf l'classement global dial levels.")
+    @commands.command(name="levels", aliases=["ranks"], help="Chouf tertib t levels ta3 bnadm.")
     async def levels_leaderboard(self, ctx: commands.Context):
         async with self.bot.db.execute(
-            "SELECT user_id, level, total_xp FROM user_levels WHERE total_xp > 0 ORDER BY level DESC, total_xp DESC"
+            "SELECT user_id, level, total_xp FROM user_levels WHERE total_xp > 0 ORDER BY level DESC, total_xp DESC LIMIT 250"
         ) as cursor:
-            rows = await cursor.fetchall()
+            all_rows = await cursor.fetchall()
 
-        if not rows:
+        if not all_rows:
             await ctx.send(embed=discord.Embed(
                 title="🏆 Sifdine Level Leaderboard",
-                description="✨ Mazal 7ta wa7d mabda y level up! Bda thder o tsme3 f VC bach tkoun #1.",
+                description="✨ Mazal 7ta wa7d mabda y leveli up! Bda thder f Chat o VC bach tkoun #1.",
                 color=0x000000
             ))
             return
 
-        author_data = await self.get_user_level(ctx.author.id)
-        author_rank_str = f"Your Rank: #{author_data['rank']} • Level {author_data['level']} ({author_data['total_xp']:,} XP)" if author_data["total_xp"] > 0 else "Your Rank: Unranked • Level 1 (0 XP)"
+        guild_member_ids = set(m.id for m in ctx.guild.members if not m.bot) if ctx.guild else set()
+        server_rows = [r for r in all_rows if r[0] in guild_member_ids][:50] if ctx.guild else []
+        global_rows = all_rows[:50]
 
-        entries = []
         medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-        for idx, (uid, lvl, txp) in enumerate(rows, start=1):
-            u = self.bot.get_user(uid)
-            u_name = f"**{u.name}**" if u else f"<@{uid}>"
-            medal = medals.get(idx, f"`#{idx:02d}`")
-            entries.append(f"{medal} {u_name} — **Level {lvl}** • `{txp:,} XP`")
+        chunk_size = 10
 
-        paginator = self.bot.Paginator(
-            ctx,
-            pages=entries,
-            per_page=10,
-            title=f"🏆 Global Levels Leaderboard ({len(rows)})"
+        def _build_embeds(rows_list, is_server: bool):
+            if not rows_list:
+                return []
+            chunks = [rows_list[i:i + chunk_size] for i in range(0, len(rows_list), chunk_size)]
+            embeds = []
+            total_pages = len(chunks)
+            title = f"🏆 Levels Leaderboard — {ctx.guild.name}" if (is_server and ctx.guild) else "🏆 Global Levels Leaderboard"
+            scope_name = "members" if is_server else "global"
+
+            for page_idx, chunk in enumerate(chunks):
+                embed = discord.Embed(title=title, color=0x000000)
+                if is_server and ctx.guild and ctx.guild.icon:
+                    embed.set_thumbnail(url=ctx.guild.icon.url)
+
+                lines = []
+                for rank_offset, (u_id, lvl, txp) in enumerate(chunk):
+                    overall_rank = page_idx * chunk_size + rank_offset + 1
+                    medal = medals.get(overall_rank, f"`#{overall_rank:02d}`")
+                    member = ctx.guild.get_member(u_id) if ctx.guild else None
+                    if member:
+                        u_name = member.mention
+                    else:
+                        u = self.bot.get_user(u_id)
+                        u_name = f"**{u.name}**" if u else f"<@{u_id}>"
+                    lines.append(f"{medal} {u_name} — **Level {lvl}** • `{txp:,} XP`")
+
+                embed.description = "\n".join(lines)
+                embed.set_footer(text=f"Page {page_idx + 1}/{total_pages} • Top {len(rows_list)} {scope_name}")
+                embeds.append(embed)
+            return embeds
+
+        server_embeds = _build_embeds(server_rows, is_server=True)
+        global_embeds = _build_embeds(global_rows, is_server=False)
+
+        initial_scope = "server" if server_embeds else "global"
+        view = LeaderboardFilterPaginationView(
+            ctx.author,
+            server_pages=server_embeds,
+            global_pages=global_embeds,
+            initial_scope=initial_scope
         )
-        await paginator.send()
+        msg = await ctx.send(embed=view.current_pages[0], view=view)
+        view.message = msg
 
     @commands.command(name="fraud", aliases=["nssab", "scammer", "cheater"], help="Blocki user mn l economy system (mention wla ID).")
     @commands.is_owner()
