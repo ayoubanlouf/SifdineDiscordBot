@@ -5242,7 +5242,7 @@ class TowerGameView(discord.ui.View):
             4: ["closed", "closed", "closed"],
         }
 
-        self.multipliers = {1: 2.0, 2: 4.0, 3: 8.0, 4: 16.0}
+        self.multipliers = {1: 2.0, 2: 7.0, 3: 15.0, 4: 30.0}
 
         self.door_buttons = [TowerDoorButton(i) for i in range(3)]
         for btn in self.door_buttons:
@@ -5283,7 +5283,7 @@ class TowerGameView(discord.ui.View):
             current_mult = self.multipliers[self.current_floor]
 
             if self.current_floor == 4:
-                # Summit Reached! (16.0x JACKPOT!)
+                # Summit Reached! (30.0x JACKPOT!)
                 self.game_over = True
                 self.stop()
                 for item in self.children:
@@ -5310,10 +5310,10 @@ class TowerGameView(discord.ui.View):
                         f"💰 **Gross Payout:** **{gross_payout:,}** TAD (`{tax:,}` TAD tax split)\n"
                     )
                 else:
-                    desc = f"🎉 **{self.author.mention}** climbed all 4 stories to the summit! Multiplier: **16.0x** 👑"
+                    desc = f"🎉 **{self.author.mention}** climbed all 4 stories to the summit! Multiplier: **30.0x** 👑"
 
                 embed = discord.Embed(
-                    title="👑 TOWER CONQUERED — 16.0x JACKPOT!",
+                    title="👑 TOWER CONQUERED — 30.0x JACKPOT!",
                     description=desc,
                     color=0x000000
                 )
@@ -5326,7 +5326,7 @@ class TowerGameView(discord.ui.View):
                     async def _payout_summit():
                         try:
                             await economy_cog.apply_tax_and_add_balance(
-                                self.author.id, gross_payout, context="Tower Jackpot (16.0x)", vault="casino"
+                                self.author.id, gross_payout, context="Tower Jackpot (30.0x)", vault="casino"
                             )
                             if guild_id and self.cog:
                                 await self.cog.record_minigame_win(guild_id, self.author.id, "tower", earnings=max(0, net_profit))
@@ -9445,8 +9445,8 @@ class Fun(commands.Cog):
         multipliers = {
             1: (0.0, "💥 Khesrti l bet! (0x)"),
             2: (0.5, "🤏 Rje3 lik ness l bet (0.5x)"),
-            3: (1.0, "🤝 Rj3o lik floussek (1.0x)"),
-            4: (1.2, "✨ Small Win! (1.2x)"),
+            3: (0.75, "🤏 Rje3 lik 75% mn l bet (0.75x)"),
+            4: (1.25, "✨ Small Win! (1.25x)"),
             5: (1.5, "🔥 Good Win! (1.5x)"),
             6: (2.0, "👑 DOUBLE JACKPOT! (2.0x)")
         }
@@ -9465,7 +9465,7 @@ class Fun(commands.Cog):
             if gross_payout > 0:
                 net_payout, tax = await economy_cog.apply_tax_and_add_balance(ctx.author.id, gross_payout, context=f"Dice Payout ({mult}x)", vault="casino")
                 net_profit = net_payout - bet
-                if mult >= 1.2 and ctx.guild:
+                if mult >= 1.25 and ctx.guild:
                     await self.record_minigame_win(ctx.guild.id, ctx.author.id, "dice", earnings=max(0, net_profit))
                 if net_profit > 0:
                     embed.add_field(name="💵 Net Payout", value=f"🟢 **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • `{tax:,}` TAD tax)", inline=False)
@@ -9626,20 +9626,16 @@ class Fun(commands.Cog):
 
         await spin_msg.edit(embed=embed)
 
-    @commands.command(aliases=["gems"], help="L9a gems o hreb 9bl matfrge3 (sat mines [bombs] [bet:500]).")
+    @commands.command(aliases=["gems"], help="L9a gems o hreb 9bl matfrge3 (sat mines [bet:500]).")
     @not_fraud()
     async def mines(self, ctx: commands.Context, *args):
         economy_cog = self.bot.get_cog("Economy")
         w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
-        bet, remaining = parse_bet_argument(*args, user_balance=w.get("balance", 0))
+        bet, _ = parse_bet_argument(*args, user_balance=w.get("balance", 0))
         if bet is None or bet <= 0:
             bet = 50
 
         bombs = 3
-        if remaining and remaining[0].isdigit():
-            bombs = int(remaining[0])
-
-        bombs = max(1, min(bombs, 6))
 
         if economy_cog:
             if w["balance"] < bet:
@@ -9726,7 +9722,7 @@ class Fun(commands.Cog):
                     "• `red` / `black` (2x payout)\n"
                     "• `even` / `odd` (2x payout)\n"
                     "• `1-18` (Low) / `19-36` (High) (2x payout)\n"
-                    "• `green` (14x payout)\n"
+                    "• `green` (36x payout)\n"
                     "• Number direct `0` - `36` (36x payout)\n\n"
                     f"Example: `{ctx.clean_prefix}roulette 1 200` wla `{ctx.clean_prefix}roulette red 500`"
                 ),
@@ -9786,7 +9782,7 @@ class Fun(commands.Cog):
                     f"Had lkhtiyar `{args[0]}` makaynch f tabla dial Roulette!\n\n"
                     "**Lkhtiyarat li momkine:**\n"
                     "• **Ra9m direct:** `0` 7tal `36` (36x payout)\n"
-                    "• **Alwan:** `red` 🔴 / `black` ⚫ (2x) wla `green` 🟢 (14x)\n"
+                    "• **Alwan:** `red` 🔴 / `black` ⚫ (2x) wla `green` 🟢 (36x)\n"
                     "• **Zawji / Fardi:** `even` / `odd` (2x)\n"
                     "• **Nsf:** `1-18` (Low) / `19-36` (High) (2x)\n\n"
                     f"Example: `{ctx.clean_prefix}roulette 1 200` wla `{ctx.clean_prefix}roulette red 500`"
@@ -9841,7 +9837,7 @@ class Fun(commands.Cog):
             mult = 2.0
         elif choice_type == "green" and color_name == "green":
             won = True
-            mult = 14.0
+            mult = 36.0
         elif choice_type == "even" and landed_num > 0 and landed_num % 2 == 0:
             won = True
             mult = 2.0
