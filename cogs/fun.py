@@ -5103,7 +5103,7 @@ def render_tower_board(current_floor: int, story_doors: dict, game_state: str = 
     draw.text((w // 2, 40), title_text, fill=title_color, font=font_title, anchor="mm")
 
     door_w, door_h = 110, 118
-    multipliers = {4: "16.0x", 3: "8.0x", 2: "4.0x", 1: "2.0x"}
+    multipliers = {4: "30.0x", 3: "15.0x", 2: "7.0x", 1: "2.0x"}
     titles = {4: "SUMMIT 4", 3: "STORY 3", 2: "STORY 2", 1: "STORY 1"}
 
     row_start_y = 74

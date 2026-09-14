@@ -231,6 +231,8 @@ class Events(commands.Cog):
                             if w.get("is_fraud", 0) == 0:
                                 reward = random.randint(5, 15)
                                 await economy_cog.add_balance(message.author.id, reward, context="chat_activity")
+                                chat_xp = random.randint(15, 25)
+                                await economy_cog.add_xp(message.author.id, chat_xp, channel=message.channel)
                         except Exception:
                             pass
 
@@ -433,6 +435,8 @@ class Events(commands.Cog):
                         if w.get("is_fraud", 0) == 0:
                             reward = random.randint(5, 15)
                             await economy_cog.add_balance(member.id, reward, context="vc_activity")
+                            vc_xp = random.randint(8, 12)
+                            await economy_cog.add_xp(member.id, vc_xp)
                             awarded_users.add(member.id)
                     except Exception:
                         pass

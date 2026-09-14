@@ -461,6 +461,21 @@ async def setup_hook():
     await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_vault_transactions ON vault_transactions (vault_name, created_at DESC)")
     await bot.db.execute("INSERT OR IGNORE INTO economy_vaults (vault_name, balance, total_collected, updated_at) VALUES ('bank', 0, 0, 0)")
     await bot.db.execute("INSERT OR IGNORE INTO economy_vaults (vault_name, balance, total_collected, updated_at) VALUES ('casino', 0, 0, 0)")
+
+    # Global Leveling System
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS user_levels (
+            user_id INTEGER PRIMARY KEY,
+            level INTEGER DEFAULT 1,
+            current_xp INTEGER DEFAULT 0,
+            total_xp INTEGER DEFAULT 0,
+            last_chat_xp INTEGER DEFAULT 0,
+            last_vc_xp INTEGER DEFAULT 0,
+            claimed_milestones TEXT DEFAULT '[]'
+        )
+    """)
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_user_levels_rank ON user_levels (level DESC, total_xp DESC)")
+
     await bot.db.commit()
 
     await load_extensions()

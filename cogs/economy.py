@@ -1,5 +1,9 @@
 import time
 import re
+import json
+import math
+import os
+import asyncio
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional, Tuple, Union
@@ -16,6 +20,27 @@ CASA_TZ = ZoneInfo("Africa/Casablanca")
 
 def format_tad(amount: int) -> str:
     return f"**{amount:,}** {TAD_EMOJI} TAD"
+
+
+def get_level_info(total_xp: int) -> Tuple[int, int, int, int]:
+    """
+    Curve A: Total XP(L) = 75 * (L - 1)^2
+    Returns: (level, current_xp_in_level, xp_needed_for_next_level, base_xp_for_level)
+    """
+    total_xp = max(0, int(total_xp))
+    lvl = 1 + int(math.isqrt(total_xp // 75))
+    base_xp = 75 * ((lvl - 1) ** 2)
+    next_xp = 75 * (lvl ** 2)
+    needed = next_xp - base_xp
+    current = total_xp - base_xp
+    return lvl, current, needed, base_xp
+
+
+def get_next_milestone_info(level: int) -> Tuple[int, int]:
+    """Returns (next_milestone_level, reward_amount). Caps at 100,000 TAD at Level 100+."""
+    next_lvl = ((level // 10) + 1) * 10
+    reward = min(next_lvl * 1000, 100000)
+    return next_lvl, reward
 
 
 def get_current_week_start_ts() -> int:
@@ -378,6 +403,136 @@ class Economy(commands.Cog):
         await self.bot.db.commit()
         w = await self.get_wallet(user_id)
         return w["balance"]
+
+    # ============ LEVELING DATABASE METHODS ============
+
+    async def get_user_level(self, user_id: int) -> dict:
+        if self.is_bot_user(user_id):
+            return {
+                "user_id": user_id, "level": 1, "current_xp": 0, "xp_needed": 75,
+                "total_xp": 0, "rank": 0, "last_chat_xp": 0, "last_vc_xp": 0, "claimed_milestones": []
+            }
+
+        async with self.bot.db.execute(
+            "SELECT level, current_xp, total_xp, last_chat_xp, last_vc_xp, claimed_milestones "
+            "FROM user_levels WHERE user_id = ?",
+            (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+
+        if not row:
+            return {
+                "user_id": user_id, "level": 1, "current_xp": 0, "xp_needed": 75,
+                "total_xp": 0, "rank": 0, "last_chat_xp": 0, "last_vc_xp": 0, "claimed_milestones": []
+            }
+
+        level, current_xp, total_xp, last_chat, last_vc, claimed_json = row
+        try:
+            claimed = json.loads(claimed_json) if claimed_json else []
+        except Exception:
+            claimed = []
+
+        lvl, curr, needed, _ = get_level_info(total_xp)
+
+        # Global rank calculation
+        rank = 0
+        if total_xp > 0:
+            async with self.bot.db.execute(
+                "SELECT COUNT(*) + 1 FROM user_levels WHERE total_xp > ?",
+                (total_xp,)
+            ) as cursor:
+                rank_row = await cursor.fetchone()
+                rank = rank_row[0] if rank_row else 1
+
+        return {
+            "user_id": user_id,
+            "level": lvl,
+            "current_xp": curr,
+            "xp_needed": needed,
+            "total_xp": total_xp,
+            "rank": rank,
+            "last_chat_xp": last_chat or 0,
+            "last_vc_xp": last_vc or 0,
+            "claimed_milestones": claimed
+        }
+
+    async def add_xp(self, user_id: int, xp_amount: int, channel: Optional[discord.TextChannel] = None) -> dict:
+        if xp_amount <= 0 or self.is_bot_user(user_id):
+            return await self.get_user_level(user_id)
+
+        user_data = await self.get_user_level(user_id)
+        old_level = user_data["level"]
+        new_total_xp = user_data["total_xp"] + xp_amount
+        new_lvl, new_curr, new_needed, _ = get_level_info(new_total_xp)
+
+        claimed = list(user_data["claimed_milestones"])
+        milestones_awarded = []
+
+        if new_lvl > old_level:
+            # Check every milestone passed between old_level and new_lvl
+            for m in range(10, new_lvl + 1, 10):
+                if m > old_level and m not in claimed:
+                    claimed.append(m)
+                    milestone_reward = min(m * 1000, 100000)
+                    await self.add_balance(user_id, milestone_reward, context=f"Level {m} Milestone Reward")
+                    milestones_awarded.append((m, milestone_reward))
+
+        claimed_json = json.dumps(claimed)
+
+        await self.bot.db.execute(
+            "INSERT INTO user_levels (user_id, level, current_xp, total_xp, claimed_milestones) "
+            "VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(user_id) DO UPDATE SET level = ?, current_xp = ?, total_xp = ?, claimed_milestones = ?",
+            (user_id, new_lvl, new_curr, new_total_xp, claimed_json,
+             new_lvl, new_curr, new_total_xp, claimed_json)
+        )
+        await self.bot.db.commit()
+
+        # Announce ONLY milestones (standard level-ups are silent!)
+        if milestones_awarded and channel:
+            try:
+                for m_lvl, m_rew in milestones_awarded:
+                    u = self.bot.get_user(user_id)
+                    user_mention = u.mention if u else f"<@{user_id}>"
+                    embed = discord.Embed(
+                        title="🎉 MILESTONE UNLOCKED!",
+                        description=(
+                            f"👑 **Mbroook {user_mention}!** Wsselti l **Level {m_lvl}**!\n\n"
+                            f"🎁 Chediti **+{format_tad(m_rew)}** cash reward f wallet dialek!"
+                        ),
+                        color=0x000000
+                    )
+                    coin_path = os.path.join("assets", "coin", "Tails.png")
+                    if os.path.exists(coin_path):
+                        f = discord.File(coin_path, filename="coin.png")
+                        embed.set_thumbnail(url="attachment://coin.png")
+                        await channel.send(embed=embed, file=f)
+                    else:
+                        await channel.send(embed=embed)
+            except Exception:
+                pass
+
+        user_data["level"] = new_lvl
+        user_data["current_xp"] = new_curr
+        user_data["xp_needed"] = new_needed
+        user_data["total_xp"] = new_total_xp
+        user_data["claimed_milestones"] = claimed
+        return user_data
+
+    async def remove_xp(self, user_id: int, xp_amount: int) -> dict:
+        if xp_amount <= 0 or self.is_bot_user(user_id):
+            return await self.get_user_level(user_id)
+
+        user_data = await self.get_user_level(user_id)
+        new_total_xp = max(0, user_data["total_xp"] - xp_amount)
+        new_lvl, new_curr, new_needed, _ = get_level_info(new_total_xp)
+
+        await self.bot.db.execute(
+            "UPDATE user_levels SET level = ?, current_xp = ?, total_xp = ? WHERE user_id = ?",
+            (new_lvl, new_curr, new_total_xp, user_id)
+        )
+        await self.bot.db.commit()
+        return await self.get_user_level(user_id)
 
     async def deposit_vault(self, vault_name: str, amount: int, source: str = "", context: str = "") -> int:
         if amount <= 0:
@@ -798,6 +953,7 @@ class Economy(commands.Cog):
         streak_bonus = (streak - 1) * 250
         reward = 1000 + streak_bonus
         new_bal = await self.add_balance(user_id, reward, context=f"Daily Reward (Streak {streak}x)")
+        await self.add_xp(user_id, 50, channel=ctx.channel)
 
         await self.bot.db.execute(
             "INSERT INTO economy_cooldowns (user_id, last_daily, daily_streak) VALUES (?, ?, ?) "
@@ -811,6 +967,7 @@ class Economy(commands.Cog):
             description=(
                 f"Chediti {format_tad(reward)}!\n\n"
                 f"🔥 **Streak:** `{streak}/7` (+{streak_bonus} TAD)\n"
+                f"⚡ **Level XP:** `+50 XP`\n"
                 f"💰 **New Balance:** {format_tad(new_bal)}"
             ),
             color=0x000000
@@ -845,6 +1002,7 @@ class Economy(commands.Cog):
 
         reward = 5000
         new_bal = await self.add_balance(user_id, reward, context="Weekly Reward")
+        await self.add_xp(user_id, 250, channel=ctx.channel)
 
         await self.bot.db.execute(
             "INSERT INTO economy_cooldowns (user_id, last_weekly) VALUES (?, ?) "
@@ -854,9 +1012,10 @@ class Economy(commands.Cog):
         await self.bot.db.commit()
 
         embed = discord.Embed(
-            title="👑 Weekly Reward Claimed",
+            title="🎁 Weekly Reward Claimed",
             description=(
                 f"Chediti {format_tad(reward)}!\n\n"
+                f"⚡ **Level XP:** `+250 XP`\n"
                 f"💰 **New Balance:** {format_tad(new_bal)}"
             ),
             color=0x000000
@@ -932,7 +1091,7 @@ class Economy(commands.Cog):
 
     # ============ MODERATOR COMMANDS ============
 
-    @commands.command(name="tax", help="N9ess flous mn wallet dial user (mention wla ID).")
+    @commands.command(name="removetad", aliases=["tax"], help="N9ess flous mn wallet dial user (mention wla ID).")
     @commands.is_owner()
     async def tax_user(self, ctx: commands.Context, target: discord.User, amount: AmountConverter):
         if amount <= 0:
@@ -978,7 +1137,7 @@ class Economy(commands.Cog):
         await self.bot.db.commit()
         await ctx.send(f"✅ Balance dial **{v_name.capitalize()}** tbeddel l: {format_tad(amount)}")
 
-    @commands.command(name="reward", help="zid flous l wallet dial user (mention wla ID).")
+    @commands.command(name="addtad", aliases=["reward"], help="Zid flous l wallet dial user (mention wla ID).")
     @commands.is_owner()
     async def reward_user(self, ctx: commands.Context, target: discord.User, amount: AmountConverter):
         if amount <= 0:
@@ -993,6 +1152,98 @@ class Economy(commands.Cog):
             color=0x000000
         )
         await ctx.send(embed=embed)
+
+    @commands.command(name="addxp", help="Zid XP l user (Owner only).")
+    @commands.is_owner()
+    async def add_xp_cmd(self, ctx: commands.Context, target: discord.User, amount: int):
+        if amount <= 0:
+            await ctx.send("❌ Amount khas ykoun kber mn 0.")
+            return
+        data = await self.add_xp(target.id, amount, channel=ctx.channel)
+        await ctx.send(
+            f"✅ Zdna **{amount:,} XP** l **{target.mention}**!\n"
+            f"⭐ **New Level:** {data['level']} (`{data['current_xp']:,}/{data['xp_needed']:,} XP` • Total: `{data['total_xp']:,} XP`)"
+        )
+
+    @commands.command(name="removexp", help="N9ess XP mn user (Owner only).")
+    @commands.is_owner()
+    async def remove_xp_cmd(self, ctx: commands.Context, target: discord.User, amount: int):
+        if amount <= 0:
+            await ctx.send("❌ Amount khas ykoun kber mn 0.")
+            return
+        data = await self.remove_xp(target.id, amount)
+        await ctx.send(
+            f"✅ N9ssna **{amount:,} XP** mn **{target.mention}**.\n"
+            f"⭐ **New Level:** {data['level']} (`{data['current_xp']:,}/{data['xp_needed']:,} XP` • Total: `{data['total_xp']:,} XP`)"
+        )
+
+    # ============ USER LEVELING COMMANDS ============
+
+    @commands.command(name="rank", aliases=["level", "lvl"], help="Chouf level card o progression dialek wla dial user.")
+    async def rank_cmd(self, ctx: commands.Context, target: Optional[discord.User] = None):
+        user = target or ctx.author
+        user_data = await self.get_user_level(user.id)
+        next_lvl, next_rew = get_next_milestone_info(user_data["level"])
+
+        avatar_bytes = None
+        if user.display_avatar:
+            try:
+                avatar_bytes = await user.display_avatar.with_format("png").with_size(256).read()
+            except Exception:
+                avatar_bytes = None
+
+        from cogs.leveling_render import render_level_card
+        buf = await asyncio.to_thread(
+            render_level_card,
+            username=user.display_name,
+            level=user_data["level"],
+            current_xp=user_data["current_xp"],
+            xp_needed=user_data["xp_needed"],
+            total_xp=user_data["total_xp"],
+            rank=user_data["rank"],
+            avatar_bytes=avatar_bytes,
+            next_milestone_level=next_lvl,
+            next_milestone_reward=next_rew
+        )
+
+        file = discord.File(buf, filename="rank.png")
+        embed = discord.Embed(color=0x000000)
+        embed.set_image(url="attachment://rank.png")
+        await ctx.send(embed=embed, file=file)
+
+    @commands.command(name="levels", aliases=["toplevels", "ranklb", "levellb"], help="Chouf l'classement global dial levels.")
+    async def levels_leaderboard(self, ctx: commands.Context):
+        async with self.bot.db.execute(
+            "SELECT user_id, level, total_xp FROM user_levels WHERE total_xp > 0 ORDER BY level DESC, total_xp DESC"
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        if not rows:
+            await ctx.send(embed=discord.Embed(
+                title="🏆 Sifdine Level Leaderboard",
+                description="✨ Mazal 7ta wa7d mabda y level up! Bda thder o tsme3 f VC bach tkoun #1.",
+                color=0x000000
+            ))
+            return
+
+        author_data = await self.get_user_level(ctx.author.id)
+        author_rank_str = f"Your Rank: #{author_data['rank']} • Level {author_data['level']} ({author_data['total_xp']:,} XP)" if author_data["total_xp"] > 0 else "Your Rank: Unranked • Level 1 (0 XP)"
+
+        entries = []
+        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+        for idx, (uid, lvl, txp) in enumerate(rows, start=1):
+            u = self.bot.get_user(uid)
+            u_name = f"**{u.name}**" if u else f"<@{uid}>"
+            medal = medals.get(idx, f"`#{idx:02d}`")
+            entries.append(f"{medal} {u_name} — **Level {lvl}** • `{txp:,} XP`")
+
+        paginator = self.bot.Paginator(
+            ctx,
+            pages=entries,
+            per_page=10,
+            title=f"🏆 Global Levels Leaderboard ({len(rows)})"
+        )
+        await paginator.send()
 
     @commands.command(name="fraud", aliases=["nssab", "scammer", "cheater"], help="Blocki user mn l economy system (mention wla ID).")
     @commands.is_owner()
