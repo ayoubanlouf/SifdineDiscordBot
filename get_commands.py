@@ -1,6 +1,6 @@
 AllBotCommands = {
     "Bot": [
-        "botinfo", "host", "servers", "inviter", "block", "unblock", "blacklist", "suggestion", "bug", "backup",
+        "botinfo", "ping", "host", "servers", "inviter", "block", "unblock", "blacklist", "suggestion", "bug", "backup",
         "disable", "enable", "disabled"
     ],
     "Discord Util": [

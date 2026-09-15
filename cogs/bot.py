@@ -667,6 +667,40 @@ class Bot(commands.Cog):
             embed.set_footer(text=f"Server: {ctx.guild.name}")
             await ctx.send(embed=embed)
 
+    @commands.command(name="ping", aliases=["latency", "pong"], help="Chouf latency dyal Discord WebSocket, REST API o Database.")
+    async def ping(self, ctx: commands.Context):
+        ws_latency_ms = round(self.bot.latency * 1000)
+
+        # Measure DB latency
+        t_db0 = time.perf_counter()
+        async with self.bot.db.execute("SELECT 1") as cursor:
+            await cursor.fetchone()
+        db_latency_ms = round((time.perf_counter() - t_db0) * 1000, 2)
+
+        # Measure REST API roundtrip
+        t_msg0 = time.perf_counter()
+        msg = await ctx.send("🏓 Pinging...")
+        rest_latency_ms = round((time.perf_counter() - t_msg0) * 1000)
+
+        # Connection health indicator
+        if ws_latency_ms < 100:
+            indicator = "🟢 Fast"
+        elif ws_latency_ms < 250:
+            indicator = "🟡 Okay"
+        else:
+            indicator = "🔴 Slow"
+
+        embed = discord.Embed(
+            title="🏓 Pong! Latency Metrics",
+            color=0x000000
+        )
+        embed.add_field(name="🌐 WebSocket (Gateway)", value=f"`{ws_latency_ms} ms`", inline=True)
+        embed.add_field(name="⚡ REST API (Roundtrip)", value=f"`{rest_latency_ms} ms`", inline=True)
+        embed.add_field(name="🗄️ SQLite Database", value=f"`{db_latency_ms} ms`", inline=True)
+        embed.add_field(name="📶 Connection Health", value=indicator, inline=False)
+
+        await msg.edit(content=None, embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(Bot(bot))

@@ -1360,91 +1360,245 @@ class GlobUtil(commands.Cog):
         
         await wait.edit(embed=embed)
 
-    @commands.command(name="download", aliases=["dl", "save"], help="Ntelechargi lik video mn TikTok, Instagram, wla YouTube Shorts.")
-    async def download(self, ctx, url: str):
-        wait = await ctx.send(embed=discord.Embed(description="Sber chwia...", color=0x000000))
-        
-        filename = f"download_{ctx.message.id}"
-        
-        import sys
-        cmd = [
-            sys.executable, "-m", "yt_dlp",
-            "--max-filesize", "25M",
-            "-f", "best",
-            "-o", f"{filename}.%(ext)s",
-            "--no-check-certificate",
-            "--no-warnings",
-            "--quiet"
-        ]
-        
-        if os.path.exists("cookies.txt"):
-            cmd.extend(["--cookies", "cookies.txt"])
-            
+    async def _stream_download_to_file(self, session, video_url: str, output_path: str, max_size_bytes: int = 25 * 1024 * 1024, headers: dict = None):
+        """Streams a remote video URL directly into a file in 64KB chunks to keep RAM usage < 1MB."""
+        req_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+        }
+        if headers:
+            req_headers.update(headers)
         try:
+            async with session.get(video_url, headers=req_headers, timeout=aiohttp.ClientTimeout(total=45)) as resp:
+                if resp.status != 200:
+                    return False, 0, f"HTTP Error {resp.status}"
+                content_len = resp.headers.get("Content-Length")
+                if content_len:
+                    try:
+                        if int(content_len) > max_size_bytes:
+                            return False, int(content_len), "too_large"
+                    except ValueError:
+                        pass
+                total = 0
+                with open(output_path, "wb") as f:
+                    async for chunk in resp.content.iter_chunked(65536):
+                        total += len(chunk)
+                        if total > max_size_bytes:
+                            return False, total, "too_large"
+                        f.write(chunk)
+                return True, total, None
+        except asyncio.TimeoutError:
+            return False, 0, "Timeout while downloading"
+        except Exception as e:
+            return False, 0, str(e)
+
+    @commands.command(name="download", aliases=["dl", "save"], help="Ntelechargi lik video mn TikTok, Instagram, Twitter (X), wla YouTube Shorts.")
+    async def download(self, ctx, url: str):
+        wait = await ctx.send(embed=discord.Embed(description="⏳ Sber chwia...", color=0x000000))
+        url = url.strip("<>")
+        filename = f"dl_{ctx.message.id}.mp4"
+
+        try:
+            # 1. TikTok Handler (TikWM API + RapidAPI fallback -> Zero RAM streaming)
+            if re.search(r'(?:tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)', url, re.I):
+                direct_url = None
+                title = "TikTok Video"
+                author = None
+
+                # Try TikWM first (Free, fast, no watermark)
+                try:
+                    async with ReusableSession(self.bot.session) as session:
+                        tikwm_url = f"https://www.tikwm.com/api/?url={urllib.parse.quote(url)}"
+                        async with session.get(tikwm_url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                if data.get("code") == 0 and data.get("data", {}).get("play"):
+                                    direct_url = data["data"]["play"]
+                                    title = data["data"].get("title") or title
+                                    author = data["data"].get("author", {}).get("nickname")
+                except Exception:
+                    pass
+
+                # Fallback to RapidAPI tiktok-scraper7 if TikWM didn't return
+                if not direct_url:
+                    keys = [os.getenv(f'RAPID_API_KEY_{i}') for i in range(1, 3)]
+                    keys = [k for k in keys if k]
+                    if keys:
+                        random.shuffle(keys)
+                        for api_key in keys:
+                            try:
+                                async with ReusableSession(self.bot.session) as session:
+                                    headers = {
+                                        "x-rapidapi-key": api_key,
+                                        "x-rapidapi-host": "tiktok-scraper7.p.rapidapi.com"
+                                    }
+                                    r_url = f"https://tiktok-scraper7.p.rapidapi.com/?url={urllib.parse.quote(url)}"
+                                    async with session.get(r_url, headers=headers, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                                        if resp.status == 200:
+                                            data = await resp.json()
+                                            if data.get("code") == 0 and data.get("data", {}).get("play"):
+                                                direct_url = data["data"]["play"]
+                                                title = data["data"].get("title") or title
+                                                break
+                            except Exception:
+                                continue
+
+                if direct_url:
+                    async with ReusableSession(self.bot.session) as session:
+                        success, size, err = await self._stream_download_to_file(session, direct_url, filename)
+                    if success and os.path.exists(filename):
+                        caption = f"🎬 **{title[:80]}**" if title else ""
+                        if author:
+                            caption += f" (by @{author})"
+                        await ctx.send(content=caption, file=discord.File(filename))
+                        await wait.delete()
+                        return
+                    elif err == "too_large":
+                        view = discord.ui.View()
+                        view.add_item(discord.ui.Button(label="⬇️ Télécharger l'video (Direct Link)", url=direct_url, style=discord.ButtonStyle.link))
+                        embed = discord.Embed(
+                            title="🎬 " + title[:80],
+                            description="L'video kber mn 25MB (Discord limit). T9ed ttelechargih direct mn had l'bouton:",
+                            color=0x000000
+                        )
+                        await wait.edit(embed=embed, view=view)
+                        return
+
+            # 2. Twitter / X Handler (FxTwitter API -> Zero RAM streaming)
+            tw_match = re.search(r'(?:twitter|x)\.com/([^/?#]+)/status/(\d+)', url, re.I)
+            if tw_match:
+                tw_user, tw_status_id = tw_match.group(1), tw_match.group(2)
+                video_url = None
+                tweet_text = ""
+
+                try:
+                    async with ReusableSession(self.bot.session) as session:
+                        fxt_url = f"https://api.fxtwitter.com/{tw_user}/status/{tw_status_id}"
+                        async with session.get(fxt_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                tweet_text = data.get("tweet", {}).get("text", "")
+                                media = data.get("tweet", {}).get("media", {})
+                                videos = media.get("videos") or []
+                                if videos and videos[0].get("url"):
+                                    video_url = videos[0]["url"]
+                except Exception:
+                    pass
+
+                if video_url:
+                    async with ReusableSession(self.bot.session) as session:
+                        success, size, err = await self._stream_download_to_file(session, video_url, filename)
+                    if success and os.path.exists(filename):
+                        caption = f"🐦 **Twitter/X Video** (`@{tw_user}`)"
+                        if tweet_text:
+                            caption += f"\n> {tweet_text[:120]}..."
+                        await ctx.send(content=caption, file=discord.File(filename))
+                        await wait.delete()
+                        return
+                    elif err == "too_large":
+                        view = discord.ui.View()
+                        view.add_item(discord.ui.Button(label="⬇️ Télécharger l'video", url=video_url, style=discord.ButtonStyle.link))
+                        embed = discord.Embed(
+                            title=f"Twitter Video (@{tw_user})",
+                            description="L'video kber mn 25MB. T9ed tchofo direct hna:",
+                            color=0x000000
+                        )
+                        await wait.edit(embed=embed, view=view)
+                        return
+                else:
+                    # Fallback for Twitter: use fixupx.com embed which Discord automatically previews as playable video
+                    fixupx_url = f"https://fixupx.com/{tw_user}/status/{tw_status_id}"
+                    await wait.edit(content=f"🎬 **Twitter Video:**\n{fixupx_url}", embed=None)
+                    return
+
+            # 3. Instagram Handler (Direct embed proxy -> zero RAM & Discord renders native player)
+            ig_match = re.search(r'instagram\.com/(?:p|reel|reels|tv)/([^/?#]+)', url, re.I)
+            if ig_match:
+                shortcode = ig_match.group(1)
+                # Discord embeds eeinstagram.com directly with native playable video
+                ez_url = f"https://eeinstagram.com/reel/{shortcode}/"
+                view = discord.ui.View()
+                view.add_item(discord.ui.Button(label="📸 Ouvrir f Instagram", url=url, style=discord.ButtonStyle.link))
+                await wait.edit(content=f"🎬 **Instagram Reel:**\n{ez_url}", embed=None, view=view)
+                return
+
+            # 4. YouTube Shorts & Generic Fallback (Controlled yt-dlp with low memory buffer)
+            import sys
+            cmd = [
+                sys.executable, "-m", "yt_dlp",
+                "--max-filesize", "25M",
+                "-f", "best[ext=mp4][filesize<=25M]/best[filesize<=25M]/best",
+                "--no-playlist",
+                "--buffer-size", "16K",
+                "--no-part",
+                "--no-cache-dir",
+                "-o", f"dl_{ctx.message.id}.%(ext)s",
+                "--no-check-certificate",
+                "--no-warnings",
+                "--quiet"
+            ]
+
+            if os.path.exists("cookies.txt"):
+                cmd.extend(["--cookies", "cookies.txt"])
+
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            
+
             try:
-                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=90)
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60)
             except asyncio.TimeoutError:
                 try:
                     process.kill()
-                except:
+                except Exception:
                     pass
-                await wait.edit(embed=discord.Embed(description="Mochkil: Tfawat lwe9t (Timeout after 90s).", color=0x000000))
+                await wait.edit(embed=discord.Embed(description="❌ Mochkil: Tfawat lwe9t (Timeout after 60s).", color=0x000000))
                 return
-            
-            # Find the downloaded file
+
             downloaded_file = None
             for f in os.listdir("."):
-                if f.startswith(filename) and not f.endswith(".part") and not f.endswith(".ytdl"):
+                if f.startswith(f"dl_{ctx.message.id}") and not f.endswith(".part") and not f.endswith(".ytdl"):
                     downloaded_file = f
                     break
-                    
+
             if downloaded_file and os.path.exists(downloaded_file):
                 file_size = os.path.getsize(downloaded_file)
                 if file_size <= 25 * 1024 * 1024:
                     await ctx.send(file=discord.File(downloaded_file))
                     await wait.delete()
                 else:
-                    await wait.edit(embed=discord.Embed(description="L file kber mn 25MB. Man9edch nsifto f Discord.", color=0x000000))
+                    await wait.edit(embed=discord.Embed(description="L'file kber mn 25MB. Man9edch nsifto f Discord.", color=0x000000))
                 try:
                     os.remove(downloaded_file)
-                except:
+                except Exception:
                     pass
             else:
-                if process.returncode != 0:
-                    err_str = stderr.decode('utf-8', errors='ignore').strip()
-                    # Clean up ANSI escape sequences if any
-                    err_str = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', err_str)
-                    
-                    if "Sign in to confirm" in err_str:
-                        description = (
-                            f"**Mochkil:** YouTube blocks this download request because it thinks the bot is a scraper.\n\n"
-                            f"**Solution:** Please place a valid `cookies.txt` file in the bot's root directory. "
-                            f"Refer to [yt-dlp Wiki on Cookies](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp) for details."
-                        )
-                    else:
-                        description = f"Mochkil fl download:\n```\n{err_str[:1500]}\n```"
+                err_str = stderr.decode('utf-8', errors='ignore').strip() if stderr else ""
+                err_str = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', err_str)
+                if "Sign in to confirm" in err_str:
+                    desc = (
+                        "**Mochkil:** YouTube blocks this download request because it thinks the bot is a scraper.\n\n"
+                        "**Solution:** Please place a valid `cookies.txt` file in the bot's root directory."
+                    )
+                elif err_str:
+                    desc = f"Mochkil fl download:\n```\n{err_str[:1200]}\n```"
                 else:
-                    description = "Mochkil: Mal9itch l file ta3 download."
-                
-                await wait.edit(embed=discord.Embed(description=description, color=0x000000))
-                
+                    desc = "Mochkil: Mal9itch l'file ta3 download."
+                await wait.edit(embed=discord.Embed(description=desc, color=0x000000))
+
         except Exception as e:
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
         finally:
-            # Cleanup any leftover files starting with filename
+            # Cleanup any leftover files starting with dl_{ctx.message.id}
+            prefix = f"dl_{ctx.message.id}"
             for f in os.listdir("."):
-                if f.startswith(filename):
+                if f.startswith(prefix):
                     try:
                         os.remove(f)
-                    except:
+                    except Exception:
                         pass
-            import gc
             gc.collect()
 
     @commands.command(name="username", aliases=["sherlock"], help="Nchouf lik username wach available f 20 platform.")
