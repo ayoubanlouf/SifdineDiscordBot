@@ -679,7 +679,11 @@ class Bot(commands.Cog):
 
         # Measure REST API roundtrip
         t_msg0 = time.perf_counter()
-        msg = await ctx.send("🏓 Pinging...")
+        embed = discord.Embed(
+            description="Sber 3lia...",
+            color=0x000000
+        )
+        msg = await ctx.send(embed=embed)
         rest_latency_ms = round((time.perf_counter() - t_msg0) * 1000)
 
         # Connection health indicator
@@ -691,7 +695,7 @@ class Bot(commands.Cog):
             indicator = "🔴 Slow"
 
         embed = discord.Embed(
-            title="🏓 Pong! Latency Metrics",
+            title="Latency Metrics",
             color=0x000000
         )
         embed.add_field(name="🌐 WebSocket (Gateway)", value=f"`{ws_latency_ms} ms`", inline=True)
