@@ -698,10 +698,10 @@ class Bot(commands.Cog):
             title="Latency Metrics",
             color=0x000000
         )
-        embed.add_field(name="🌐 WebSocket (Gateway)", value=f"`{ws_latency_ms} ms`", inline=True)
-        embed.add_field(name="⚡ REST API (Roundtrip)", value=f"`{rest_latency_ms} ms`", inline=True)
-        embed.add_field(name="🗄️ SQLite Database", value=f"`{db_latency_ms} ms`", inline=True)
-        embed.add_field(name="📶 Connection Health", value=indicator, inline=False)
+        embed.add_field(name="WebSocket (Gateway)", value=f"`{ws_latency_ms} ms`", inline=True)
+        embed.add_field(name="REST API (Roundtrip)", value=f"`{rest_latency_ms} ms`", inline=True)
+        embed.add_field(name="SQLite Database", value=f"`{db_latency_ms} ms`", inline=True)
+        embed.add_field(name="Connection Health", value=indicator, inline=False)
 
         await msg.edit(content=None, embed=embed)
 
