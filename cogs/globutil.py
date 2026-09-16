@@ -323,23 +323,142 @@ def render_visual_pyramid(sections_data: list, perfume_name: str = "Perfume") ->
 _fragrantica_session = None
 _libcrypto = None
 
+# Compact pure-Python AES-256-CBC decryptor for guaranteed cross-platform fallback (Linux/Docker/Windows)
+_AES_SBOX = [
+    0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+    0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
+    0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
+    0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
+    0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
+    0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
+    0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
+    0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
+    0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
+    0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
+    0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
+    0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
+    0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+    0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
+    0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
+    0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
+]
+_AES_INV_SBOX = [0] * 256
+for _i, _v in enumerate(_AES_SBOX):
+    _AES_INV_SBOX[_v] = _i
+
+_AES_RCON = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36]
+
+def _aes_xtimes(b):
+    return ((b << 1) ^ 0x1b) & 0xff if (b & 0x80) else (b << 1)
+
+def _aes_mul(a, b):
+    res = 0
+    for _ in range(8):
+        if b & 1:
+            res ^= a
+        a = _aes_xtimes(a)
+        b >>= 1
+    return res
+
+def _aes_expand_key_256(key_bytes):
+    w = list(key_bytes)
+    rcon_i = 1
+    while len(w) < 240:
+        t = w[-4:]
+        if len(w) % 32 == 0:
+            t = [_AES_SBOX[t[1]], _AES_SBOX[t[2]], _AES_SBOX[t[3]], _AES_SBOX[t[0]]]
+            t[0] ^= _AES_RCON[rcon_i]
+            rcon_i += 1
+        elif len(w) % 32 == 16:
+            t = [_AES_SBOX[b] for b in t]
+        for j in range(4):
+            w.append(w[-32] ^ t[j])
+    return [w[i:i+16] for i in range(0, len(w), 16)]
+
+def _aes_inv_cipher_block(block, round_keys):
+    state = list(block)
+    for i in range(16):
+        state[i] ^= round_keys[14][i]
+    for round_num in range(13, 0, -1):
+        state = [
+            state[0], state[13], state[10], state[7],
+            state[4], state[1], state[14], state[11],
+            state[8], state[5], state[2], state[15],
+            state[12], state[9], state[6], state[3]
+        ]
+        state = [_AES_INV_SBOX[b] for b in state]
+        rk = round_keys[round_num]
+        state = [state[i] ^ rk[i] for i in range(16)]
+        new_state = [0] * 16
+        for c in range(4):
+            i = c * 4
+            s0, s1, s2, s3 = state[i], state[i+1], state[i+2], state[i+3]
+            new_state[i]   = _aes_mul(0x0e, s0) ^ _aes_mul(0x0b, s1) ^ _aes_mul(0x0d, s2) ^ _aes_mul(0x09, s3)
+            new_state[i+1] = _aes_mul(0x09, s0) ^ _aes_mul(0x0e, s1) ^ _aes_mul(0x0b, s2) ^ _aes_mul(0x0d, s3)
+            new_state[i+2] = _aes_mul(0x0d, s0) ^ _aes_mul(0x09, s1) ^ _aes_mul(0x0e, s2) ^ _aes_mul(0x0b, s3)
+            new_state[i+3] = _aes_mul(0x0b, s0) ^ _aes_mul(0x0d, s1) ^ _aes_mul(0x09, s2) ^ _aes_mul(0x0e, s3)
+        state = new_state
+    state = [
+        state[0], state[13], state[10], state[7],
+        state[4], state[1], state[14], state[11],
+        state[8], state[5], state[2], state[15],
+        state[12], state[9], state[6], state[3]
+    ]
+    state = [_AES_INV_SBOX[b] for b in state]
+    state = [state[i] ^ round_keys[0][i] for i in range(16)]
+    return bytes(state)
+
+def _aes_256_cbc_decrypt_py(ct_bytes, key_bytes, iv_bytes):
+    round_keys = _aes_expand_key_256(key_bytes)
+    pt = bytearray()
+    prev_ct = iv_bytes
+    for i in range(0, len(ct_bytes), 16):
+        block = ct_bytes[i:i+16]
+        dec_block = _aes_inv_cipher_block(block, round_keys)
+        pt.extend([dec_block[j] ^ prev_ct[j] for j in range(16)])
+        prev_ct = block
+    pad_len = pt[-1]
+    if 1 <= pad_len <= 16 and pt[-pad_len:] == bytes([pad_len]) * pad_len:
+        return bytes(pt[:-pad_len])
+    return bytes(pt)
+
+
 def _get_libcrypto():
     global _libcrypto
     if _libcrypto is None:
         import sys
         import ctypes
+        import ctypes.util
         from glob import glob
-        candidates = (
+
+        candidates = []
+        lib_name = ctypes.util.find_library('crypto')
+        if lib_name:
+            candidates.append(lib_name)
+
+        # Linux (Discloud production container) paths
+        candidates.extend([
+            'libcrypto.so.3',
+            'libcrypto.so.1.1',
+            'libcrypto.so',
+            '/usr/lib/x86_64-linux-gnu/libcrypto.so.3',
+            '/usr/lib/x86_64-linux-gnu/libcrypto.so.1.1',
+            '/usr/lib/libcrypto.so.3',
+            '/lib/x86_64-linux-gnu/libcrypto.so.3',
+        ])
+
+        # Windows paths
+        candidates.extend(
             glob(os.path.join(os.path.dirname(sys.executable), '*crypto*.dll')) +
             glob(os.path.join(os.path.dirname(sys.executable), 'DLLs', '*crypto*.dll')) +
             glob(os.path.join(os.path.dirname(sys.executable), 'lib', '*crypto*.dll'))
         )
-        if not candidates:
-            try:
-                import ssl
-                candidates = glob(os.path.join(os.path.dirname(ssl._ssl.__file__), '*crypto*.dll'))
-            except Exception:
-                pass
+        try:
+            import ssl
+            candidates.extend(glob(os.path.join(os.path.dirname(ssl._ssl.__file__), '*crypto*.dll')))
+        except Exception:
+            pass
+
         for path in candidates:
             try:
                 lib = ctypes.CDLL(path)
@@ -361,10 +480,6 @@ def _decrypt_fragrantica_payload(payload, host='www.fragrantica.com'):
     import base64
     import hashlib
     import ctypes
-
-    lib = _get_libcrypto()
-    if not lib:
-        return None
 
     try:
         if isinstance(payload, str):
@@ -389,26 +504,34 @@ def _decrypt_fragrantica_payload(payload, host='www.fragrantica.com'):
         key = dtot[:32]
         iv = bytes.fromhex(payload['iv']) if 'iv' in payload else dtot[32:48]
 
-        # 3. Decrypt with OpenSSL EVP
-        ctx = lib.EVP_CIPHER_CTX_new()
-        try:
-            lib.EVP_DecryptInit_ex.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
-            lib.EVP_DecryptUpdate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.c_char_p, ctypes.c_int]
-            lib.EVP_DecryptFinal_ex.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
-            lib.EVP_aes_256_cbc.restype = ctypes.c_void_p
+        # 3. Decrypt: first try OpenSSL EVP C-library, fallback to pure-Python AES
+        lib = _get_libcrypto()
+        if lib:
+            ctx = lib.EVP_CIPHER_CTX_new()
+            try:
+                lib.EVP_DecryptInit_ex.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+                lib.EVP_DecryptUpdate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.c_char_p, ctypes.c_int]
+                lib.EVP_DecryptFinal_ex.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+                lib.EVP_aes_256_cbc.restype = ctypes.c_void_p
 
-            lib.EVP_DecryptInit_ex(ctx, lib.EVP_aes_256_cbc(), None, key, iv)
-            out_buf = ctypes.create_string_buffer(len(ct) + 32)
-            out_len = ctypes.c_int()
-            lib.EVP_DecryptUpdate(ctx, out_buf, ctypes.byref(out_len), ct, len(ct))
-            total_len = out_len.value
-            fin_len = ctypes.c_int()
-            lib.EVP_DecryptFinal_ex(ctx, ctypes.cast(ctypes.addressof(out_buf) + total_len, ctypes.c_char_p), ctypes.byref(fin_len))
-            total_len += fin_len.value
-            dec_bytes = out_buf.raw[:total_len]
-            return json.loads(dec_bytes.decode('utf-8'))
-        finally:
-            lib.EVP_CIPHER_CTX_free(ctx)
+                lib.EVP_DecryptInit_ex(ctx, lib.EVP_aes_256_cbc(), None, key, iv)
+                out_buf = ctypes.create_string_buffer(len(ct) + 32)
+                out_len = ctypes.c_int()
+                lib.EVP_DecryptUpdate(ctx, out_buf, ctypes.byref(out_len), ct, len(ct))
+                total_len = out_len.value
+                fin_len = ctypes.c_int()
+                lib.EVP_DecryptFinal_ex(ctx, ctypes.cast(ctypes.addressof(out_buf) + total_len, ctypes.c_char_p), ctypes.byref(fin_len))
+                total_len += fin_len.value
+                dec_bytes = out_buf.raw[:total_len]
+                return json.loads(dec_bytes.decode('utf-8'))
+            except Exception:
+                pass
+            finally:
+                lib.EVP_CIPHER_CTX_free(ctx)
+
+        # Pure-Python fallback (always works on Discloud Linux without shared libraries)
+        dec_bytes = _aes_256_cbc_decrypt_py(ct, key, iv)
+        return json.loads(dec_bytes.decode('utf-8'))
     except Exception as err:
         print(f"[Fragrantica Decrypt] Error: {err}")
         return None
@@ -437,12 +560,13 @@ def _fetch_fragrantica_html(url: str):
     global _fragrantica_session
     session = _get_fragrantica_session()
     def _extract_essential_html(text: str) -> str:
-        # Extract the metadata/intro/pyramid section and the script tag containing ratings & similar perfumes
-        # to avoid holding 1.8MB of raw user reviews in RAM while preserving essential live data
-        script_block = ""
-        script_m = re.search(r'<script\b[^>]*>(?:(?!</script>).)*?let\s+status\s*=\s*({[^;]+});.*?</script>', text, re.DOTALL)
-        if script_m:
-            script_block = script_m.group(0)
+        # Extract the metadata/intro/pyramid section and all script tags containing status & similar perfumes
+        script_blocks = []
+        for m in re.finditer(r'<script\b[^>]*>(.*?)</script>', text, re.DOTALL):
+            s = m.group(0)
+            if "let status" in s or "let similar_perfumes" in s:
+                script_blocks.append(s)
+        script_block = "\n".join(script_blocks)
 
         for marker in ['id="newreview"', 'class="reviewstrigger"', 'section-id="reviews"', 'id="userReviews"', 'class="reviews"']:
             idx = text.find(marker)
@@ -3238,45 +3362,31 @@ class GlobUtil(commands.Cog, name="Global Util"):
         perfumer_match = re.search(r'nose behind this fragrance is\s+([^.<]+)', intro_p, re.I)
         perfumer = perfumer_match.group(1).strip() if perfumer_match else "Not disclosed"
 
-        # Rating & Votes
-        rating_m = re.search(r'itemprop=["\']ratingValue["\'][^>]*content=["\']([^"\']+)["\']', html_doc, re.I)
-        if not rating_m:
-            rating_m = re.search(r'content=["\']([^"\']+)["\'][^>]*itemprop=["\']ratingValue["\']', html_doc, re.I)
-        if not rating_m:
-            rating_m = re.search(r'([0-9]\.[0-9]{1,2})\s*out of\s*5', html_doc)
-        rating_val = rating_m.group(1) if rating_m else None
-
-        votes_m = re.search(r'itemprop=["\']ratingCount["\'][^>]*content=["\']([^"\']+)["\']', html_doc, re.I)
-        if not votes_m:
-            votes_m = re.search(r'content=["\']([^"\']+)["\'][^>]*itemprop=["\']ratingCount["\']', html_doc, re.I)
-        rating_count = votes_m.group(1) if votes_m else None
-
-        if rating_val:
-            try:
-                r_float = float(rating_val)
-                rating_str = f"⭐ **{r_float:.2f}** / 5"
-                if rating_count:
-                    rating_str += f" ({int(rating_count):,} votes)"
-            except Exception:
-                rating_str = f"⭐ {rating_val} / 5"
-        else:
-            rating_str = "No ratings yet"
-
-        # Longevity & Sillage & Reminds of
-        longevity = "Moderate (3h - 6h)"
-        sillage = "Moderate"
+        # Rating, Longevity, Sillage & Reminds of
+        rating_str = "No ratings yet"
+        longevity = "Not specified"
+        sillage = "Not specified"
         reminds_of = None
 
-        # Try decrypting official Fragrantica status payload (live user votes)
+        # 1. Decrypt official Fragrantica status payload (live community ratings, longevity & sillage votes)
         m_status = re.search(r'let\s+status\s*=\s*({[^;]+});', html_doc)
         if m_status:
             try:
                 decrypted_st = _decrypt_fragrantica_payload(m_status.group(1))
                 if decrypted_st and isinstance(decrypted_st, dict):
                     st = decrypted_st.get("status", {})
+                    
+                    # Rating from payload
+                    r_avg = st.get("rating_average")
+                    r_people = st.get("people") or st.get("rating_sum")
+                    if r_avg and float(r_avg) > 0:
+                        rating_str = f"⭐ **{float(r_avg):.2f}** / 5"
+                        if r_people:
+                            rating_str += f" ({int(r_people):,} votes)"
+
+                    # Longevity votes
                     long_votes = st.get("longevity", {})
                     if long_votes and isinstance(long_votes, dict):
-                        # 1: very weak, 2: weak, 3: moderate, 4: long lasting, 5: eternal
                         labels_long = {
                             "1": "Very Weak (30m - 1h)",
                             "2": "Weak (1h - 2h)",
@@ -3288,9 +3398,9 @@ class GlobUtil(commands.Cog, name="Global Util"):
                         if int(best_long[1]) > 0:
                             longevity = labels_long.get(str(best_long[0]), longevity)
 
+                    # Sillage votes
                     sil_votes = st.get("sillage", {})
                     if sil_votes and isinstance(sil_votes, dict):
-                        # 1: intimate, 2: moderate, 3: strong, 4: enormous
                         labels_sil = {
                             "1": "Intimate",
                             "2": "Moderate",
@@ -3303,7 +3413,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
             except Exception as e:
                 print(f"[Fragrantica] Error reading status payload: {e}")
 
-        # Try decrypting similar_perfumes payload (perfume with most votes)
+        # 2. Decrypt similar_perfumes payload (perfume with the most votes)
         m_sim = re.search(r'let\s+similar_perfumes\s*=\s*({[^;]+});', html_doc)
         if m_sim:
             try:
@@ -3311,7 +3421,6 @@ class GlobUtil(commands.Cog, name="Global Util"):
                 if decrypted_sim and isinstance(decrypted_sim, dict):
                     sim_list = decrypted_sim.get("similar_perfumes", [])
                     if sim_list and isinstance(sim_list, list):
-                        # Sort by highest vote_yes or votes
                         sorted_sim = sorted(
                             sim_list,
                             key=lambda x: int(x.get("vote_yes", 0) or x.get("votes", 0)),
@@ -3334,24 +3443,31 @@ class GlobUtil(commands.Cog, name="Global Util"):
             except Exception as e:
                 print(f"[Fragrantica] Error reading similar_perfumes payload: {e}")
 
-        # Fallback if decryption was unavailable: textual heuristics
-        if longevity == "Moderate (3h - 6h)":
-            doc_lower = html_doc[:80000].lower()
-            if "eternal" in doc_lower or "very long lasting" in doc_lower:
-                longevity = "Very Long Lasting (12h+)"
-            elif "long lasting" in doc_lower:
-                longevity = "Long Lasting (7h - 12h)"
-            elif "weak" in doc_lower:
-                longevity = "Weak to Moderate (2h - 4h)"
+        # 3. HTML Regex Fallback for Rating if payload did not provide it
+        if rating_str == "No ratings yet":
+            rating_m = re.search(r'<span[^>]*itemprop=["\']ratingValue["\'][^>]*>\s*([0-9.]+)\s*</span>', html_doc, re.I)
+            if not rating_m:
+                rating_m = re.search(r'itemprop=["\']ratingValue["\'][^>]*content=["\']([^"\']+)["\']', html_doc, re.I)
+            if not rating_m:
+                rating_m = re.search(r'content=["\']([^"\']+)["\'][^>]*itemprop=["\']ratingValue["\']', html_doc, re.I)
+            if not rating_m:
+                rating_m = re.search(r'([0-9]\.[0-9]{1,2})(?:\s|&nbsp;)*out of(?:\s|&nbsp;)*5', html_doc)
+            rating_val = rating_m.group(1) if rating_m else None
 
-        if sillage == "Moderate":
-            doc_lower = html_doc[:80000].lower()
-            if "enormous" in doc_lower:
-                sillage = "Strong to Enormous"
-            elif "strong" in doc_lower:
-                sillage = "Strong"
-            elif "intimate" in doc_lower:
-                sillage = "Intimate"
+            votes_m = re.search(r'<span[^>]*itemprop=["\']ratingCount["\'][^>]*content=["\']([0-9]+)["\']', html_doc, re.I)
+            if not votes_m:
+                votes_m = re.search(r'<span[^>]*itemprop=["\']ratingCount["\'][^>]*>\s*([0-9,]+)\s*</span>', html_doc, re.I)
+            rating_count = votes_m.group(1) if votes_m else None
+
+            if rating_val:
+                try:
+                    r_float = float(rating_val)
+                    rating_str = f"⭐ **{r_float:.2f}** / 5"
+                    if rating_count:
+                        clean_cnt = rating_count.replace(",", "")
+                        rating_str += f" ({int(clean_cnt):,} votes)"
+                except Exception:
+                    rating_str = f"⭐ {rating_val} / 5"
 
         # Main Accords
         accords = []

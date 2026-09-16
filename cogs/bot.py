@@ -295,6 +295,7 @@ class Bot(commands.Cog, name="Bot"):
 
 
     @commands.command(name="servers", aliases=['guilds'], help="Servers li dakhl lihom ana.")
+    @commands.is_owner()
     async def servers(self, ctx):
         if not await self.bot.is_owner(ctx.author):
             await ctx.send("Ma3endekch l7e9 tsta3ml had lcmd :/")
@@ -323,6 +324,7 @@ class Bot(commands.Cog, name="Bot"):
 
 
     @commands.command(name="inviter", help="Chkoun dkhelni lserver.")
+    @commands.is_owner()
     async def inviter(self, ctx, guild_id: int):
         if not await self.bot.is_owner(ctx.author):
             await ctx.send("Ma3nkdch l7e9 tkhdm had l cmd :/")
@@ -524,6 +526,7 @@ class Bot(commands.Cog, name="Bot"):
 
 
     @commands.command(name="backup", help="Sift cloud backup ta3 database l DMs ta3 lowner.")
+    @commands.is_owner()
     async def backup(self, ctx):
         if not await self.bot.is_owner(ctx.author):
             await ctx.send("Ma3endekch l7e9 tsta3ml had lcmd :/")

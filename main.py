@@ -141,18 +141,40 @@ CATEGORY_ORDER = [
     "Gambling",
     "Moderation",
     "Economy",
-    "Manipulation"
+    "Manipulation",
+    "Owner"
 ]
 
 
-def get_bot_categories(bot):
+def is_owner_command(cmd) -> bool:
+    for check in getattr(cmd, "checks", []):
+        qualname = getattr(check, "__qualname__", "")
+        name = getattr(check, "__name__", "")
+        if "is_owner" in qualname or "is_owner" in name:
+            return True
+    return False
+
+
+def get_bot_categories(bot, is_owner: bool = False):
     categories = {}
+    owner_cmds = []
+
     for cog_name, cog in bot.cogs.items():
         if cog_name.lower() in ("events", "triggers"):
             continue
-        cmds = [cmd.name for cmd in cog.get_commands() if not cmd.hidden]
+        cmds = []
+        for cmd in cog.get_commands():
+            if cmd.hidden:
+                continue
+            if is_owner_command(cmd):
+                owner_cmds.append(cmd.name)
+            else:
+                cmds.append(cmd.name)
         if cmds:
             categories[cog_name] = cmds
+
+    if is_owner and owner_cmds:
+        categories["Owner"] = sorted(owner_cmds)
 
     # Sort according to CATEGORY_ORDER with any extra cogs appended
     sorted_categories = {}
@@ -166,9 +188,10 @@ def get_bot_categories(bot):
 
 
 class HelpDropdown(discord.ui.Select):
-    def __init__(self, help_command):
+    def __init__(self, help_command, is_owner: bool = False):
         self.help_command = help_command
-        categories = get_bot_categories(self.help_command.context.bot)
+        self.is_owner = is_owner
+        categories = get_bot_categories(self.help_command.context.bot, is_owner=is_owner)
 
         options = []
         for category in categories.keys():
@@ -186,7 +209,7 @@ class HelpDropdown(discord.ui.Select):
             return
 
         selected_category = self.values[0]
-        categories = get_bot_categories(self.help_command.context.bot)
+        categories = get_bot_categories(self.help_command.context.bot, is_owner=self.is_owner)
         command_names = categories.get(selected_category, [])
 
         has_group = False
@@ -214,10 +237,11 @@ class HelpDropdown(discord.ui.Select):
 
 
 class HelpDropdownView(discord.ui.View):
-    def __init__(self, help_command):
+    def __init__(self, help_command, is_owner: bool = False):
         super().__init__(timeout=120)
         self.help_command = help_command
-        self.add_item(HelpDropdown(help_command))
+        self.is_owner = is_owner
+        self.add_item(HelpDropdown(help_command, is_owner=is_owner))
 
     async def on_timeout(self):
         for child in self.children:
@@ -233,11 +257,12 @@ class ModernHelpCommand(commands.HelpCommand):
     def __init__(self):
         super().__init__(command_attrs={"help": "Katwrik ga3 l commands.",
                                         "aliases": ["mosa3ada", "3awn", "commands", "3t9",
-                                                    "3te9"]})
+                                                     "3te9"]})
 
     async def command_callback(self, ctx, *, command=None):
         if command is not None:
-            categories = get_bot_categories(ctx.bot)
+            is_owner = await ctx.bot.is_owner(ctx.author)
+            categories = get_bot_categories(ctx.bot, is_owner=is_owner)
             matched_category = None
             for category in categories.keys():
                 if category.lower() == command.lower():
@@ -251,7 +276,8 @@ class ModernHelpCommand(commands.HelpCommand):
 
     async def send_category_help(self, category):
         ctx = self.context
-        categories = get_bot_categories(ctx.bot)
+        is_owner = await ctx.bot.is_owner(ctx.author)
+        categories = get_bot_categories(ctx.bot, is_owner=is_owner)
         command_names = categories.get(category, [])
 
         has_group = False
@@ -275,12 +301,13 @@ class ModernHelpCommand(commands.HelpCommand):
             p = ctx.clean_prefix
             embed.set_footer(text=f"* = Command Group (Dir {p}help <command> bach tchouf subcommands).")
         
-        view = HelpDropdownView(self)
+        view = HelpDropdownView(self, is_owner=is_owner)
         await ctx.send(embed=embed, view=view)
 
     async def send_bot_help(self, mapping):
         ctx = self.context
-        categories = get_bot_categories(ctx.bot)
+        is_owner = await ctx.bot.is_owner(ctx.author)
+        categories = get_bot_categories(ctx.bot, is_owner=is_owner)
         total_commands = 0
         categories_summary = []
 
@@ -295,11 +322,16 @@ class ModernHelpCommand(commands.HelpCommand):
         )
         embed.set_footer(text="Khtar chy category bach tchouf l commands (* = Command Group).")
 
-        view = HelpDropdownView(self)
+        view = HelpDropdownView(self, is_owner=is_owner)
         view.message = await ctx.send(embed=embed, view=view)
 
     async def send_command_help(self, command):
         ctx = self.context
+        if is_owner_command(command):
+            is_owner = await ctx.bot.is_owner(ctx.author)
+            if not is_owner:
+                return await self.send_error_message(f"Command \"{command.name}\" not found.")
+
         p = ctx.clean_prefix
         aliases = f" `[{'|'.join(command.aliases)}]`" if command.aliases else ""
 
@@ -317,7 +349,13 @@ class ModernHelpCommand(commands.HelpCommand):
 
     async def send_group_help(self, group):
         ctx = self.context
+        if is_owner_command(group):
+            is_owner = await ctx.bot.is_owner(ctx.author)
+            if not is_owner:
+                return await self.send_error_message(f"Command \"{group.name}\" not found.")
+
         p = ctx.clean_prefix
+        is_owner = await ctx.bot.is_owner(ctx.author)
 
         embed = discord.Embed(
             title=f"Group: {group.name}",
@@ -328,6 +366,8 @@ class ModernHelpCommand(commands.HelpCommand):
         subcommands_list = []
         for cmd in group.commands:
             if not cmd.hidden:
+                if is_owner_command(cmd) and not is_owner:
+                    continue
                 subcommands_list.append(f"`{cmd.name}` - {cmd.short_doc or 'Nsit ndir liha description hh.'}")
 
         embed.add_field(name="Subcommands", value="\n".join(subcommands_list) if subcommands_list else "None",
