@@ -1047,7 +1047,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 await ctx.send(embed=discord.Embed(description="❌ Had l member makaynch f had server.", color=0x000000))
                 return
             await target_member.kick(reason=reason)
-            await ctx.send(f"{target_member.mention} tms7 mn server. Reason: {reason or 'Makaynch'}")
+            await ctx.send(f"{target_member.mention} jrit 3lih mn server. Reason: {reason or 'Makaynch'}")
         except Exception as e:
             display_name = getattr(member, 'display_name', getattr(member, 'name', str(member.id)))
             await ctx.send(embed=discord.Embed(description=f"Ma9dertch nkick **{display_name}**: `{e}`", color=0x000000))

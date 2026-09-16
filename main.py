@@ -357,39 +357,61 @@ bot.Paginator = Paginator
 
 @bot.check
 async def is_not_blacklisted(ctx):
-    if hasattr(bot, "blacklist_cache"):
-        return ctx.author.id not in bot.blacklist_cache
-    if not hasattr(bot, 'db') or not bot.db:
+    if hasattr(ctx.bot, "blacklist_cache"):
+        return ctx.author.id not in ctx.bot.blacklist_cache
+    if not hasattr(ctx.bot, 'db') or not ctx.bot.db:
         return True
-    async with bot.db.execute("SELECT 1 FROM blacklists WHERE user_id = ?", (ctx.author.id,)) as cursor:
+    async with ctx.bot.db.execute("SELECT 1 FROM blacklists WHERE user_id = ?", (ctx.author.id,)) as cursor:
         is_blacklisted = await cursor.fetchone()
     return is_blacklisted is None
 
 
 @bot.check
 async def is_command_enabled(ctx):
-    if not ctx.guild or not ctx.command:
+    if not ctx.command:
         return True
 
     cmd_name = ctx.command.qualified_name.lower()
     root_name = ctx.command.root_parent.name.lower() if ctx.command.root_parent else cmd_name
-    if root_name in ("enable", "disable", "disabled", "help"):
+    if root_name in ("enable", "disable", "disabled", "globalenable", "globaldisable", "globaldisabled", "genable", "gdisable", "gdisabled", "help"):
         return True
 
-    if hasattr(bot, "disabled_commands_cache"):
+    # 1. Check globally disabled commands
+    is_globally_disabled = False
+    if hasattr(ctx.bot, "global_disabled_commands_cache"):
+        is_globally_disabled = (
+            cmd_name in ctx.bot.global_disabled_commands_cache or
+            root_name in ctx.bot.global_disabled_commands_cache
+        )
+    elif hasattr(ctx.bot, 'db') and ctx.bot.db:
+        async with ctx.bot.db.execute(
+            "SELECT 1 FROM global_disabled_commands WHERE command_name IN (?, ?)",
+            (cmd_name, root_name)
+        ) as cursor:
+            is_globally_disabled = (await cursor.fetchone()) is not None
+
+    if is_globally_disabled:
+        await ctx.send(f"⚠️ Had lcommand (`{ctx.prefix}{cmd_name}`) **mdesactivia globally** f ga3 servers!", delete_after=6)
+        return False
+
+    # 2. Check guild-specific disabled commands
+    if not ctx.guild:
+        return True
+
+    if hasattr(ctx.bot, "disabled_commands_cache"):
         is_disabled = (
-            (ctx.guild.id, cmd_name) in bot.disabled_commands_cache or
-            (ctx.guild.id, root_name) in bot.disabled_commands_cache
+            (ctx.guild.id, cmd_name) in ctx.bot.disabled_commands_cache or
+            (ctx.guild.id, root_name) in ctx.bot.disabled_commands_cache
         )
         if is_disabled:
             await ctx.send(f"❌ Had lcommand (`{ctx.prefix}{cmd_name}`) **mdesactivia** f had server!", delete_after=6)
             return False
         return True
 
-    if not hasattr(bot, 'db') or not bot.db:
+    if not hasattr(ctx.bot, 'db') or not ctx.bot.db:
         return True
 
-    async with bot.db.execute(
+    async with ctx.bot.db.execute(
         "SELECT 1 FROM disabled_commands WHERE guild_id = ? AND command_name IN (?, ?)",
         (ctx.guild.id, cmd_name, root_name)
     ) as cursor:
@@ -419,6 +441,7 @@ async def setup_hook():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS guild_prefixes (guild_id INTEGER PRIMARY KEY, prefix TEXT)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS blacklists (user_id INTEGER PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS disabled_commands (guild_id INTEGER, command_name TEXT, PRIMARY KEY (guild_id, command_name))")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS global_disabled_commands (command_name TEXT PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, earnings INTEGER DEFAULT 0, losses INTEGER DEFAULT 0, loss_amount INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
     try:
@@ -532,6 +555,7 @@ async def setup_hook():
     bot.prefix_cache = {}
     bot.blacklist_cache = set()
     bot.disabled_commands_cache = set()
+    bot.global_disabled_commands_cache = set()
     bot.afk_cache = {}
 
     try:
@@ -557,6 +581,14 @@ async def setup_hook():
                 bot.disabled_commands_cache.add((r[0], r[1]))
     except Exception as e:
         print(f"[Cache Preload] disabled_commands error: {e}")
+
+    try:
+        async with bot.db.execute("SELECT command_name FROM global_disabled_commands") as cursor:
+            rows = await cursor.fetchall()
+            for r in rows:
+                bot.global_disabled_commands_cache.add(r[0])
+    except Exception as e:
+        print(f"[Cache Preload] global_disabled_commands error: {e}")
 
     try:
         async with bot.db.execute("SELECT user_id, reason, timestamp FROM afk") as cursor:

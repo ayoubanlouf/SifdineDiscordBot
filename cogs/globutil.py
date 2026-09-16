@@ -321,6 +321,97 @@ def render_visual_pyramid(sections_data: list, perfume_name: str = "Perfume") ->
 
 
 _fragrantica_session = None
+_libcrypto = None
+
+def _get_libcrypto():
+    global _libcrypto
+    if _libcrypto is None:
+        import sys
+        import ctypes
+        from glob import glob
+        candidates = (
+            glob(os.path.join(os.path.dirname(sys.executable), '*crypto*.dll')) +
+            glob(os.path.join(os.path.dirname(sys.executable), 'DLLs', '*crypto*.dll')) +
+            glob(os.path.join(os.path.dirname(sys.executable), 'lib', '*crypto*.dll'))
+        )
+        if not candidates:
+            try:
+                import ssl
+                candidates = glob(os.path.join(os.path.dirname(ssl._ssl.__file__), '*crypto*.dll'))
+            except Exception:
+                pass
+        for path in candidates:
+            try:
+                lib = ctypes.CDLL(path)
+                if hasattr(lib, 'EVP_CIPHER_CTX_new'):
+                    lib.EVP_CIPHER_CTX_new.restype = ctypes.c_void_p
+                    lib.EVP_CIPHER_CTX_free.argtypes = [ctypes.c_void_p]
+                    lib.EVP_aes_256_cbc.restype = ctypes.c_void_p
+                    lib.EVP_DecryptInit_ex.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+                    lib.EVP_DecryptUpdate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.c_char_p, ctypes.c_int]
+                    lib.EVP_DecryptFinal_ex.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+                    _libcrypto = lib
+                    break
+            except Exception:
+                continue
+    return _libcrypto
+
+def _decrypt_fragrantica_payload(payload, host='www.fragrantica.com'):
+    """Decrypts Fragrantica AES-256-CBC obfuscated JSON payloads (status ratings, similar perfumes)."""
+    import base64
+    import hashlib
+    import ctypes
+
+    lib = _get_libcrypto()
+    if not lib:
+        return None
+
+    try:
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        ct = base64.b64decode(payload['ct'])
+        salt = bytes.fromhex(payload['s']) if 's' in payload else b''
+
+        # 1. Reverse-engineer key from host
+        e = host[::-1]
+        r = ''.join(host[l] + e[l] for l in range(len(host)))
+        i = ''.join(chr(ord(r[l]) ^ ((7 * l + 13) & 127)) for l in range(len(r)))
+        o = hashlib.md5(i.encode('latin1')).hexdigest()
+        s = hashlib.md5((host + o[:8]).encode('latin1')).hexdigest()
+        passphrase = hashlib.md5((o + s).encode('latin1')).hexdigest().encode('utf-8')
+
+        # 2. EVP BytesToKey derivation (OpenSSL compatible)
+        dtot = b''
+        d = b''
+        while len(dtot) < (32 + 16):
+            d = hashlib.md5(d + passphrase + salt).digest()
+            dtot += d
+        key = dtot[:32]
+        iv = bytes.fromhex(payload['iv']) if 'iv' in payload else dtot[32:48]
+
+        # 3. Decrypt with OpenSSL EVP
+        ctx = lib.EVP_CIPHER_CTX_new()
+        try:
+            lib.EVP_DecryptInit_ex.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+            lib.EVP_DecryptUpdate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int), ctypes.c_char_p, ctypes.c_int]
+            lib.EVP_DecryptFinal_ex.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+            lib.EVP_aes_256_cbc.restype = ctypes.c_void_p
+
+            lib.EVP_DecryptInit_ex(ctx, lib.EVP_aes_256_cbc(), None, key, iv)
+            out_buf = ctypes.create_string_buffer(len(ct) + 32)
+            out_len = ctypes.c_int()
+            lib.EVP_DecryptUpdate(ctx, out_buf, ctypes.byref(out_len), ct, len(ct))
+            total_len = out_len.value
+            fin_len = ctypes.c_int()
+            lib.EVP_DecryptFinal_ex(ctx, ctypes.cast(ctypes.addressof(out_buf) + total_len, ctypes.c_char_p), ctypes.byref(fin_len))
+            total_len += fin_len.value
+            dec_bytes = out_buf.raw[:total_len]
+            return json.loads(dec_bytes.decode('utf-8'))
+        finally:
+            lib.EVP_CIPHER_CTX_free(ctx)
+    except Exception as err:
+        print(f"[Fragrantica Decrypt] Error: {err}")
+        return None
 
 def _get_fragrantica_session():
     global _fragrantica_session
@@ -345,17 +436,26 @@ def _get_fragrantica_session():
 def _fetch_fragrantica_html(url: str):
     global _fragrantica_session
     session = _get_fragrantica_session()
+    def _extract_essential_html(text: str) -> str:
+        # Extract the metadata/intro/pyramid section and the script tag containing ratings & similar perfumes
+        # to avoid holding 1.8MB of raw user reviews in RAM while preserving essential live data
+        script_block = ""
+        script_m = re.search(r'<script\b[^>]*>(?:(?!</script>).)*?let\s+status\s*=\s*({[^;]+});.*?</script>', text, re.DOTALL)
+        if script_m:
+            script_block = script_m.group(0)
+
+        for marker in ['id="newreview"', 'class="reviewstrigger"', 'section-id="reviews"', 'id="userReviews"', 'class="reviews"']:
+            idx = text.find(marker)
+            if idx != -1:
+                return text[:idx + 1000] + "\n" + script_block
+        return text
+
     try:
         resp = session.get(url, timeout=15)
         if resp.status_code == 200:
             text = resp.text
             del resp
-            for marker in ['id="newreview"', 'class="reviewstrigger"', 'section-id="reviews"', 'id="userReviews"', 'class="reviews"']:
-                idx = text.find(marker)
-                if idx != -1:
-                    text = text[:idx + 1000]
-                    break
-            return text
+            return _extract_essential_html(text)
         if resp.status_code in (403, 503):
             # Session challenged or stale; refresh session and retry once
             from curl_cffi import requests
@@ -364,12 +464,7 @@ def _fetch_fragrantica_html(url: str):
             if resp.status_code == 200:
                 text = resp.text
                 del resp
-                for marker in ['id="newreview"', 'class="reviewstrigger"', 'section-id="reviews"', 'id="userReviews"', 'class="reviews"']:
-                    idx = text.find(marker)
-                    if idx != -1:
-                        text = text[:idx + 1000]
-                        break
-                return text
+                return _extract_essential_html(text)
     except Exception as e:
         print(f"[Fragrantica] Error fetching {url}: {e}")
     return None
@@ -2518,6 +2613,93 @@ class GlobUtil(commands.Cog, name="Global Util"):
                 del data
             gc.collect()
 
+    @commands.command(name="anime", help="N3tik informations 3la ay anime.")
+    async def anime(self, ctx: commands.Context, *, title: str = None):
+        if not title:
+            await ctx.send(embed=discord.Embed(description=f"❌ Kteb smiyt l'anime: `{ctx.clean_prefix}anime <title>`", color=0x000000))
+            return
+
+        wait_msg = await ctx.send(embed=discord.Embed(description="Kan9elleb 3la l'anime...", color=0x000000))
+        encoded_query = urllib.parse.quote(title.strip())
+        url = f"https://kitsu.io/api/edge/anime?filter[text]={encoded_query}&page[limit]=1"
+        headers = {
+            "Accept": "application/vnd.api+json",
+            "Content-Type": "application/vnd.api+json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SifdineBot/1.0"
+        }
+
+        try:
+            async with ReusableSession(self.bot.session) as session:
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status != 200:
+                        await wait_msg.edit(embed=discord.Embed(description="❌ Tra mochkil f connexion m3a l'API dyal anime.", color=0x000000))
+                        return
+                    data = await resp.json()
+
+            hits = data.get("data", [])
+            if not hits:
+                await wait_msg.edit(embed=discord.Embed(description=f"❌ Mal9itch chi anime b smiyt `{title}`.", color=0x000000))
+                return
+
+            item = hits[0]
+            attrs = item.get("attributes", {})
+
+            # Titles
+            titles_dict = attrs.get("titles", {}) or {}
+            canonical_title = attrs.get("canonicalTitle") or titles_dict.get("en") or titles_dict.get("en_jp") or title
+            title_ja = titles_dict.get("ja_jp") or titles_dict.get("en_jp") or "N/A"
+
+            # Details
+            show_type = (attrs.get("subtype") or attrs.get("showType") or "TV").upper()
+            status = (attrs.get("status") or "Unknown").capitalize()
+            start_date = attrs.get("startDate") or "Unknown"
+            end_date = attrs.get("endDate") or "Ongoing"
+            episodes = str(attrs.get("episodeCount") or "Unknown")
+            rating = attrs.get("averageRating")
+            rating_str = f"⭐ **{float(rating):.1f}%**" if rating else "No rating"
+
+            # Synopsis
+            synopsis = attrs.get("synopsis") or attrs.get("description") or "Makaynch description."
+            if len(synopsis) > 1000:
+                synopsis = synopsis[:997] + "..."
+
+            # Images
+            poster_dict = attrs.get("posterImage", {}) or {}
+            poster_url = poster_dict.get("large") or poster_dict.get("medium") or poster_dict.get("original")
+
+            anime_url = f"https://kitsu.io/anime/{item.get('id')}"
+
+            embed = discord.Embed(
+                title=f"🎬 {canonical_title}",
+                url=anime_url,
+                description=synopsis,
+                color=0x000000,
+                timestamp=ctx.message.created_at
+            )
+            if poster_url:
+                embed.set_image(url=poster_url)
+
+            embed.add_field(name="🇯🇵 Japanese Title", value=title_ja, inline=True)
+            embed.add_field(name="📺 Type", value=show_type, inline=True)
+            embed.add_field(name="📊 Status", value=status, inline=True)
+            embed.add_field(name="📅 Start Date", value=start_date, inline=True)
+            embed.add_field(name="🏁 End Date", value=end_date, inline=True)
+            embed.add_field(name="🔢 Episodes", value=episodes, inline=True)
+            embed.add_field(name="⭐ Rating", value=rating_str, inline=True)
+
+            age_rating = attrs.get("ageRating")
+            if age_rating:
+                embed.add_field(name="🔞 Age Rating", value=age_rating, inline=True)
+
+            embed.set_footer(text=f"Kitsu • Requested by {ctx.author.display_name}")
+
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label="Open on Kitsu", url=anime_url, style=discord.ButtonStyle.link, emoji="🔗"))
+
+            await wait_msg.edit(embed=embed, view=view)
+
+        except Exception as e:
+            await wait_msg.edit(embed=discord.Embed(description=f"❌ Tra chy mochkil: `{e}`", color=0x000000))
 
     @commands.command(name="rocketleague", aliases=["rl", "rlstats"], help="Chouf stats ta3 chy wa7d f Rocket League.")
     async def rocketleague(self, ctx, *args):
@@ -3080,23 +3262,96 @@ class GlobUtil(commands.Cog, name="Global Util"):
         else:
             rating_str = "No ratings yet"
 
-        # Longevity & Sillage (search only top 80KB to save memory)
+        # Longevity & Sillage & Reminds of
         longevity = "Moderate (3h - 6h)"
         sillage = "Moderate"
-        doc_lower = html_doc[:80000].lower()
-        if "very long lasting" in doc_lower:
-            longevity = "Very Long Lasting (12h+)"
-        elif "long lasting" in doc_lower:
-            longevity = "Long Lasting (7h - 12h)"
-        elif "weak" in doc_lower:
-            longevity = "Weak to Moderate (2h - 4h)"
+        reminds_of = None
 
-        if "enormous" in doc_lower:
-            sillage = "Strong to Enormous"
-        elif "strong" in doc_lower:
-            sillage = "Strong"
-        elif "intimate" in doc_lower:
-            sillage = "Intimate"
+        # Try decrypting official Fragrantica status payload (live user votes)
+        m_status = re.search(r'let\s+status\s*=\s*({[^;]+});', html_doc)
+        if m_status:
+            try:
+                decrypted_st = _decrypt_fragrantica_payload(m_status.group(1))
+                if decrypted_st and isinstance(decrypted_st, dict):
+                    st = decrypted_st.get("status", {})
+                    long_votes = st.get("longevity", {})
+                    if long_votes and isinstance(long_votes, dict):
+                        # 1: very weak, 2: weak, 3: moderate, 4: long lasting, 5: eternal
+                        labels_long = {
+                            "1": "Very Weak (30m - 1h)",
+                            "2": "Weak (1h - 2h)",
+                            "3": "Moderate (3h - 6h)",
+                            "4": "Long Lasting (7h - 12h)",
+                            "5": "Eternal (12h+)"
+                        }
+                        best_long = max(long_votes.items(), key=lambda x: int(x[1]) if str(x[1]).isdigit() else 0)
+                        if int(best_long[1]) > 0:
+                            longevity = labels_long.get(str(best_long[0]), longevity)
+
+                    sil_votes = st.get("sillage", {})
+                    if sil_votes and isinstance(sil_votes, dict):
+                        # 1: intimate, 2: moderate, 3: strong, 4: enormous
+                        labels_sil = {
+                            "1": "Intimate",
+                            "2": "Moderate",
+                            "3": "Strong",
+                            "4": "Enormous"
+                        }
+                        best_sil = max(sil_votes.items(), key=lambda x: int(x[1]) if str(x[1]).isdigit() else 0)
+                        if int(best_sil[1]) > 0:
+                            sillage = labels_sil.get(str(best_sil[0]), sillage)
+            except Exception as e:
+                print(f"[Fragrantica] Error reading status payload: {e}")
+
+        # Try decrypting similar_perfumes payload (perfume with most votes)
+        m_sim = re.search(r'let\s+similar_perfumes\s*=\s*({[^;]+});', html_doc)
+        if m_sim:
+            try:
+                decrypted_sim = _decrypt_fragrantica_payload(m_sim.group(1))
+                if decrypted_sim and isinstance(decrypted_sim, dict):
+                    sim_list = decrypted_sim.get("similar_perfumes", [])
+                    if sim_list and isinstance(sim_list, list):
+                        # Sort by highest vote_yes or votes
+                        sorted_sim = sorted(
+                            sim_list,
+                            key=lambda x: int(x.get("vote_yes", 0) or x.get("votes", 0)),
+                            reverse=True
+                        )
+                        if sorted_sim:
+                            top_sim = sorted_sim[0]
+                            p_info = top_sim.get("perfume", {})
+                            p_name = p_info.get("naslov", "").strip()
+                            p_brand = p_info.get("dizajner", "").strip()
+                            p_url = p_info.get("perfume_url", "")
+                            if p_name:
+                                full_label = f"**{p_name}**" + (f" by {p_brand}" if p_brand else "")
+                                if p_url:
+                                    if not p_url.startswith("http"):
+                                        p_url = f"https://www.fragrantica.com{p_url}"
+                                    reminds_of = f"[{full_label}]({p_url})"
+                                else:
+                                    reminds_of = full_label
+            except Exception as e:
+                print(f"[Fragrantica] Error reading similar_perfumes payload: {e}")
+
+        # Fallback if decryption was unavailable: textual heuristics
+        if longevity == "Moderate (3h - 6h)":
+            doc_lower = html_doc[:80000].lower()
+            if "eternal" in doc_lower or "very long lasting" in doc_lower:
+                longevity = "Very Long Lasting (12h+)"
+            elif "long lasting" in doc_lower:
+                longevity = "Long Lasting (7h - 12h)"
+            elif "weak" in doc_lower:
+                longevity = "Weak to Moderate (2h - 4h)"
+
+        if sillage == "Moderate":
+            doc_lower = html_doc[:80000].lower()
+            if "enormous" in doc_lower:
+                sillage = "Strong to Enormous"
+            elif "strong" in doc_lower:
+                sillage = "Strong"
+            elif "intimate" in doc_lower:
+                sillage = "Intimate"
 
         # Main Accords
         accords = []
@@ -3223,6 +3478,8 @@ class GlobUtil(commands.Cog, name="Global Util"):
         embed_info.add_field(name="Rating", value=rating_str, inline=False)
         embed_info.add_field(name="⏳ Longevity", value=longevity, inline=True)
         embed_info.add_field(name="💨 Sillage", value=sillage, inline=True)
+        if reminds_of:
+            embed_info.add_field(name="✨ Reminds me of", value=reminds_of, inline=False)
         embed_info.add_field(name="👃 Main Accords", value=accords_str, inline=False)
         embed_info.set_footer(text=f"Fragrantica • Page 1/2 • Requested by {ctx.author.display_name}")
 

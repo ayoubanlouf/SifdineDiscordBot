@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import random
 import io
@@ -185,7 +186,7 @@ class MoveModal(Modal, title="La3eb Chess"):
         await self.game_view.process_move_input(interaction, self.move_input.value.strip())
 
 class ChessView(View):
-    def __init__(self, player_white: Union[discord.Member, discord.User], player_black: Union[discord.Member, discord.User], is_bot_game: bool = False, cog: Optional["Fun"] = None, bet: int = 0):
+    def __init__(self, player_white: Union[discord.Member, discord.User], player_black: Union[discord.Member, discord.User], is_bot_game: bool = False, cog: Optional["Minigames"] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_white = player_white
         self.player_black = player_black
@@ -670,7 +671,7 @@ class ChessView(View):
         await interaction.response.edit_message(embed=embed, attachments=[board_file], view=None)
 
 class ChessChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
@@ -753,7 +754,7 @@ class ChessPuzzleModal(Modal, title="7ell Chess Puzzle"):
 
 
 class ChessPuzzleView(View):
-    def __init__(self, author: Union[discord.Member, discord.User], cog: "Fun", puzzle: Optional[dict] = None):
+    def __init__(self, author: Union[discord.Member, discord.User], cog: "Minigames", puzzle: Optional[dict] = None):
         super().__init__(timeout=120)
         self.author = author
         self.cog = cog
@@ -834,7 +835,7 @@ class ChessPuzzleView(View):
             description=(
                 f"{turn_str}\n\n"
                 f"🎯 **Objective:** L9a l best tactical move!\n"
-                f"💰 **Reward:** **+50** {TAD_EMOJI} TAD\n\n"
+                f"💰 **Reward:** **+100** {TAD_EMOJI} TAD\n\n"
                 f"Clicki 3la **Submit Move** bach tdkhel l move dialk."
             ),
             color=0x000000
@@ -892,7 +893,7 @@ class ChessPuzzleView(View):
         if is_correct:
             if economy_cog:
                 net, tax = await economy_cog.apply_tax_and_add_balance(
-                    self.author.id, 50, context="Chess Puzzle Win"
+                    self.author.id, 100, context="Chess Puzzle Win"
                 )
                 eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (🔥 `{tax:,}` TAD tax burned)!"
                 if interaction.guild:
@@ -973,7 +974,7 @@ class TicTacToeView(View):
         [(2, 0), (1, 1), (0, 2)],
     ]
 
-    def __init__(self, player_x: Union[discord.Member, discord.User], player_o: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Fun"] = None, bet: int = 0):
+    def __init__(self, player_x: Union[discord.Member, discord.User], player_o: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Minigames"] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_x = player_x
         self.player_o = player_o
@@ -1246,7 +1247,7 @@ class TicTacToeView(View):
 
 class ChallengeView(View):
     """View for the challenge acceptance phase."""
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
@@ -1332,7 +1333,7 @@ class ConnectFourButton(Button):
 
 class ConnectFourView(View):
     """The main Connect Four game view."""
-    def __init__(self, player_red: Union[discord.Member, discord.User], player_yellow: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Fun"] = None, bet: int = 0):
+    def __init__(self, player_red: Union[discord.Member, discord.User], player_yellow: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Minigames"] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_red = player_red
         self.player_yellow = player_yellow
@@ -1697,7 +1698,7 @@ class ConnectFourView(View):
 
 class ConnectFourChallengeView(View):
     """View for the Connect Four multiplayer challenge acceptance phase."""
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
@@ -1768,7 +1769,7 @@ class AkinatorButton(Button):
 
 
 class AkinatorView(View):
-    def __init__(self, player: Union[discord.Member, discord.User], timeout: float = 60.0, cog: Optional["Fun"] = None, channel_id: Optional[int] = None):
+    def __init__(self, player: Union[discord.Member, discord.User], timeout: float = 60.0, cog: Optional["Minigames"] = None, channel_id: Optional[int] = None):
         super().__init__(timeout=timeout)
         self.player = player
         self.cog = cog
@@ -2013,7 +2014,7 @@ class AkinatorView(View):
 # ============ ROCK PAPER SCISSORS UI CLASSES (Module Level) ============
 
 class RPSBotView(View):
-    def __init__(self, player: discord.Member, cog: Optional["Fun"] = None, bet: int = 0):
+    def __init__(self, player: discord.Member, cog: Optional["Minigames"] = None, bet: int = 0):
         super().__init__(timeout=60)
         self.player = player
         self.cog = cog
@@ -2120,7 +2121,7 @@ class RPSBotView(View):
 
 
 class RPSMultiplayerView(View):
-    def __init__(self, player1: discord.Member, player2: discord.Member, cog: Optional["Fun"] = None, bet: int = 0):
+    def __init__(self, player1: discord.Member, player2: discord.Member, cog: Optional["Minigames"] = None, bet: int = 0):
         super().__init__(timeout=60)
         self.player1 = player1
         self.player2 = player2
@@ -2247,7 +2248,7 @@ class RPSMultiplayerView(View):
 
 
 class RPSChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
@@ -2332,7 +2333,7 @@ class MinesweeperButton(Button):
 
 
 class MinesweeperSoloView(View):
-    def __init__(self, player: discord.Member, cog: Optional["Fun"] = None):
+    def __init__(self, player: discord.Member, cog: Optional["Minigames"] = None):
         super().__init__(timeout=180)
         self.player = player
         self.cog = cog
@@ -2508,7 +2509,7 @@ class MinesweeperSoloView(View):
 
 
 class MinesweeperMultiplayerView(View):
-    def __init__(self, p1: discord.Member, p2: discord.Member, cog: Optional["Fun"] = None, bet: int = 0):
+    def __init__(self, p1: discord.Member, p2: discord.Member, cog: Optional["Minigames"] = None, bet: int = 0):
         super().__init__(timeout=180)
         self.p1 = p1
         self.p2 = p2
@@ -2715,7 +2716,7 @@ class MinesweeperMultiplayerView(View):
 
 
 class MinesweeperChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
@@ -2830,7 +2831,7 @@ class WordleSoloModal(Modal, title="Wordle — Guess"):
 
 
 class WordleSoloView(View):
-    def __init__(self, player: discord.Member, secret: str, cog: "Fun"):
+    def __init__(self, player: discord.Member, secret: str, cog: "Minigames"):
         super().__init__(timeout=300)
         self.player = player
         self.secret = secret.lower()
@@ -2972,7 +2973,7 @@ class WordleDMView(View):
 
 
 class WordleMultiplayerMatch:
-    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Fun", bet: int = 0):
+    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Minigames", bet: int = 0):
         self.p1 = p1
         self.p2 = p2
         self.channel_msg = channel_msg
@@ -3248,7 +3249,7 @@ class WordleMultiplayerMatch:
 
 
 class WordleChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
@@ -3430,7 +3431,7 @@ class HangmanSoloModal(Modal, title="Hangman — Guess"):
 
 
 class HangmanSoloView(View):
-    def __init__(self, player: discord.Member, secret: str, cog: "Fun"):
+    def __init__(self, player: discord.Member, secret: str, cog: "Minigames"):
         super().__init__(timeout=300)
         self.player = player
         self.secret = secret.lower()
@@ -3594,7 +3595,7 @@ class HangmanDMView(View):
 
 
 class HangmanMultiplayerMatch:
-    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Fun", bet: int = 0):
+    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Minigames", bet: int = 0):
         self.p1 = p1
         self.p2 = p2
         self.channel_msg = channel_msg
@@ -3885,7 +3886,7 @@ class HangmanMultiplayerMatch:
 
 
 class HangmanChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Fun", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
@@ -4959,11 +4960,11 @@ class GuessTheRankView(discord.ui.View):
                     await self.cog.record_minigame_win(interaction.guild.id, self.author.id, "guesstherank", earnings=net)
 
             if points_earned == 100:
-                outcome_header = f"🎯 **EXACT GUESS! Mhyeeeb!**"
+                outcome_header = "🎯 **EXACT GUESS! Mhyeeeb!**"
             elif points_earned == 50:
-                outcome_header = f"🤏 **CLOSE! Gher b rank w7da!**"
+                outcome_header = "🤏 **CLOSE! Gher b rank w7da!**"
             else:
-                outcome_header = f"❌ **WRONG GUESS! Majbtihach.**"
+                outcome_header = "❌ **WRONG GUESS! Majbtihach.**"
 
             rank_icon_ext = self.game_info.get("img_ext", "webp")
             rank_icon_url = f"https://guesstherank.org/images/ranks/{self.game_info['id']}/{self.game_info['id']}_{actual_rank_idx}.{rank_icon_ext}"
@@ -7670,7 +7671,7 @@ class Minigames(commands.Cog, name="Minigames"):
                     round_history.append((loc, cguess["name"], proximity, dist, round_stake))
 
                     if proximity >= 1.0:
-                        header = f"🎯 **EXACT COUNTRY! Nta Naadi!**"
+                        header = "🎯 **EXACT COUNTRY! Nta Naadi!**"
                         prox_str = "**100%** (Dawla s7i7a!)"
                     else:
                         header = f"📍 **Target: {target_flag} {target_country}**"
@@ -7952,7 +7953,5 @@ class Minigames(commands.Cog, name="Minigames"):
 
 
 async def setup(bot):
-    await bot.add_cog(Fun(bot))
-
-async def setup(bot):
     await bot.add_cog(Minigames(bot))
+

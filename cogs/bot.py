@@ -587,7 +587,7 @@ class Bot(commands.Cog, name="Bot"):
             return
 
         canonical_name = target_cmd.qualified_name.lower()
-        if canonical_name in ("enable", "disable", "disabled", "help"):
+        if canonical_name in ("enable", "disable", "disabled", "globalenable", "globaldisable", "globaldisabled", "genable", "gdisable", "gdisabled", "help"):
             await ctx.send(f"❌ Mat9dch t disabli command `{canonical_name}` 7it daroria!")
             return
 
@@ -671,17 +671,116 @@ class Bot(commands.Cog, name="Bot"):
 
         cmds_list = [f"• `{r[0]}`" for r in rows]
         paginator = self.bot.Paginator(ctx, cmds_list, per_page=15, title=f"🚫 Disabled Commands ({len(rows)})")
-        embed = discord.Embed(
-            title=f"🚫 Disabled Commands ({len(rows)})",
-            description="\n".join(paginator.chunks[0]) if paginator.chunks else "Walo",
-            color=0x000000
-        )
+        embed = paginator.get_page()
         if paginator.total_pages > 1:
             embed.set_footer(text=f"Page 1/{paginator.total_pages} • Server: {ctx.guild.name}")
             msg = await ctx.send(embed=embed, view=paginator)
             paginator.message = msg
         else:
             embed.set_footer(text=f"Server: {ctx.guild.name}")
+            await ctx.send(embed=embed)
+
+    @commands.command(name="globaldisable", aliases=["gdisable"], help="[Owner Only] Desactivi command globally f ga3 servers.")
+    @commands.is_owner()
+    async def global_disable(self, ctx: commands.Context, *, command_name: str):
+        clean_name = command_name.strip().lower()
+        if clean_name.startswith(ctx.prefix.lower()):
+            clean_name = clean_name[len(ctx.prefix):].strip()
+
+        target_cmd = self.bot.get_command(clean_name)
+        if not target_cmd:
+            await ctx.send(f"❌ Mal9itch chi command smitha `{command_name}`.")
+            return
+
+        canonical_name = target_cmd.qualified_name.lower()
+        if canonical_name in ("enable", "disable", "disabled", "globalenable", "globaldisable", "globaldisabled", "genable", "gdisable", "gdisabled", "help"):
+            await ctx.send(f"❌ Mat9dch t disabli command `{canonical_name}` 7it daroria!")
+            return
+
+        async with self.bot.db.execute(
+            "SELECT 1 FROM global_disabled_commands WHERE command_name = ?",
+            (canonical_name,)
+        ) as cursor:
+            exists = await cursor.fetchone()
+
+        if exists:
+            await ctx.send(f"⚠️ Command `{canonical_name}` deja mdisablia globally.")
+            return
+
+        await self.bot.db.execute(
+            "INSERT INTO global_disabled_commands (command_name) VALUES (?)",
+            (canonical_name,)
+        )
+        await self.bot.db.commit()
+        if hasattr(self.bot, "global_disabled_commands_cache"):
+            self.bot.global_disabled_commands_cache.add(canonical_name)
+
+        embed = discord.Embed(
+            description=f"🌐 🚫 Disablit command `{canonical_name}` **globally** f ga3 servers!",
+            color=0x000000
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command(name="globalenable", aliases=["genable"], help="[Owner Only] Activi command li kant mdesactivia globally.")
+    @commands.is_owner()
+    async def global_enable(self, ctx: commands.Context, *, command_name: str):
+        clean_name = command_name.strip().lower()
+        if clean_name.startswith(ctx.prefix.lower()):
+            clean_name = clean_name[len(ctx.prefix):].strip()
+
+        target_cmd = self.bot.get_command(clean_name)
+        canonical_name = target_cmd.qualified_name.lower() if target_cmd else clean_name
+
+        async with self.bot.db.execute(
+            "SELECT 1 FROM global_disabled_commands WHERE command_name = ?",
+            (canonical_name,)
+        ) as cursor:
+            exists = await cursor.fetchone()
+
+        if not exists:
+            await ctx.send(f"⚠️ Command `{canonical_name}` mamdisabliach globally.")
+            return
+
+        await self.bot.db.execute(
+            "DELETE FROM global_disabled_commands WHERE command_name = ?",
+            (canonical_name,)
+        )
+        await self.bot.db.commit()
+        if hasattr(self.bot, "global_disabled_commands_cache"):
+            self.bot.global_disabled_commands_cache.discard(canonical_name)
+
+        embed = discord.Embed(
+            description=f"🌐 🟢 Enablit command `{canonical_name}` **globally**!",
+            color=0x000000
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command(name="globaldisabled", aliases=["gdisabled"], help="[Owner Only] Chouf ga3 commands li mdesactivyin globally.")
+    @commands.is_owner()
+    async def list_global_disabled(self, ctx: commands.Context):
+        async with self.bot.db.execute(
+            "SELECT command_name FROM global_disabled_commands ORDER BY command_name ASC"
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        if not rows:
+            embed = discord.Embed(
+                title="🌐 📋 Globally Disabled Commands",
+                description="✨ Walo! Ga3 commands khdamin globally.",
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
+        cmds_list = [f"• `{r[0]}`" for r in rows]
+        paginator = self.bot.Paginator(ctx, cmds_list, per_page=15, title=f"🌐 🚫 Globally Disabled Commands ({len(rows)})")
+        embed = paginator.get_page()
+        if paginator.total_pages > 1:
+            embed.set_footer(text=f"Page 1/{paginator.total_pages} • Global")
+            msg = await ctx.send(embed=embed, view=paginator)
+            paginator.message = msg
+        else:
+            embed.set_footer(text="Global")
             await ctx.send(embed=embed)
 
     @commands.command(name="ping", aliases=["latency", "pong"], help="Chouf latency dyal Discord WebSocket, REST API o Database.")
