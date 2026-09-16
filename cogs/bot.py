@@ -12,12 +12,148 @@ from discord.ext import commands
 from converters import FuzzyMember
 
 
+RESTART_STATE_FILE = ".pending_restart.json"
+
+
 class Bot(commands.Cog, name="Bot"):
     def __init__(self, bot):
         self.bot = bot
         self.start_time = getattr(self.bot, "start_time", None) or time.time()
         self._cached_discloud_app_id = None
         self._cached_bothosting_deployment_id = None
+        self._reboot_checked = False
+
+    async def _save_pending_restart(self, channel_id: int, message_id: int, action: str, provider: str):
+        timestamp = time.time()
+        # 1. Local JSON state file
+        try:
+            with open(RESTART_STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump({
+                    "channel_id": channel_id,
+                    "message_id": message_id,
+                    "action": action,
+                    "provider": provider,
+                    "timestamp": timestamp
+                }, f)
+        except Exception as e:
+            print(f"[RESTART] Failed to write state file: {e}")
+
+        # 2. Database state fallback
+        try:
+            await self.bot.db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pending_restart (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
+                    message_id INTEGER NOT NULL,
+                    action TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    timestamp REAL NOT NULL
+                )
+                """
+            )
+            await self.bot.db.execute(
+                "INSERT INTO pending_restart (channel_id, message_id, action, provider, timestamp) VALUES (?, ?, ?, ?, ?)",
+                (channel_id, message_id, action, provider, timestamp)
+            )
+        except Exception as e:
+            print(f"[RESTART] Failed to save to DB: {e}")
+
+    async def _clear_pending_restart(self):
+        try:
+            if os.path.exists(RESTART_STATE_FILE):
+                os.remove(RESTART_STATE_FILE)
+        except Exception:
+            pass
+
+        try:
+            await self.bot.db.execute("DROP TABLE IF EXISTS pending_restart")
+        except Exception:
+            pass
+
+    async def _check_pending_restart(self):
+        state = None
+        # 1. Check file state
+        if os.path.exists(RESTART_STATE_FILE):
+            try:
+                with open(RESTART_STATE_FILE, "r", encoding="utf-8") as f:
+                    state = json.load(f)
+            except Exception:
+                state = None
+
+        # 2. Check DB state
+        if not state:
+            try:
+                async with self.bot.db.execute(
+                    "SELECT channel_id, message_id, action, provider, timestamp FROM pending_restart ORDER BY id DESC LIMIT 1"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        state = {
+                            "channel_id": row["channel_id"],
+                            "message_id": row["message_id"],
+                            "action": row["action"],
+                            "provider": row["provider"],
+                            "timestamp": row["timestamp"]
+                        }
+            except Exception:
+                pass
+
+        await self._clear_pending_restart()
+
+        if not state:
+            return
+
+        channel_id = state.get("channel_id")
+        message_id = state.get("message_id")
+        action = state.get("action", "restart")
+        provider = state.get("provider") or self.detect_hosting_provider()
+        start_ts = state.get("timestamp", time.time())
+        duration = max(0.5, time.time() - start_ts)
+
+        try:
+            channel = self.bot.get_channel(channel_id)
+            if not channel:
+                channel = await self.bot.fetch_channel(channel_id)
+            if not channel:
+                return
+            msg = await channel.fetch_message(message_id)
+            if not msg:
+                return
+
+            if action == "pull":
+                title = "🚀 Back Online & Updated!"
+                desc = (
+                    "✅ **GitHub Sync & Container Restart kamlin!**\n"
+                    "L-bot rah online daba o khdam b a7dat commit mn GitHub.\n"
+                    f"⏱️ **Duration:** `{duration:.1f}s`"
+                )
+            else:
+                title = "🟢 Back Online!"
+                desc = (
+                    "✅ **Container rebooted successfully!**\n"
+                    "L-bot rah rje3 online o khdam mzyan.\n"
+                    f"⏱️ **Duration:** `{duration:.1f}s`"
+                )
+
+            embed = discord.Embed(
+                title=title,
+                description=desc,
+                color=0x000000,
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.set_footer(text=f"Sifdine Host Management • {provider.capitalize()}")
+            await msg.edit(content=None, embed=embed)
+        except Exception as e:
+            print(f"[RESTART] Failed to edit confirmation message: {e}")
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if self._reboot_checked:
+            return
+        self._reboot_checked = True
+        await self._check_pending_restart()
+
 
     def _get_dir_size_sync(self, path="."):
         total_size = 0
@@ -561,24 +697,38 @@ class Bot(commands.Cog, name="Bot"):
     async def host_restart(self, ctx):
         provider = self.detect_hosting_provider()
 
+        embed = discord.Embed(
+            title="🔄 Rebooting Container...",
+            description=f"Kansift reboot signal l **{provider.capitalize()}**... L-bot ghadi y-redemarri daba.",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=f"Sifdine Host Management • {provider.capitalize()}")
+        confirm_msg = await ctx.send(embed=embed)
+
+        await self._save_pending_restart(
+            channel_id=ctx.channel.id,
+            message_id=confirm_msg.id,
+            action="restart",
+            provider=provider
+        )
+
         if provider == "bothosting":
             dep_id = await self.get_bothosting_deployment_id()
             if not dep_id:
-                await ctx.send("❌ Mal9itch chi deployment ID.")
+                await self._clear_pending_restart()
+                await confirm_msg.edit(embed=discord.Embed(description="❌ Mal9itch chi deployment ID.", color=0x000000))
                 return
 
-            confirm_msg = await ctx.send("🔄 Kansift reboot request l Bot-Hosting.net container...")
             data = await self._bothosting_request("POST", f"/deployments/{dep_id}/power", json_data={"signal": "restart"})
 
             if data.get("status") == "error":
                 err = data.get("message", "Error unknown")
-                await confirm_msg.edit(content=f"❌ Mochkil f reboot: `{err}`")
-            else:
-                await confirm_msg.edit(content="✅ **Reboot signal sent!** Bot-Hosting.net container rah ghadi yredemarri daba.")
+                await self._clear_pending_restart()
+                await confirm_msg.edit(embed=discord.Embed(description=f"❌ Mochkil f reboot: `{err}`", color=0x000000))
             return
 
         elif provider == "discloud":
-            confirm_msg = await ctx.send("🔄 Kansift reboot request l Discloud container...")
             app_id = await self.get_discloud_app_id()
             data = await self._discloud_request("PUT", f"/app/{app_id}/restart")
 
@@ -586,15 +736,14 @@ class Bot(commands.Cog, name="Bot"):
                 app_id = await self.get_discloud_app_id(force_refresh=True)
                 data = await self._discloud_request("PUT", f"/app/{app_id}/restart")
 
-            if data.get("status") == "ok":
-                await confirm_msg.edit(content="✅ **Reboot request dazt!** Container rah ghadi yredemarri daba.")
-            else:
+            if data.get("status") != "ok":
                 err = data.get("message", "Error unknown")
-                await confirm_msg.edit(content=f"❌ Tra mochkil f reboot: `{err}`")
+                await self._clear_pending_restart()
+                await confirm_msg.edit(embed=discord.Embed(description=f"❌ Tra mochkil f reboot: `{err}`", color=0x000000))
             return
 
         else:
-            await ctx.send("🔄 Karedemarri local process...")
+            await asyncio.sleep(0.5)
             os.execv(sys.executable, ['python'] + sys.argv)
 
     @host.command(name="backup", aliases=["snapshot", "cloudbackup"], help="Backup project.")
@@ -608,7 +757,7 @@ class Bot(commands.Cog, name="Bot"):
                 await ctx.send("❌ Mal9itch chi deployment ID.")
                 return
 
-            wait_msg = await ctx.send("📦 Kansift backup request l Bot-Hosting.net...")
+            wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
             data = await self._bothosting_request("POST", f"/deployments/{dep_id}/backups")
 
             if data.get("status") == "error":
@@ -619,7 +768,7 @@ class Bot(commands.Cog, name="Bot"):
             return
 
         elif provider == "discloud":
-            wait_msg = await ctx.send("📦 Kantlb backup link mn Discloud...")
+            wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
             app_id = await self.get_discloud_app_id()
             data = await self._discloud_request("GET", f"/app/{app_id}/backup")
 
@@ -682,14 +831,28 @@ class Bot(commands.Cog, name="Bot"):
             await ctx.send("❌ Mal9itch chi deployment ID.")
             return
 
-        wait_msg = await ctx.send("🔄 Kansift GitHub pull/sync request l Bot-Hosting.net...")
+        embed = discord.Embed(
+            title="🔄 Syncing & Rebooting...",
+            description="Kansift GitHub pull/sync request... Bot-Hosting.net rah ghadi y-pulli latest code mn GitHub o yredemarri.",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text="Sifdine Host Management • Bot-Hosting.net")
+        wait_msg = await ctx.send(embed=embed)
+
+        await self._save_pending_restart(
+            channel_id=ctx.channel.id,
+            message_id=wait_msg.id,
+            action="pull",
+            provider=provider
+        )
+
         data = await self._bothosting_request("POST", f"/deployments/{dep_id}/sync")
 
         if data.get("status") == "error":
             err = data.get("message", "Error unknown")
-            await wait_msg.edit(content=f"❌ Mochkil f GitHub sync: `{err}`")
-        else:
-            await wait_msg.edit(content="🚀 **GitHub Sync triggered!** Bot-Hosting.net rah kay-pulli latest code mn GitHub o ghadi yredemarri daba.")
+            await self._clear_pending_restart()
+            await wait_msg.edit(embed=discord.Embed(description=f"❌ Mochkil f GitHub sync: `{err}`", color=0x000000))
 
     @host.command(name="autopull", help="Tchouf wla tbdel auto-pull on restart (Bot-Hosting.net).")
     @commands.is_owner()

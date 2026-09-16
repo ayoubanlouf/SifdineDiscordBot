@@ -1936,7 +1936,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
 
     @commands.command(name="username", aliases=["sherlock"], help="Nchouf lik username wach available f 20 platform.")
     async def username(self, ctx, username: str):
-        wait = await ctx.send(embed=discord.Embed(description=f"Kanchekki username `{username}` f 20 platforms...", color=0x000000))
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
 
         platforms = {
             "GitHub": {"url": "https://api.github.com/users/{username}", "type": "status"},

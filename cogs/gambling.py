@@ -1746,7 +1746,7 @@ class Gambling(commands.Cog, name="Gambling"):
             await ctx.send("❌ Khtar `ras` (heads) wla `njma` (tails). Example: `sat coinflip ras 100`")
             return
 
-        flip_msg = await ctx.send("🪙 *Kanlou7 derhem f sma...*")
+        flip_msg = await ctx.send("🪙 *Le7t derhem f sma...*")
         await asyncio.sleep(1.2)
 
         result = random.choice(["ras", "njma"])

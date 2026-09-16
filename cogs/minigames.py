@@ -5063,8 +5063,7 @@ class GuessTheRankSelectView(discord.ui.View):
 
         self.clear_items()
         await interaction.response.edit_message(
-            content=f"⏳ Kansift request l **GuessTheRank.org** bach njib clip dial **{target_game['name']}**...",
-            embed=None,
+            embed=discord.Embed(description="Sber 3lia...", color=0x000000),
             view=None
         )
 
@@ -7916,7 +7915,7 @@ class Minigames(commands.Cog, name="Minigames"):
             await ctx.send(f"❌ Makaynch had lgame. Games li kaynin:\n{valid_list}")
             return
 
-        wait_msg = await ctx.send(f"⏳ Kansift request l **GuessTheRank.org** bach njib clip dial **{target_game['name']}**...")
+        wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
 
         try:
             opener = await asyncio.to_thread(_gtr_session_sync, target_game["id"])
