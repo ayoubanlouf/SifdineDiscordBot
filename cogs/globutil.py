@@ -1,10 +1,89 @@
 import os
+import ast
+import operator
+import math
 import asyncio
 import aiohttp
 import discord
 from discord.ext import commands
 from discord.ext import tasks
 import difflib
+
+_SAFE_OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
+_SAFE_MATH_FUNCS = {
+    "sqrt": math.sqrt,
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "abs": abs,
+    "round": round,
+    "floor": math.floor,
+    "ceil": math.ceil,
+    "log": math.log,
+    "log10": math.log10,
+    "pi": math.pi,
+    "e": math.e,
+}
+
+def safe_eval_expr(expr: str):
+    clean_expr = expr.replace("^", "**").strip()
+    if not clean_expr:
+        raise ValueError("3amaliya khawya.")
+    if len(clean_expr) > 100:
+        raise ValueError("3amaliya twila bzaf.")
+    
+    parsed = ast.parse(clean_expr, mode="eval")
+
+    def _eval_node(node):
+        if isinstance(node, ast.Expression):
+            return _eval_node(node.body)
+        elif isinstance(node, ast.Constant):
+            if isinstance(node.value, (int, float)):
+                return node.value
+            raise ValueError("Numbers safi li ma9bolin.")
+        elif isinstance(node, ast.BinOp):
+            op_type = type(node.op)
+            if op_type not in _SAFE_OPERATORS:
+                raise ValueError("Operator mam9boulch.")
+            left = _eval_node(node.left)
+            right = _eval_node(node.right)
+            if op_type is ast.Pow:
+                if abs(right) > 1000 or abs(left) > 10000:
+                    raise ValueError("Power kbira bzaf.")
+            return _SAFE_OPERATORS[op_type](left, right)
+        elif isinstance(node, ast.UnaryOp):
+            op_type = type(node.op)
+            if op_type not in _SAFE_OPERATORS:
+                raise ValueError("Unary operator mam9boulch.")
+            return _SAFE_OPERATORS[op_type](_eval_node(node.operand))
+        elif isinstance(node, ast.Name):
+            name_lower = node.id.lower()
+            if name_lower in _SAFE_MATH_FUNCS and isinstance(_SAFE_MATH_FUNCS[name_lower], (int, float)):
+                return _SAFE_MATH_FUNCS[name_lower]
+            raise ValueError(f"Constant '{node.id}' mam3roufach.")
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                func_name = node.func.id.lower()
+                if func_name in _SAFE_MATH_FUNCS and callable(_SAFE_MATH_FUNCS[func_name]):
+                    args = [_eval_node(arg) for arg in node.args]
+                    return _SAFE_MATH_FUNCS[func_name](*args)
+            raise ValueError("Function mam9boulach.")
+        else:
+            raise ValueError("Format dyal l3amaliya mam9boulch.")
+
+    return _eval_node(parsed)
+
 class ReusableSession:
     def __init__(self, session):
         self.session = session
@@ -413,7 +492,7 @@ class FragranticaToggleView(discord.ui.View):
         gc.collect()
 
 
-class GlobUtil(commands.Cog):
+class GlobUtil(commands.Cog, name="Global Util"):
     def __init__(self, bot):
         self.bot = bot
         # Start background check loop for reminders
@@ -426,6 +505,8 @@ class GlobUtil(commands.Cog):
         self.check_reminders.cancel()
 
     async def init_db(self):
+        if not hasattr(self.bot, 'db') or not self.bot.db:
+            return
         async with self.bot.db.execute("CREATE TABLE IF NOT EXISTS reminders (user_id INTEGER, channel_id INTEGER, reminder_text TEXT, end_time INTEGER)"):
             await self.bot.db.commit()
         async with self.bot.db.execute("CREATE INDEX IF NOT EXISTS idx_reminders_end_time ON reminders (end_time)"):
@@ -767,15 +848,16 @@ class GlobUtil(commands.Cog):
 
     @commands.command(aliases=["trjm", "trjem", "terjem"], help="Nterjem lik ay 7aja.")
     async def translate(self, ctx, fromlang, tolang, *, text):
-        if not hasattr(self, "_google_translator") or self._google_translator is None:
-            from googletrans import Translator
-            self._google_translator = Translator()
-        translation = await self._google_translator.translate(text, src=fromlang, dest=tolang)
-        e = discord.Embed(title=f"Terjama men ({fromlang}) l ({tolang})",
-                           color=0x000000,
-                           timestamp=ctx.message.created_at,
-                           description=f"```{translation.text}```")
-        await ctx.send(embed=e)
+        try:
+            from deep_translator import GoogleTranslator
+            translated_text = await asyncio.to_thread(GoogleTranslator(source=fromlang, target=tolang).translate, text)
+            e = discord.Embed(title=f"Terjama men ({fromlang}) l ({tolang})",
+                               color=0x000000,
+                               timestamp=ctx.message.created_at,
+                               description=f"```{translated_text}```")
+            await ctx.send(embed=e)
+        except Exception as e:
+            await ctx.send(f"❌ Mochkil f terjama: `{e}`")
 
     @commands.command(aliases=['yt'], help="N9elleb lik f youtube.")
     async def youtube(self, ctx, *, search):
@@ -786,9 +868,41 @@ class GlobUtil(commands.Cog):
         video = "https://www.youtube.com/watch?v=" + results[0]
         await ctx.send(video)
 
-    @commands.command(aliases=["calc", "7sb", "7seb"], help="N7seb lik lmath sahel.")
-    async def calculate(self, ctx, *, operation):
-        await ctx.send(eval(operation.replace(" ", "")))
+    @commands.command(aliases=["calc", "7sb", "7seb"], help="N7seb lik chy 3amaliya sahla tl mahth.")
+    async def calculate(self, ctx, *, operation: str):
+        try:
+            result = safe_eval_expr(operation)
+            if isinstance(result, float) and result.is_integer():
+                result = int(result)
+            await ctx.send(f"🧮 **Result:** `{result}`")
+        except ZeroDivisionError:
+            await ctx.send("❌ Mat9edch t9sem 3la 0.")
+        except Exception as e:
+            await ctx.send(f"❌ Mochkil f l3amaliya: `{e}`")
+
+    @commands.command(aliases=["swl", "sewel", "swel"], help="Nswlk so2al khssk tjawb 3lih b sara7a.")
+    async def truth(self, ctx):
+        url = 'https://api.truthordarebot.xyz/v1/truth'
+        session = getattr(self.bot, "session", None) or aiohttp.ClientSession()
+        async with session.get(url) as resp:
+            data = await resp.json()
+        await ctx.send(data['question'])
+
+    @commands.command(aliases=["7kem", "7km", "hkm", "hkem"], help="N7kem 3lik b 7ekma khssk dirha darori.")
+    async def dare(self, ctx):
+        url = 'https://api.truthordarebot.xyz/v1/dare'
+        session = getattr(self.bot, "session", None) or aiohttp.ClientSession()
+        async with session.get(url) as resp:
+            data = await resp.json()
+        await ctx.send(data['question'])
+
+    @commands.command(aliases=["wyr", "khyrni"], help="Law khayarouk okda.")
+    async def wouldyourather(self, ctx):
+        url = 'https://api.truthordarebot.xyz/v1/wyr'
+        session = getattr(self.bot, "session", None) or aiohttp.ClientSession()
+        async with session.get(url) as resp:
+            data = await resp.json()
+        await ctx.send(data['question'])
 
     @commands.command(name="rhyme", aliases=["rhymes", "9afiya"], help="Njbed lik lkelmat li 3endhom nafs l 9afiya.")
     async def rhyme(self, ctx, word: str):

@@ -7,7 +7,6 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from typing import Optional
-from get_commands import AllBotCommands
 from database import create_database_client
 
 print("[DEBUG] main.py interpreter:", sys.executable)
@@ -118,28 +117,61 @@ async def get_prefix(bot, message):
     else:
         base_prefixes = ["sat", "ahya"]
         if message.guild:
-            async with bot.db.execute("SELECT prefix FROM guild_prefixes WHERE guild_id = ?",
-                                      (message.guild.id,)) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    base_prefixes.append(row[0])
+            cached_prefix = getattr(bot, "prefix_cache", {}).get(message.guild.id)
+            if cached_prefix:
+                base_prefixes.append(cached_prefix)
 
     prefixes = []
     for bp in base_prefixes:
-        variations = list(map(''.join, itertools.product(*zip(bp.upper(), bp.lower()))))
-        for var in variations:
-            prefixes.append(f"{var} ")
-            prefixes.append(var)
+        prefixes.append(f"{bp} ")
+        prefixes.append(f"{bp.upper()} ")
+        prefixes.append(f"{bp.capitalize()} ")
+        prefixes.append(bp)
+        prefixes.append(bp.upper())
+        prefixes.append(bp.capitalize())
 
     return commands.when_mentioned_or(*prefixes)(bot, message)
+
+
+CATEGORY_ORDER = [
+    "Bot",
+    "Discord Util",
+    "Global Util",
+    "Minigames",
+    "Gambling",
+    "Moderation",
+    "Economy",
+    "Manipulation"
+]
+
+
+def get_bot_categories(bot):
+    categories = {}
+    for cog_name, cog in bot.cogs.items():
+        if cog_name.lower() in ("events", "triggers"):
+            continue
+        cmds = [cmd.name for cmd in cog.get_commands() if not cmd.hidden]
+        if cmds:
+            categories[cog_name] = cmds
+
+    # Sort according to CATEGORY_ORDER with any extra cogs appended
+    sorted_categories = {}
+    for cat in CATEGORY_ORDER:
+        if cat in categories:
+            sorted_categories[cat] = categories[cat]
+    for cat, cmds in categories.items():
+        if cat not in sorted_categories:
+            sorted_categories[cat] = cmds
+    return sorted_categories
 
 
 class HelpDropdown(discord.ui.Select):
     def __init__(self, help_command):
         self.help_command = help_command
+        categories = get_bot_categories(self.help_command.context.bot)
 
         options = []
-        for category in AllBotCommands.keys():
+        for category in categories.keys():
             options.append(discord.SelectOption(
                 label=category,
                 description=f"Commands ta3 {category}",
@@ -154,7 +186,8 @@ class HelpDropdown(discord.ui.Select):
             return
 
         selected_category = self.values[0]
-        command_names = AllBotCommands.get(selected_category, [])
+        categories = get_bot_categories(self.help_command.context.bot)
+        command_names = categories.get(selected_category, [])
 
         has_group = False
         formatted_list = []
@@ -204,8 +237,9 @@ class ModernHelpCommand(commands.HelpCommand):
 
     async def command_callback(self, ctx, *, command=None):
         if command is not None:
+            categories = get_bot_categories(ctx.bot)
             matched_category = None
-            for category in AllBotCommands.keys():
+            for category in categories.keys():
                 if category.lower() == command.lower():
                     matched_category = category
                     break
@@ -217,7 +251,8 @@ class ModernHelpCommand(commands.HelpCommand):
 
     async def send_category_help(self, category):
         ctx = self.context
-        command_names = AllBotCommands.get(category, [])
+        categories = get_bot_categories(ctx.bot)
+        command_names = categories.get(category, [])
 
         has_group = False
         formatted_list = []
@@ -245,10 +280,11 @@ class ModernHelpCommand(commands.HelpCommand):
 
     async def send_bot_help(self, mapping):
         ctx = self.context
+        categories = get_bot_categories(ctx.bot)
         total_commands = 0
         categories_summary = []
 
-        for category, cmds in AllBotCommands.items():
+        for category, cmds in categories.items():
             total_commands += len(cmds)
             categories_summary.append(f"**{category}** • {len(cmds)} commands")
 
@@ -321,6 +357,10 @@ bot.Paginator = Paginator
 
 @bot.check
 async def is_not_blacklisted(ctx):
+    if hasattr(bot, "blacklist_cache"):
+        return ctx.author.id not in bot.blacklist_cache
+    if not hasattr(bot, 'db') or not bot.db:
+        return True
     async with bot.db.execute("SELECT 1 FROM blacklists WHERE user_id = ?", (ctx.author.id,)) as cursor:
         is_blacklisted = await cursor.fetchone()
     return is_blacklisted is None
@@ -334,6 +374,16 @@ async def is_command_enabled(ctx):
     cmd_name = ctx.command.qualified_name.lower()
     root_name = ctx.command.root_parent.name.lower() if ctx.command.root_parent else cmd_name
     if root_name in ("enable", "disable", "disabled", "help"):
+        return True
+
+    if hasattr(bot, "disabled_commands_cache"):
+        is_disabled = (
+            (ctx.guild.id, cmd_name) in bot.disabled_commands_cache or
+            (ctx.guild.id, root_name) in bot.disabled_commands_cache
+        )
+        if is_disabled:
+            await ctx.send(f"❌ Had lcommand (`{ctx.prefix}{cmd_name}`) **mdesactivia** f had server!", delete_after=6)
+            return False
         return True
 
     if not hasattr(bot, 'db') or not bot.db:
@@ -477,6 +527,44 @@ async def setup_hook():
     await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_user_levels_rank ON user_levels (level DESC, total_xp DESC)")
 
     await bot.db.commit()
+
+    # Initialize and pre-populate in-memory performance caches (<100 KB RAM)
+    bot.prefix_cache = {}
+    bot.blacklist_cache = set()
+    bot.disabled_commands_cache = set()
+    bot.afk_cache = {}
+
+    try:
+        async with bot.db.execute("SELECT guild_id, prefix FROM guild_prefixes") as cursor:
+            rows = await cursor.fetchall()
+            for r in rows:
+                bot.prefix_cache[r[0]] = r[1]
+    except Exception as e:
+        print(f"[Cache Preload] guild_prefixes error: {e}")
+
+    try:
+        async with bot.db.execute("SELECT user_id FROM blacklists") as cursor:
+            rows = await cursor.fetchall()
+            for r in rows:
+                bot.blacklist_cache.add(r[0])
+    except Exception as e:
+        print(f"[Cache Preload] blacklists error: {e}")
+
+    try:
+        async with bot.db.execute("SELECT guild_id, command_name FROM disabled_commands") as cursor:
+            rows = await cursor.fetchall()
+            for r in rows:
+                bot.disabled_commands_cache.add((r[0], r[1]))
+    except Exception as e:
+        print(f"[Cache Preload] disabled_commands error: {e}")
+
+    try:
+        async with bot.db.execute("SELECT user_id, reason, timestamp FROM afk") as cursor:
+            rows = await cursor.fetchall()
+            for r in rows:
+                bot.afk_cache[r[0]] = (r[1], r[2])
+    except Exception as e:
+        print(f"[Cache Preload] afk error: {e}")
 
     await load_extensions()
 

@@ -12,7 +12,7 @@ import traceback
 from converters import FuzzyMember
 
 
-class Moderation(commands.Cog):
+class Moderation(commands.Cog, name="Moderation"):
     def __init__(self, bot):
         self.bot = bot
         self.ENV = os.getenv("ENVIRONMENT")
@@ -121,6 +121,8 @@ class Moderation(commands.Cog):
         if existing_custom_prefix and new_prefix == existing_custom_prefix:
             async with self.bot.db.execute("DELETE FROM guild_prefixes WHERE guild_id = ?", (ctx.guild.id,)) as cursor:
                 await self.bot.db.commit()
+            if hasattr(self.bot, "prefix_cache"):
+                self.bot.prefix_cache.pop(ctx.guild.id, None)
             await ctx.send(f"Safi lprefix `{new_prefix}` rah t7yed.")
             return
 
@@ -140,6 +142,9 @@ class Moderation(commands.Cog):
                 (ctx.guild.id, new_prefix)
         ) as cursor:
             await self.bot.db.commit()
+
+        if hasattr(self.bot, "prefix_cache"):
+            self.bot.prefix_cache[ctx.guild.id] = new_prefix
 
         await ctx.send(f"Safi l prefix `{new_prefix}` rah tzad.")
 

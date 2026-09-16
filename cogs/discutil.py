@@ -1,10 +1,19 @@
-from discord import asset
+import re
 import discord
 from discord.ext import commands
 
 from converters import FuzzyMember
 
-class DiscordUtil(commands.Cog):
+def sanitize_chat_input(text: str, strip_links: bool = True, strip_mentions: bool = True) -> str:
+    clean = text
+    if strip_mentions:
+        clean = re.sub(r'@(?:everyone|here)', '', clean, flags=re.IGNORECASE)
+        clean = re.sub(r'<@&[0-9]+>', '', clean)
+    if strip_links:
+        clean = re.sub(r'(?:https?://\S+|www\.\S+|discord\.gg/\S+|discord\.com/invite/\S+)', '[link removed]', clean, flags=re.IGNORECASE)
+    return clean.strip()
+
+class DiscordUtil(commands.Cog, name="Discord Util"):
     def __init__(self, bot):
         self.bot = bot
 
@@ -215,19 +224,30 @@ class DiscordUtil(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(aliases=['gol', "goul", "9ol", "9oul"], help="Ana ngoul li bghiti.")
-    async def say(self, ctx, *, saymsg=None):
-        if saymsg == None:
+    async def say(self, ctx, *, saymsg: str = None):
+        if saymsg is None:
             return await ctx.send('chno ngol ???')
-        await ctx.send(saymsg)
-        await ctx.message.delete()
+        try:
+            await ctx.message.delete()
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+        cleaned = sanitize_chat_input(saymsg, strip_links=True, strip_mentions=True)
+        if not cleaned:
+            return await ctx.send("❌ Message khawi mor sanitization.")
+        await ctx.send(cleaned, allowed_mentions=discord.AllowedMentions.none())
 
     @commands.command(name="webhook", aliases=['disguise', 'wh'], help="Goul chy hdra bsmyit chy wa7d akhor.")
     @commands.guild_only()
     async def webhook(self, ctx, user: FuzzyMember, *, message: str):
         try:
             await ctx.message.delete()
-        except discord.Forbidden:
+        except (discord.Forbidden, discord.HTTPException):
             pass
+
+        cleaned = sanitize_chat_input(message, strip_links=True, strip_mentions=True)
+        if not cleaned:
+            await ctx.send("❌ Message khawi mor sanitization.", delete_after=5)
+            return
 
         webhooks = await ctx.channel.webhooks()
         web = discord.utils.get(webhooks, name="SIFDINEWHCOMMAND")
@@ -236,13 +256,14 @@ class DiscordUtil(commands.Cog):
             web = await ctx.channel.create_webhook(name="SIFDINEWHCOMMAND")
 
         await web.send(
-            content=message,
+            content=cleaned,
             avatar_url=user.display_avatar.url,
-            username=user.display_name
+            username=user.display_name,
+            allowed_mentions=discord.AllowedMentions.none()
         )
 
     @commands.command(aliases=["dm", "prv"], help="Sift message anonyme lchy wa7d mn server.")
-    async def whisper(self, ctx, user: FuzzyMember = None, *, msg):
+    async def whisper(self, ctx, user: FuzzyMember = None, *, msg: str):
         try:
             await ctx.message.delete()
         except (discord.Forbidden, discord.HTTPException, discord.NotFound):
@@ -253,10 +274,17 @@ class DiscordUtil(commands.Cog):
             return
 
         is_owner = await self.bot.is_owner(ctx.author)
-        content = msg if is_owner else f"**Anonymous user:** {msg}"
+        if is_owner:
+            content = msg
+        else:
+            cleaned = sanitize_chat_input(msg, strip_links=True, strip_mentions=True)
+            if not cleaned:
+                await ctx.send("❌ Message khawi mor sanitization.", delete_after=5)
+                return
+            content = f"**Anonymous user:** {cleaned}"
 
         try:
-            await user.send(content)
+            await user.send(content, allowed_mentions=discord.AllowedMentions.none())
         except discord.Forbidden:
             await ctx.send(f"❌ Ma9ditch nsift message l **{user.display_name}** (DMs dialo masdodin).", delete_after=6)
         except Exception as e:
@@ -294,6 +322,9 @@ class DiscordUtil(commands.Cog):
             (ctx.author.id, reason, int(ctx.message.created_at.timestamp()))
         ):
             await self.bot.db.commit()
+
+        if hasattr(self.bot, "afk_cache"):
+            self.bot.afk_cache[ctx.author.id] = (reason, int(ctx.message.created_at.timestamp()))
 
         await ctx.send(f"Safi li swl fik angoulih rah **{reason}**.")
 

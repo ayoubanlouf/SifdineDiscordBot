@@ -34,7 +34,7 @@ def memegen_escape(text: str) -> str:
             .replace('"', "''"))
 
 
-class Manipulation(commands.Cog):
+class Manipulation(commands.Cog, name="Manipulation"):
     def __init__(self, bot):
         self.bot = bot
 

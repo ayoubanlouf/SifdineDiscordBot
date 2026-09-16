@@ -3,25 +3,34 @@ import io
 import json
 import psutil
 import time
+import asyncio
 from datetime import datetime, timezone
 import discord
 from discord.ext import commands
 from converters import FuzzyMember
 
 
-class Bot(commands.Cog):
+class Bot(commands.Cog, name="Bot"):
     def __init__(self, bot):
         self.bot = bot
 
 
-    def get_dir_size(self, path="."):
+    def _get_dir_size_sync(self, path="."):
         total_size = 0
+        ignored_dirs = {".git", ".venv", "__pycache__", ".idea"}
         for dirpath, dirnames, filenames in os.walk(path):
+            dirnames[:] = [d for d in dirnames if d not in ignored_dirs]
             for f in filenames:
                 fp = os.path.join(dirpath, f)
                 if not os.path.islink(fp):
-                    total_size += os.path.getsize(fp)
+                    try:
+                        total_size += os.path.getsize(fp)
+                    except OSError:
+                        pass
         return total_size
+
+    async def get_dir_size(self, path="."):
+        return await asyncio.to_thread(self._get_dir_size_sync, path)
 
     async def get_discloud_app_id(self, force_refresh: bool = False):
         app_id_env = os.environ.get("DISCLOUD_APP_ID")
@@ -88,7 +97,7 @@ class Bot(commands.Cog):
 
         db_path = "bot_database.db"
         db_size_mb = os.path.getsize(db_path) / (1024 * 1024) if os.path.exists(db_path) else 0.0
-        dir_size_mb = self.get_dir_size(".") / (1024 * 1024)
+        dir_size_mb = (await self.get_dir_size(".")) / (1024 * 1024)
 
         app_id = await self.get_discloud_app_id()
         data = await self._discloud_request("GET", f"/app/{app_id}/status")
@@ -372,6 +381,8 @@ class Bot(commands.Cog):
 
         async with self.bot.db.execute("INSERT INTO blacklists (user_id) VALUES (?)", (user.id,)):
             await self.bot.db.commit()
+        if hasattr(self.bot, "blacklist_cache"):
+            self.bot.blacklist_cache.add(user.id)
         await ctx.send(f"Safi blockit `{user}`.")
 
 
@@ -385,6 +396,8 @@ class Bot(commands.Cog):
 
         async with self.bot.db.execute("DELETE FROM blacklists WHERE user_id = ?", (user.id,)):
             await self.bot.db.commit()
+        if hasattr(self.bot, "blacklist_cache"):
+            self.bot.blacklist_cache.discard(user.id)
         await ctx.send(f"Safi unblockit `{user}`.")
 
 
@@ -493,7 +506,7 @@ class Bot(commands.Cog):
         view = discord.ui.View()
         view.add_item(discord.ui.Button(
             label="Invite Bot",
-            url="https://discord.com/oauth2/authorize?client_id=1522281059163701349&permissions=8&integration_type=0&scope=bot",
+            url="https://discord.com/oauth2/authorize?client_id=1522281059163701349&permissions=1100346747847&integration_type=0&scope=bot",
             style=discord.ButtonStyle.link
         ))
         view.add_item(discord.ui.Button(
@@ -593,6 +606,8 @@ class Bot(commands.Cog):
             (ctx.guild.id, canonical_name)
         )
         await self.bot.db.commit()
+        if hasattr(self.bot, "disabled_commands_cache"):
+            self.bot.disabled_commands_cache.add((ctx.guild.id, canonical_name))
 
         embed = discord.Embed(
             description=f"🚫 Disablit command `{canonical_name}` f had server.\n7ta wa7d ma ghay9der ysta3melha daba.",
@@ -626,6 +641,8 @@ class Bot(commands.Cog):
             (ctx.guild.id, canonical_name)
         )
         await self.bot.db.commit()
+        if hasattr(self.bot, "disabled_commands_cache"):
+            self.bot.disabled_commands_cache.discard((ctx.guild.id, canonical_name))
 
         embed = discord.Embed(
             description=f"🟢 Enablit command `{canonical_name}` f had server!",

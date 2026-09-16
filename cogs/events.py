@@ -12,7 +12,7 @@ import urllib
 import difflib
 import traceback
 
-class Events(commands.Cog):
+class Events(commands.Cog, name="Events"):
     def __init__(self, bot):
         self.bot = bot
         self.log_channels: dict[int, int] = {}
@@ -187,25 +187,25 @@ class Events(commands.Cog):
         if message.author.bot:
             return
 
-        async with self.bot.db.execute("SELECT 1 FROM afk WHERE user_id = ?", (message.author.id,)) as cursor:
-            if await cursor.fetchone():
-                async with self.bot.db.execute("DELETE FROM afk WHERE user_id = ?", (message.author.id,)):
-                    await self.bot.db.commit()
-                await message.reply("3la slamto.", mention_author=False)
+        # In-memory AFK check for author
+        if hasattr(self.bot, "afk_cache") and message.author.id in self.bot.afk_cache:
+            self.bot.afk_cache.pop(message.author.id, None)
+            async with self.bot.db.execute("DELETE FROM afk WHERE user_id = ?", (message.author.id,)):
+                await self.bot.db.commit()
+            await message.reply("3la slamto.", mention_author=False)
 
+        # In-memory AFK check for mentions
         if message.mentions:
             for mentioned in message.mentions:
                 if mentioned.id == message.author.id:
                     continue
 
-                async with self.bot.db.execute("SELECT reason, timestamp FROM afk WHERE user_id = ?",
-                                               (mentioned.id,)) as cursor:
-                    row = await cursor.fetchone()
-                    if row:
-                        reason, ts = row[0], row[1]
-                        time_tag = f"<t:{ts}:R>"
-                        await message.reply(
-                            f"**{mentioned.name}** mamsalich, galik \"{reason}\" ({time_tag})")
+                afk_info = getattr(self.bot, "afk_cache", {}).get(mentioned.id)
+                if afk_info:
+                    reason, ts = afk_info[0], afk_info[1]
+                    time_tag = f"<t:{ts}:R>"
+                    await message.reply(
+                        f"**{mentioned.name}** mamsalich, galik \"{reason}\" ({time_tag})")
 
         ctx = await self.bot.get_context(message)
 
@@ -259,12 +259,12 @@ class Events(commands.Cog):
         if audit_entry and audit_entry.user and audit_entry.user.id != message.author.id:
             deleted_by_str = f"\n**Deleted By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)"
 
-        # Download attachments into memory so they can be re-uploaded permanently
+        # Download small attachments into memory (capped to 1MB to preserve 100MB Discloud RAM)
         discord_files = []
         if message.attachments:
-            for att in message.attachments[:4]:
+            for att in message.attachments[:2]:
                 try:
-                    if att.size <= 8 * 1024 * 1024:
+                    if att.size <= 1024 * 1024:
                         data = await att.read()
                         discord_files.append(discord.File(io.BytesIO(data), filename=att.filename))
                 except Exception:
