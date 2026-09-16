@@ -211,17 +211,28 @@ class Bot(commands.Cog, name="Bot"):
             return {"status": "error", "message": "Bot session not ready"}
 
         try:
-            async with session.request(method, url, headers=headers, json=json_data, params=params, timeout=15) as resp:
+            async with session.request(method, url, headers=headers, json=json_data, params=params, timeout=25) as resp:
                 try:
                     data = await resp.json()
-                    if resp.status >= 400 and isinstance(data, dict):
+                    if (resp.status >= 400 or data.get("ok") is False) and isinstance(data, dict):
                         data.setdefault("status", "error")
+                        # Unpack error message from Bot-Hosting's error schema
+                        if "message" not in data or not data["message"]:
+                            err_obj = data.get("error")
+                            if isinstance(err_obj, dict):
+                                data["message"] = err_obj.get("message") or err_obj.get("code") or "Error unknown"
+                            elif isinstance(err_obj, str):
+                                data["message"] = err_obj
+                            elif data.get("detail"):
+                                data["message"] = str(data["detail"])
                     return data
                 except Exception:
                     text = await resp.text()
-                    return {"status": "error" if resp.status >= 400 else "ok", "raw": text, "http_status": resp.status}
+                    return {"status": "error" if resp.status >= 400 else "ok", "raw": text, "message": text.strip() or f"HTTP {resp.status}", "http_status": resp.status}
+        except asyncio.TimeoutError:
+            return {"status": "error", "message": "Request timed out (>25s)"}
         except Exception as e:
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": str(e) or "Network connection failed"}
 
     async def get_bothosting_deployment_id(self, force_refresh: bool = False) -> str:
         dep_id = os.environ.get("BOT_HOSTING_DEPLOYMENT_ID")
@@ -833,10 +844,10 @@ class Bot(commands.Cog, name="Bot"):
             provider=provider
         )
 
-        data = await self._bothosting_request("POST", f"/deployments/{dep_id}/sync")
+        data = await self._bothosting_request("POST", f"/deployments/{dep_id}/sync", json_data={})
 
-        if data.get("status") == "error":
-            err = data.get("message", "Error unknown")
+        if data.get("status") == "error" or data.get("ok") is False:
+            err = data.get("message") or (data.get("error", {}).get("message") if isinstance(data.get("error"), dict) else None) or "Error unknown"
             await self._clear_pending_restart()
             await wait_msg.edit(embed=discord.Embed(description=f"❌ Mochkil f GitHub sync: `{err}`", color=0x000000))
 
