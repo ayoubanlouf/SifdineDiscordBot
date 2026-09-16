@@ -187,30 +187,38 @@ class Bot(commands.Cog, name="Bot"):
         uptime_str = f"{hours}h {minutes}m {seconds}s"
 
         if provider == "bothosting":
-            title = "🟢 Bot-Hosting.net (256 MB)"
+            title = "Bot-Hosting.net"
             badge = "🟢 **Online on Bot-Hosting.net Container**"
             dep_id = await self.get_bothosting_deployment_id()
             desc = f"{badge}\n**Deployment ID:** `{dep_id or 'Auto-discovering...'}`"
 
             subcommands = (
                 "• `sat host status` — Live container resource metrics (RAM, CPU, Disk, Network)\n"
-                "• `sat host pull` (or `sync`) — **Direct GitHub pull & auto-restart**\n"
+                "• `sat host ping` — Latency metrics (Discord Gateway, REST & Database)\n"
+                "• `sat host env` — Audit environment variables (ENVIRONMENT value & keys status)\n"
+                "• `sat host git` — Current Git commit, branch & linked repository\n"
+                "• `sat host pull` (or `sync`) — Direct GitHub pull & auto-restart\n"
                 "• `sat host autopull [on|off]` — View or toggle auto-pull on container restart\n"
+                "• `sat host dir [path]` — Browse container files and folders\n"
                 "• `sat host logs [lines]` — Paginated console terminal logs\n"
                 "• `sat host restart` — Send reboot power signal to container\n"
                 "• `sat host backup` — Create instant cloud snapshot\n"
                 "• `sat host diagnose` — Run deployment diagnostic health check"
             )
-            color = 0x4f9bff
+            color = 0x000000
 
         elif provider == "discloud":
-            title = "☁️ Discloud Host (100 MB)"
+            title = "Discloud Host"
             badge = "☁️ **Online on Discloud Container**"
             app_id = await self.get_discloud_app_id()
             desc = f"{badge}\n**App ID:** `{app_id}`"
 
             subcommands = (
                 "• `sat host status` — Live container resource metrics (RAM, CPU, Restarts, SSD)\n"
+                "• `sat host ping` — Latency metrics (Discord Gateway, REST & Database)\n"
+                "• `sat host env` — Audit environment variables (ENVIRONMENT value & keys status)\n"
+                "• `sat host git` — Current Git commit, branch & deployment info\n"
+                "• `sat host dir [path]` — Browse container files and folders\n"
                 "• `sat host logs` — Paginated terminal console logs\n"
                 "• `sat host restart` — Reboot Discloud container\n"
                 "• `sat host backup` — Generate & DM full project backup zip"
@@ -218,18 +226,22 @@ class Bot(commands.Cog, name="Bot"):
             color = 0x000000
 
         else:
-            title = "💻 Local Development Host"
+            title = "Local Development Host"
             badge = "💻 **Running Locally** (Dev Environment)"
             py_ver = sys.version.split()[0]
             desc = f"{badge}\n**Platform:** `{os.name.upper()}` • **Python:** `{py_ver}`"
 
             subcommands = (
                 "• `sat host status` — Local process memory, CPU, DB & project size\n"
+                "• `sat host ping` — Latency metrics (Discord Gateway, REST & Database)\n"
+                "• `sat host env` — Audit environment variables (ENVIRONMENT value & keys status)\n"
+                "• `sat host git` — Current Git commit, branch & author\n"
+                "• `sat host dir [path]` — Browse project files and folders\n"
                 "• `sat host restart` — Restart local bot process\n"
                 "• `sat host backup` — Generate local project zip backup\n"
                 "• `sat host logs` — View recent process logs"
             )
-            color = 0x2ecc71
+            color = 0x000000
 
         embed = discord.Embed(
             title=title,
@@ -262,7 +274,7 @@ class Bot(commands.Cog, name="Bot"):
                 await ctx.send("❌ Mal9itch chi deployment f Bot-Hosting.net account dyalk.")
                 return
 
-            wait_msg = await ctx.send("⏳ Kanjbed live stats mn Bot-Hosting.net...")
+            wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
             dep_info = await self._bothosting_request("GET", f"/deployments/{dep_id}")
             res_info = await self._bothosting_request("GET", f"/deployments/{dep_id}/resources")
 
@@ -274,7 +286,7 @@ class Bot(commands.Cog, name="Bot"):
 
             embed = discord.Embed(
                 title="🟢 Bot-Hosting.net Host Status",
-                color=0x4f9bff,
+                color=0x000000,
                 timestamp=datetime.now(timezone.utc)
             )
 
@@ -399,7 +411,7 @@ class Bot(commands.Cog, name="Bot"):
         else:
             embed = discord.Embed(
                 title="💻 Local Development Host Status",
-                color=0x2ecc71,
+                color=0x000000,
                 timestamp=datetime.now(timezone.utc)
             )
             py_ver = sys.version.split()[0]
@@ -449,7 +461,7 @@ class Bot(commands.Cog, name="Bot"):
                 await ctx.send("❌ Mal9itch chi deployment ID.")
                 return
 
-            wait_msg = await ctx.send("⏳ Kanjbed logs mn Bot-Hosting.net console...")
+            wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
             data = await self._bothosting_request("GET", f"/deployments/{dep_id}/logs", params={"size": lines})
 
             if data.get("status") == "error":
@@ -488,7 +500,7 @@ class Bot(commands.Cog, name="Bot"):
             return
 
         elif provider == "discloud":
-            wait_msg = await ctx.send("⏳ Kanjbed logs mn Discloud terminal...")
+            wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
             app_id = await self.get_discloud_app_id()
             data = await self._discloud_request("GET", f"/app/{app_id}/logs")
 
@@ -649,7 +661,7 @@ class Bot(commands.Cog, name="Bot"):
 
         else:
             # Local backup
-            wait_msg = await ctx.send("📦 Kan9ad local zip backup...")
+            wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
             try:
                 from discloud.bothosting_zip import create_bundle as make_local_zip
                 await asyncio.to_thread(make_local_zip)
@@ -732,7 +744,7 @@ class Bot(commands.Cog, name="Bot"):
             await ctx.send("❌ Mal9itch chi deployment ID.")
             return
 
-        wait_msg = await ctx.send("🔍 Kanjbed diagnostic report mn Bot-Hosting.net...")
+        wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
         data = await self._bothosting_request("GET", f"/deployments/{dep_id}/diagnose")
 
         if data.get("status") == "error":
@@ -741,7 +753,7 @@ class Bot(commands.Cog, name="Bot"):
 
         embed = discord.Embed(
             title="🔍 Bot-Hosting.net Diagnostic Report",
-            color=0x4f9bff,
+            color=0x000000,
             timestamp=datetime.now(timezone.utc)
         )
         state = data.get("state", "unknown")
@@ -762,6 +774,263 @@ class Bot(commands.Cog, name="Bot"):
 
         await wait_msg.delete()
         await ctx.send(embed=embed)
+
+    @host.command(name="dir", aliases=["files", "ls", "tree"], help="Tchouf files o folders f container volume.")
+    @commands.is_owner()
+    async def host_dir(self, ctx, *, path: str = "."):
+        root_abs = os.path.abspath(".")
+        clean_target = path.strip().strip("\"'")
+        target_abs = os.path.abspath(os.path.join(root_abs, clean_target))
+
+        # Security: Prevent traversing outside project root
+        if not target_abs.startswith(root_abs):
+            await ctx.send("❌ Mat9edch tchouf files barra mn project directory.")
+            return
+
+        if not os.path.exists(target_abs):
+            await ctx.send(f"❌ Mal9itch had l'path: `{path}`")
+            return
+
+        if os.path.isfile(target_abs):
+            size_kb = os.path.getsize(target_abs) / 1024
+            mtime = datetime.fromtimestamp(os.path.getmtime(target_abs), tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
+            embed = discord.Embed(
+                title=f"📄 {os.path.basename(target_abs)}",
+                description=f"• **Path:** `{os.path.relpath(target_abs, root_abs)}`\n• **Size:** `{size_kb:.2f} KB`\n• **Modified:** `{mtime} UTC`",
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
+        entries = []
+        try:
+            with os.scandir(target_abs) as it:
+                for entry in it:
+                    if entry.name in (".git", ".venv", "__pycache__", ".idea"):
+                        continue
+                    try:
+                        is_dir = entry.is_dir(follow_symlinks=False)
+                        size = entry.stat().st_size if not is_dir else 0
+                        entries.append((entry.name, is_dir, size))
+                    except OSError:
+                        pass
+        except Exception as e:
+            await ctx.send(f"❌ Ma9ditch n9ra lfolder: `{e}`")
+            return
+
+        entries.sort(key=lambda x: (not x[1], x[0].lower()))
+
+        lines = []
+        for name, is_dir, size in entries:
+            if is_dir:
+                lines.append(f"📁 **{name}/**")
+            else:
+                if size >= 1024 * 1024:
+                    s_str = f"{size / (1024 * 1024):.1f} MB"
+                elif size >= 1024:
+                    s_str = f"{size / 1024:.1f} KB"
+                else:
+                    s_str = f"{size} B"
+                lines.append(f"📄 `{name}` ({s_str})")
+
+        rel_path = os.path.relpath(target_abs, root_abs)
+        display_path = "/" if rel_path == "." else f"/{rel_path}"
+
+        if not lines:
+            lines = ["*Folder khawi.*"]
+
+        title = f"📁 Files Explorer — `{display_path}` ({len(entries)} items)"
+        view = self.bot.Paginator(ctx, pages=lines, per_page=15, title=title)
+        view.message = await ctx.send(embed=view.get_page(), view=view if view.total_pages > 1 else None)
+
+    @host.command(name="env", aliases=["vars", "environment"], help="Tchouf environment variables status.")
+    @commands.is_owner()
+    async def host_env(self, ctx):
+        embed = discord.Embed(
+            title="⚙️ Host Environment Configuration",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+
+        # Environment Mode & Provider (Values Visible)
+        env_mode = os.environ.get("ENVIRONMENT", "prod").strip().strip("\"'").lower()
+        provider = self.detect_hosting_provider()
+        embed.description = f"• **ENVIRONMENT:** `{env_mode.upper()}`\n• **HOSTING_PROVIDER:** `{provider}`"
+
+        # Core required credentials
+        core_vars = [
+            ("DISCORD_TOKEN", "Discord Bot Token"),
+            ("TURSO_DATABASE_URL", "Turso DB URL"),
+            ("TURSO_AUTH_TOKEN", "Turso Auth Token"),
+        ]
+        core_lines = []
+        for var_name, label in core_vars:
+            val = os.environ.get(var_name)
+            is_set = bool(val and val.strip().strip("\"'"))
+            status = "🟢 Configured" if is_set else "🔴 Missing"
+            core_lines.append(f"• `{var_name}`: {status}")
+        embed.add_field(name="🔑 Core Required Keys", value="\n".join(core_lines), inline=False)
+
+        # Hosting API credentials
+        hosting_vars = [
+            ("BOT_HOSTING_API_KEY", "Bot-Hosting.net API Key"),
+            ("BOT_HOSTING_DEPLOYMENT_ID", "Bot-Hosting Deployment ID"),
+            ("DISCLOUD_API_TOKEN", "Discloud API Token"),
+            ("DISCLOUD_APP_ID", "Discloud App ID"),
+        ]
+        host_lines = []
+        for var_name, label in hosting_vars:
+            val = os.environ.get(var_name)
+            is_set = bool(val and val.strip().strip("\"'"))
+            status = "🟢 Configured" if is_set else "⚪ Not Set"
+            host_lines.append(f"• `{var_name}`: {status}")
+        embed.add_field(name="☁️ Hosting Integration Keys", value="\n".join(host_lines), inline=False)
+
+        # Optional feature APIs
+        optional_vars = [
+            "IMAGE_KEY", "WEATHER_KEY", "SERPAPI_KEY", "OCR_KEY",
+            "RAPID_API_KEY_1", "RAPID_API_KEY_2", "STEAM_API_KEY",
+            "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"
+        ]
+        opt_lines = []
+        for var_name in optional_vars:
+            val = os.environ.get(var_name)
+            is_set = bool(val and val.strip().strip("\"'"))
+            status = "🟢 Configured" if is_set else "⚪ Not Set"
+            opt_lines.append(f"• `{var_name}`: {status}")
+        embed.add_field(name="📦 Optional Feature APIs", value="\n".join(opt_lines), inline=False)
+
+        # Channel IDs
+        channel_vars = ["SUGGESTIONS_CHANNEL_ID", "BUGS_CHANNEL_ID", "BACKUP_CHANNEL_ID"]
+        chan_lines = []
+        for var_name in channel_vars:
+            val = os.environ.get(var_name)
+            is_set = bool(val and val.strip().strip("\"'") and val.strip() != "0")
+            status = "🟢 Configured" if is_set else "⚪ Not Set"
+            chan_lines.append(f"• `{var_name}`: {status}")
+        embed.add_field(name="📢 Special Channels", value="\n".join(chan_lines), inline=False)
+
+        embed.set_footer(text="Sifdine Host Configuration • Sensitive values are masked")
+        await ctx.send(embed=embed)
+
+    @host.command(name="git", aliases=["commit", "version"], help="Tchouf current Git commit o branch.")
+    @commands.is_owner()
+    async def host_git(self, ctx):
+        provider = self.detect_hosting_provider()
+        embed = discord.Embed(
+            title="🐙 Git Deployment Info",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+
+        commit_hash = "Unknown"
+        commit_msg = "Unknown"
+        commit_author = "Unknown"
+        commit_date = "Unknown"
+        branch = "Unknown"
+
+        # 1. Try running git CLI command
+        try:
+            import subprocess
+            proc = await asyncio.to_thread(
+                subprocess.run,
+                ["git", "log", "-1", "--format=%h|%s|%an|%ar"],
+                capture_output=True,
+                text=True,
+                timeout=3
+            )
+            if proc.returncode == 0 and proc.stdout.strip():
+                parts = proc.stdout.strip().split("|")
+                if len(parts) >= 4:
+                    commit_hash, commit_msg, commit_author, commit_date = parts[0], parts[1], parts[2], parts[3]
+
+            branch_proc = await asyncio.to_thread(
+                subprocess.run,
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=3
+            )
+            if branch_proc.returncode == 0 and branch_proc.stdout.strip():
+                branch = branch_proc.stdout.strip()
+        except Exception:
+            pass
+
+        # 2. Fallback to reading .git/HEAD directly if git CLI unavailable
+        if commit_hash == "Unknown" and os.path.exists(".git/HEAD"):
+            try:
+                with open(".git/HEAD", "r", encoding="utf-8") as f:
+                    ref = f.read().strip()
+                if ref.startswith("ref: refs/heads/"):
+                    branch = ref.split("refs/heads/", 1)[1]
+                    ref_file = os.path.join(".git", "refs", "heads", branch)
+                    if os.path.exists(ref_file):
+                        with open(ref_file, "r", encoding="utf-8") as rf:
+                            commit_hash = rf.read().strip()[:7]
+            except Exception:
+                pass
+
+        # 3. If on Bot-Hosting.net, query linked repo details from API
+        if provider == "bothosting":
+            dep_id = await self.get_bothosting_deployment_id()
+            if dep_id:
+                git_data = await self._bothosting_request("GET", f"/deployments/{dep_id}/git")
+                if isinstance(git_data, dict) and git_data.get("linked"):
+                    repo_name = git_data.get("repo", "Unknown")
+                    gh_branch = git_data.get("branch", "main")
+                    is_autopull = git_data.get("autoPull", False)
+                    auto_str = "🟢 Enabled" if is_autopull else "🔴 Disabled"
+                    embed.add_field(name="Linked GitHub Repo", value=f"[{repo_name}](https://github.com/{repo_name})", inline=True)
+                    embed.add_field(name="GitHub Branch", value=f"`{gh_branch}`", inline=True)
+                    embed.add_field(name="Auto-Pull on Restart", value=auto_str, inline=True)
+
+        embed.add_field(name="Current Branch", value=f"`{branch}`", inline=True)
+        embed.add_field(name="Commit Hash", value=f"`{commit_hash}`", inline=True)
+        embed.add_field(name="Commit Date", value=f"`{commit_date}`", inline=True)
+        embed.add_field(name="Commit Message", value=f"*{commit_msg}*", inline=False)
+        if commit_author != "Unknown":
+            embed.add_field(name="Author", value=f"`{commit_author}`", inline=True)
+
+        embed.set_footer(text=f"Host: {provider.capitalize()} • Owner Only")
+        await ctx.send(embed=embed)
+
+    @host.command(name="ping", aliases=["latency", "pong"], help="Chouf latency dyal Discord WebSocket, REST API o Database.")
+    @commands.is_owner()
+    async def host_ping(self, ctx: commands.Context):
+        ws_latency_ms = round(self.bot.latency * 1000)
+
+        # Measure DB latency
+        t_db0 = time.perf_counter()
+        async with self.bot.db.execute("SELECT 1") as cursor:
+            await cursor.fetchone()
+        db_latency_ms = round((time.perf_counter() - t_db0) * 1000, 2)
+
+        # Measure REST API roundtrip
+        t_msg0 = time.perf_counter()
+        wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        rest_latency_ms = round((time.perf_counter() - t_msg0) * 1000)
+
+        # Connection health indicator
+        if ws_latency_ms < 100:
+            indicator = "🟢 Fast"
+        elif ws_latency_ms < 250:
+            indicator = "🟡 Okay"
+        else:
+            indicator = "🔴 Slow"
+
+        provider = self.detect_hosting_provider()
+        embed = discord.Embed(
+            title=f"Latency Metrics ({provider.capitalize()})",
+            color=0x000000,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.add_field(name="WebSocket (Gateway)", value=f"`{ws_latency_ms} ms`", inline=True)
+        embed.add_field(name="REST API (Roundtrip)", value=f"`{rest_latency_ms} ms`", inline=True)
+        embed.add_field(name="Database (Turso/SQLite)", value=f"`{db_latency_ms} ms`", inline=True)
+        embed.add_field(name="Connection Health", value=indicator, inline=False)
+        embed.set_footer(text="Sifdine Host Management • Owner Only")
+
+        await wait_msg.edit(content=None, embed=embed)
 
 
 
@@ -1003,7 +1272,7 @@ class Bot(commands.Cog, name="Bot"):
             await ctx.send("Ma3endekch l7e9 tsta3ml had lcmd :/")
             return
 
-        wait_msg = await ctx.send("📦 Kanjbed snapshot mn database...")
+        wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
         tables = ["guild_prefixes", "guild_logs", "blacklists", "afk", "minigame_leaderboard", "reminders"]
         backup_data = {
             "timestamp": int(time.time()),
@@ -1256,44 +1525,6 @@ class Bot(commands.Cog, name="Bot"):
         else:
             embed.set_footer(text="Global")
             await ctx.send(embed=embed)
-
-    @commands.command(name="ping", aliases=["latency", "pong"], help="Chouf latency dyal Discord WebSocket, REST API o Database.")
-    async def ping(self, ctx: commands.Context):
-        ws_latency_ms = round(self.bot.latency * 1000)
-
-        # Measure DB latency
-        t_db0 = time.perf_counter()
-        async with self.bot.db.execute("SELECT 1") as cursor:
-            await cursor.fetchone()
-        db_latency_ms = round((time.perf_counter() - t_db0) * 1000, 2)
-
-        # Measure REST API roundtrip
-        t_msg0 = time.perf_counter()
-        embed = discord.Embed(
-            description="Sber 3lia...",
-            color=0x000000
-        )
-        msg = await ctx.send(embed=embed)
-        rest_latency_ms = round((time.perf_counter() - t_msg0) * 1000)
-
-        # Connection health indicator
-        if ws_latency_ms < 100:
-            indicator = "🟢 Fast"
-        elif ws_latency_ms < 250:
-            indicator = "🟡 Okay"
-        else:
-            indicator = "🔴 Slow"
-
-        embed = discord.Embed(
-            title="Latency Metrics",
-            color=0x000000
-        )
-        embed.add_field(name="WebSocket (Gateway)", value=f"`{ws_latency_ms} ms`", inline=True)
-        embed.add_field(name="REST API (Roundtrip)", value=f"`{rest_latency_ms} ms`", inline=True)
-        embed.add_field(name="SQLite Database", value=f"`{db_latency_ms} ms`", inline=True)
-        embed.add_field(name="Connection Health", value=indicator, inline=False)
-
-        await msg.edit(content=None, embed=embed)
 
 
 async def setup(bot):

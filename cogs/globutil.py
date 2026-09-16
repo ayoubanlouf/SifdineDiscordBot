@@ -2743,7 +2743,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
             await ctx.send(embed=discord.Embed(description=f"❌ Kteb smiyt l'anime: `{ctx.clean_prefix}anime <title>`", color=0x000000))
             return
 
-        wait_msg = await ctx.send(embed=discord.Embed(description="Kan9elleb 3la l'anime...", color=0x000000))
+        wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
         encoded_query = urllib.parse.quote(title.strip())
         url = f"https://kitsu.io/api/edge/anime?filter[text]={encoded_query}&page[limit]=1"
         headers = {
@@ -3013,7 +3013,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
         if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
             clean_url = "https://" + clean_url
 
-        wait = await ctx.send(embed=discord.Embed(description="Kan9esser f link...", color=0x000000))
+        wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
         encoded_url = urllib.parse.quote(clean_url, safe=":/?#[]@!$&'()*+,;=")
         api_url = f"https://tinyurl.com/api-create.php?url={encoded_url}"
         headers = {
@@ -3252,11 +3252,8 @@ class GlobUtil(commands.Cog, name="Global Util"):
         if not query:
             return await ctx.send(embed=discord.Embed(description="❌ Kteb smiyt ri7a: `sat fragrantica <name>`", color=0x000000))
 
-        wait_embed = discord.Embed(
-            description="Kan9elleb f Fragrantica...",
-            color=0x000000
-        )
-        status_msg = await ctx.send(embed=wait_embed)
+        
+        status_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
 
         # 1. Search Fragrantica: First try official Fragrantica Algolia search (instant, typo-tolerant, top hit)
         target_url, target_title, target_picture = await _search_fragrantica_algolia(self.bot.session, query)

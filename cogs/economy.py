@@ -844,10 +844,10 @@ class Economy(commands.Cog, name="Economy"):
 
         if vault_name == "bank":
             title = "🏛️ Central Bank — Recent Inflow Receipts"
-            color = 0xD4AF37
+            color = 0x000000
         else:
             title = "🎰 Royal Casino — Recent Table Tax Receipts"
-            color = 0x2E0854
+            color = 0x000000
 
         embed = discord.Embed(title=title, color=color)
         embed.description = f"💰 **Current Balance:** {format_tad(v['balance'])}\n\n"
