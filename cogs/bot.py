@@ -122,17 +122,15 @@ class Bot(commands.Cog, name="Bot"):
                 return
 
             if action == "pull":
-                title = "🚀 Back Online & Updated!"
+                title = "🚀 3odna!"
                 desc = (
-                    "✅ **GitHub Sync & Container Restart kamlin!**\n"
-                    "L-bot rah online daba o khdam b a7dat commit mn GitHub.\n"
+                    "✅ Safi pullit akher commit mn repo.\n"
                     f"⏱️ **Duration:** `{duration:.1f}s`"
                 )
             else:
-                title = "🟢 Back Online!"
+                title = "🟢 3odna!"
                 desc = (
-                    "✅ **Container rebooted successfully!**\n"
-                    "L-bot rah rje3 online o khdam mzyan.\n"
+                    "✅ Redemarrit am3lm.\n"
                     f"⏱️ **Duration:** `{duration:.1f}s`"
                 )
 
@@ -697,14 +695,8 @@ class Bot(commands.Cog, name="Bot"):
     async def host_restart(self, ctx):
         provider = self.detect_hosting_provider()
 
-        embed = discord.Embed(
-            title="🔄 Rebooting Container...",
-            description=f"Kansift reboot signal l **{provider.capitalize()}**... L-bot ghadi y-redemarri daba.",
-            color=0x000000,
-            timestamp=datetime.now(timezone.utc)
-        )
-        embed.set_footer(text=f"Sifdine Host Management • {provider.capitalize()}")
-        confirm_msg = await ctx.send(embed=embed)
+        
+        confirm_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
 
         await self._save_pending_restart(
             channel_id=ctx.channel.id,
@@ -831,14 +823,8 @@ class Bot(commands.Cog, name="Bot"):
             await ctx.send("❌ Mal9itch chi deployment ID.")
             return
 
-        embed = discord.Embed(
-            title="🔄 Syncing & Rebooting...",
-            description="Kansift GitHub pull/sync request... Bot-Hosting.net rah ghadi y-pulli latest code mn GitHub o yredemarri.",
-            color=0x000000,
-            timestamp=datetime.now(timezone.utc)
-        )
-        embed.set_footer(text="Sifdine Host Management • Bot-Hosting.net")
-        wait_msg = await ctx.send(embed=embed)
+        
+        wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
 
         await self._save_pending_restart(
             channel_id=ctx.channel.id,
