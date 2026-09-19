@@ -15,4 +15,3 @@ langdetect
 yt-dlp
 pynacl
 curl_cffi
-wordfreq
