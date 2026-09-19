@@ -81,7 +81,7 @@ AsyncClient._AsyncClient__handler = _patched_handler
 
 from cogs.games.helpers import (
     record_minigame_win, record_minigame_loss,
-    is_english_word, get_typeracer_text, get_dictionary_cursor, WORDS_DB_PATH
+    is_english_word, get_combo, get_typeracer_text, get_dictionary_cursor, WORDS_DB_PATH
 )
 
 # ============ CHESS BOARD RENDERER ============
@@ -4497,6 +4497,15 @@ def _clean_car_image_url(url: str) -> str:
     return url
 
 
+def _get_car_image_url(car: dict) -> str:
+    if not isinstance(car, dict):
+        return ""
+    images = car.get("images")
+    if isinstance(images, list) and images:
+        return random.choice(images)
+    return car.get("image_url", "")
+
+
 async def _get_compressed_car_image(session: Optional[aiohttp.ClientSession], image_url: str) -> Optional[io.BytesIO]:
     if not image_url:
         return None
@@ -5103,6 +5112,9 @@ class Minigames(commands.Cog, name="Minigames"):
 
     def is_english_word(self, word: str) -> bool:
         return is_english_word(word)
+
+    def get_combo(self, difficulty: str = "medium") -> str:
+        return get_combo(difficulty)
 
     def get_typeracer_text(self) -> str:
         return get_typeracer_text()
@@ -5734,7 +5746,7 @@ class Minigames(commands.Cog, name="Minigames"):
 
         # Prefetch first car so round 1 starts with 0ms delay
         if match_pool:
-            asyncio.create_task(_get_compressed_car_image(self.bot.session, _clean_car_image_url(match_pool[-1].get("image_url", ""))))
+            asyncio.create_task(_get_compressed_car_image(self.bot.session, _clean_car_image_url(_get_car_image_url(match_pool[-1]))))
 
         start_embed = discord.Embed(
             description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
@@ -5802,7 +5814,7 @@ class Minigames(commands.Cog, name="Minigames"):
                     description=f"🚗 Chno smit lmodel ta3 had tomobila?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n📦 Cars left: **{len(match_pool) + 1}**",
                     color=0x000000
                 )
-                car_img = _clean_car_image_url(target.get("image_url", ""))
+                car_img = _clean_car_image_url(_get_car_image_url(target))
                 compressed_buf = await _get_compressed_car_image(self.bot.session, car_img)
                 if compressed_buf:
                     car_file = discord.File(compressed_buf, filename="car.jpg")
@@ -5814,7 +5826,7 @@ class Minigames(commands.Cog, name="Minigames"):
 
                 # Prefetch next car in background while player is guessing
                 if match_pool:
-                    next_target_url = _clean_car_image_url(match_pool[-1].get("image_url", ""))
+                    next_target_url = _clean_car_image_url(_get_car_image_url(match_pool[-1]))
                     asyncio.create_task(_get_compressed_car_image(self.bot.session, next_target_url))
 
                 def check(m):

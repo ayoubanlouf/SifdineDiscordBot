@@ -639,8 +639,10 @@ class Bot(commands.Cog, name="Bot"):
             if current_chunk:
                 pages.append("```ini\n" + "\n".join(current_chunk) + "\n```")
 
+            pages.reverse()
+
             await wait_msg.delete()
-            view = self.bot.Paginator(ctx, pages=pages, title=f"🖥️ Bot-Hosting.net Logs ({len(clean_lines)} lines)")
+            view = self.bot.Paginator(ctx, pages=pages, title=f"🖥️ Bot-Hosting.net Logs — Latest first ({len(clean_lines)} lines)")
             view.message = await ctx.send(embed=view.get_page(), view=view if len(pages) > 1 else None)
             return
 
@@ -693,8 +695,10 @@ class Bot(commands.Cog, name="Bot"):
             if current_chunk:
                 pages.append("```ini\n" + "\n".join(current_chunk) + "\n```")
 
+            pages.reverse()
+
             await wait_msg.delete()
-            view = self.bot.Paginator(ctx, pages=pages, title=f"🖥️ Discloud Terminal Logs ({len(log_lines)} lines)")
+            view = self.bot.Paginator(ctx, pages=pages, title=f"🖥️ Discloud Terminal Logs — Latest first ({len(log_lines)} lines)")
             view.message = await ctx.send(embed=view.get_page(), view=view if len(pages) > 1 else None)
             return
 

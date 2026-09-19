@@ -3344,10 +3344,10 @@ class GlobUtil(commands.Cog, name="Global Util"):
         raw_gender = gender_match.group(1).lower() if gender_match else "unisex"
         if "women and men" in raw_gender or "men and women" in raw_gender:
             gender = "🚻 Unisex"
-        elif "men" in raw_gender:
-            gender = "👨 Men"
         elif "women" in raw_gender:
             gender = "👩 Women"
+        elif "men" in raw_gender:
+            gender = "👨 Men"
         else:
             gender = "🚻 Unisex"
 

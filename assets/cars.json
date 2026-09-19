@@ -1743,7 +1743,13 @@
       "mercedes c63"
     ],
     "difficulty": "easy",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8c/2008_Mercedes-Benz_C300_4MATIC_Sport_Sedan%2C_07-29-2022.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/de/MERCEDES-AMG_C63_%28W204%29_HONG_KONG.jpg",
+    "images": [
+      "https://upload.wikimedia.org/wikipedia/commons/d/de/MERCEDES-AMG_C63_%28W204%29_HONG_KONG.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/6/6d/Mercedes-AMG_C63_%28W204%29_Washington_DC_Metro_Area%2C_USA.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/4/4e/Mercedes-AMG_C63_%28W204%29_Washington_DC_Metro_Area%2C_USA_%281%29.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/8/84/Mercedes-Benz_C63_AMG_%284507518229%29.jpg"
+    ]
   },
   {
     "id": "mercedes_benz_e63_amg",
@@ -5120,7 +5126,14 @@
       "renault express"
     ],
     "difficulty": "easy",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/b/b3/Renault_Kangoo_III_Express_IMG_4219.jpg"
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/dd/Renault_Express.jpg",
+    "images": [
+      "https://upload.wikimedia.org/wikipedia/commons/d/dd/Renault_Express.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/2/29/Renault_Express_%2810960092494%29.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/3/31/Renault_Express_%2821866574824%29.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/2/23/Renault_Express_%2828148647998%29.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/5/56/Pr%C3%A9cieux_%28Loire%29_-_Renault_Express_jaune_municipal.jpg"
+    ]
   },
   {
     "id": "renault_zoe",

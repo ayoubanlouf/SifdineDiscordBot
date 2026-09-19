@@ -37,6 +37,26 @@ def is_english_word(word: str) -> bool:
             _dict_conn = None
     return False
 
+def get_combo(difficulty: str = "medium") -> str:
+    diff = difficulty.lower() if difficulty in ("easy", "medium", "hard") else "medium"
+    for attempt in range(2):
+        try:
+            cur = get_dictionary_cursor()
+            cur.execute("SELECT combo FROM word_combos WHERE difficulty = ? ORDER BY RANDOM() LIMIT 1", (diff,))
+            row = cur.fetchone()
+            if row and row[0]:
+                return row[0]
+            break
+        except Exception:
+            global _dict_conn
+            _dict_conn = None
+    fallbacks = {
+        "easy": ["ing", "ter", "con", "sta", "ent", "pro", "all", "ver"],
+        "medium": ["blo", "clo", "dra", "fre", "gla", "qui", "sco", "tra"],
+        "hard": ["zyl", "phy", "kno", "rhy", "psy", "sph", "lyn", "hyp"]
+    }
+    return random.choice(fallbacks.get(diff, fallbacks["medium"]))
+
 def get_typeracer_text() -> str:
     count = 5
     words = []
