@@ -1093,7 +1093,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
             result = safe_eval_expr(operation)
             if isinstance(result, float) and result.is_integer():
                 result = int(result)
-            await ctx.send(f"🧮 **Result:** `{result}`")
+            await ctx.send(f"🧮 **Natija:** `{result}`")
         except ZeroDivisionError:
             await ctx.send("❌ Mat9edch t9sem 3la 0.")
         except Exception as e:

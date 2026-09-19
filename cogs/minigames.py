@@ -82,7 +82,7 @@ AsyncClient._AsyncClient__handler = _patched_handler
 from cogs.games.helpers import (
     record_minigame_win, record_minigame_loss,
     is_english_word, get_combo, get_typeracer_text, get_dictionary_cursor, WORDS_DB_PATH,
-    get_word, get_words_batch, get_unscramble_word, get_hangman_secret
+    get_word, get_words_batch, get_unscramble_word, get_hangman_secret, get_wordle_secret
 )
 
 # ============ CHESS BOARD RENDERER ============
@@ -2832,18 +2832,20 @@ class WordleSoloModal(Modal, title="Wordle — Guess"):
 
 
 class WordleSoloView(View):
-    def __init__(self, player: discord.Member, secret: str, cog: "Minigames"):
+    def __init__(self, player: discord.Member, secret: str, cog: "Minigames", difficulty: str = "easy"):
         super().__init__(timeout=300)
         self.player = player
         self.secret = secret.lower()
         self.cog = cog
+        self.difficulty = difficulty
         self.guesses: list[str] = []
         self.game_over = False
         self.message: Optional[discord.Message] = None
 
     def get_content(self) -> str:
+        diff_mult = DIFFICULTY_STAKES.get(self.difficulty, 1.0)
         lines = [
-            "🟩 **Wordle (Solo)** — L9a lkelma dial 5 d l7orof!",
+            f"🟩 **Wordle (Solo)** — L9a lkelma dial 5 d l7orof! (🎯 **{self.difficulty.upper()}** • **{diff_mult}x**)",
             f"Attempts: **{len(self.guesses)}/6**\n"
         ]
 
@@ -2896,17 +2898,20 @@ class WordleSoloView(View):
 
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             eco_msg = ""
+            diff_mult = DIFFICULTY_STAKES.get(self.difficulty, 1.0)
             if economy_cog:
                 if word == self.secret:
                     attempts = len(self.guesses)
-                    gross = 200 if attempts <= 2 else (100 if attempts <= 4 else 50)
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Wordle Solo ({attempts}/6)")
+                    base = 200 if attempts <= 2 else (100 if attempts <= 4 else 50)
+                    gross = int(round(base * diff_mult))
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Wordle Solo ({self.difficulty.capitalize()} • {attempts}/6)")
                     eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • `{tax}` TAD tax)!"
                     if interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "wordle", earnings=net)
                 else:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 20, context="Wordle Participation")
-                    eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD (Gross: 20 TAD • `{tax}` TAD tax)."
+                    gross = int(round(20 * diff_mult))
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Wordle Participation ({self.difficulty.capitalize()})")
+                    eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • `{tax}` TAD tax)."
 
             content = self.get_content() + eco_msg
             await interaction.response.edit_message(content=content, view=self)
@@ -3250,12 +3255,13 @@ class WordleMultiplayerMatch:
 
 
 class WordleChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0, difficulty: str = "easy"):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
         self.bet = bet
+        self.difficulty = difficulty
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -3282,7 +3288,7 @@ class WordleChallengeView(View):
         self.accepted = True
         self.stop()
 
-        secret = self.cog.get_wordle_secret()
+        secret = self.cog.get_wordle_secret(self.difficulty)
         match = WordleMultiplayerMatch(self.challenger, self.challenged, interaction.message, secret, self.cog, bet=self.bet)
 
         try:
@@ -3432,11 +3438,12 @@ class HangmanSoloModal(Modal, title="Hangman — Guess"):
 
 
 class HangmanSoloView(View):
-    def __init__(self, player: discord.Member, secret: str, cog: "Minigames"):
+    def __init__(self, player: discord.Member, secret: str, cog: "Minigames", difficulty: str = "easy"):
         super().__init__(timeout=300)
         self.player = player
         self.secret = secret.lower()
         self.cog = cog
+        self.difficulty = difficulty
         self.guessed_letters: set[str] = set()
         self.wrong_guesses: list[str] = []
         self.game_over = False
@@ -3447,12 +3454,13 @@ class HangmanSoloView(View):
         mistakes = len(self.wrong_guesses)
         stage_ascii = HANGMAN_STAGES[min(mistakes, 6)]
         lives = max(0, 6 - mistakes)
+        diff_mult = DIFFICULTY_STAKES.get(self.difficulty, 1.0)
 
         masked = " ".join(ch.upper() if ch in self.guessed_letters else "\\_" for ch in self.secret)
         wrong_str = ", ".join(w.upper() for w in self.wrong_guesses) if self.wrong_guesses else "None"
 
         lines = [
-            "🪢 **Hangman (Solo)** — L9a lkelma 9bel ma tchn9!",
+            f"🪢 **Hangman (Solo)** — L9a lkelma 9bel ma tchn9! (🎯 **{self.difficulty.upper()}** • **{diff_mult}x**)",
             f"Lives: **{lives}/6** ❤️ | Length: **{len(self.secret)} letters**",
             f"```{stage_ascii}```",
             f"Word: `{masked}`",
@@ -3522,17 +3530,20 @@ class HangmanSoloView(View):
 
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             eco_msg = ""
+            diff_mult = DIFFICULTY_STAKES.get(self.difficulty, 1.0)
             if economy_cog:
                 if self.won:
                     lives_left = max(0, 6 - len(self.wrong_guesses))
-                    gross = 200 if lives_left >= 5 else (100 if lives_left >= 3 else 50)
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Hangman Solo ({lives_left}/6 HP)")
+                    base = 200 if lives_left >= 5 else (100 if lives_left >= 3 else 50)
+                    gross = int(round(base * diff_mult))
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Hangman Solo ({self.difficulty.capitalize()} • {lives_left}/6 HP)")
                     eco_msg = f"\n\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • `{tax}` TAD tax)!"
                     if interaction.guild:
                         await self.cog.record_minigame_win(interaction.guild.id, self.player.id, "hangman", earnings=net)
                 else:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, 20, context="Hangman Participation")
-                    eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD (Gross: 20 TAD • `{tax}` TAD tax)."
+                    gross = int(round(20 * diff_mult))
+                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player.id, gross, context=f"Hangman Participation ({self.difficulty.capitalize()})")
+                    eco_msg = f"\n\n💰 Reb7a ta3 lmoucharaka: **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • `{tax}` TAD tax)."
 
             content = self.get_content() + eco_msg
             await interaction.response.edit_message(content=content, view=self)
@@ -3887,12 +3898,13 @@ class HangmanMultiplayerMatch:
 
 
 class HangmanChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0, difficulty: str = "easy"):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
         self.cog = cog
         self.bet = bet
+        self.difficulty = difficulty
         self.message: Optional[discord.Message] = None
         self.accepted = False
 
@@ -3919,7 +3931,7 @@ class HangmanChallengeView(View):
         self.accepted = True
         self.stop()
 
-        secret = self.cog.get_hangman_secret()
+        secret = self.cog.get_hangman_secret(self.difficulty)
         match = HangmanMultiplayerMatch(self.challenger, self.challenged, interaction.message, secret, self.cog, bet=self.bet)
 
         try:
@@ -5114,8 +5126,8 @@ class Minigames(commands.Cog, name="Minigames"):
     def is_english_word(self, word: str) -> bool:
         return is_english_word(word)
 
-    def get_combo(self, difficulty: str = "medium") -> str:
-        return get_combo(difficulty)
+    def get_combo(self, difficulty: str = "medium", exclude: Optional[set] = None) -> str:
+        return get_combo(difficulty, exclude=exclude)
 
     def get_typeracer_text(self) -> str:
         return get_typeracer_text()
@@ -5128,6 +5140,9 @@ class Minigames(commands.Cog, name="Minigames"):
 
     def get_unscramble_word(self, difficulty: str = "medium") -> str:
         return get_unscramble_word(difficulty)
+
+    def get_wordle_secret(self, difficulty: str = "medium") -> str:
+        return get_wordle_secret(difficulty)
 
     def get_hangman_secret(self, difficulty: str = "medium") -> str:
         return get_hangman_secret(difficulty)
@@ -6029,6 +6044,7 @@ class Minigames(commands.Cog, name="Minigames"):
             active_players = list(players)
             player_correct_words = {p.id: 0 for p in players}
             used_words = set()
+            used_combos = set()
 
             if single_player:
                 await start.edit(embed=discord.Embed(
@@ -6045,7 +6061,8 @@ class Minigames(commands.Cog, name="Minigames"):
             if single_player:
                 player = active_players[0]
                 while lives[player.id] > 0:
-                    combo = self.get_combo(difficulty)
+                    combo = self.get_combo(difficulty, exclude=used_combos)
+                    used_combos.add(combo)
 
                     round_msg = await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
                     countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
@@ -6070,6 +6087,7 @@ class Minigames(commands.Cog, name="Minigames"):
                                 await ctx.send(f"🚪 **{player.mention}** khrej mn lgame (**Game Over**).")
                                 break
                             used_words.add(word_msg.content.strip().lower())
+                            player_correct_words[player.id] = player_correct_words.get(player.id, 0) + 1
                             await word_msg.add_reaction('✅')
                     except asyncio.TimeoutError:
                         if not countdown_task.done():
@@ -6082,15 +6100,15 @@ class Minigames(commands.Cog, name="Minigames"):
 
                 economy_cog = self.bot.get_cog("Economy")
                 correct_count = len(used_words)
-                gross = 50 + int(round((correct_count * 10) * diff_mult))
+                gross = 50 + int(round((correct_count * 20) * diff_mult))
                 eco_msg = ""
                 if economy_cog and correct_count > 0:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="BlackTea Solo")
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context=f"BlackTea Solo ({difficulty.capitalize()})")
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, player.id, "blacktea", earnings=net)
                 await ctx.send(embed=discord.Embed(
-                    description=f"🎯 Game Over {player.mention}! L9iti **{correct_count} kelmat**.{eco_msg}",
+                    description=f"🎯 Game Over {player.mention}! L9iti **{correct_count} kelmat** (Difficulty: **{difficulty.upper()}**).{eco_msg}",
                     color=0x000000
                 ))
             else:
@@ -6101,7 +6119,8 @@ class Minigames(commands.Cog, name="Minigames"):
                         if len(active_players) <= 1:
                             break
 
-                        combo = self.get_combo(difficulty)
+                        combo = self.get_combo(difficulty, exclude=used_combos)
+                        used_combos.add(combo)
 
                         round_msg = await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
                         countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
@@ -6175,8 +6194,8 @@ class Minigames(commands.Cog, name="Minigames"):
                     eco_msg = ""
                     w_words = player_correct_words.get(winner.id, 0)
                     if economy_cog:
-                        gross = (len(players) * 50) + int(round((w_words * 10) * diff_mult))
-                        net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="BlackTea Win")
+                        gross = (len(players) * 50) + int(round((w_words * 20) * diff_mult))
+                        net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context=f"BlackTea Win ({difficulty.capitalize()})")
                         player_earnings[winner.id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
@@ -6248,15 +6267,17 @@ class Minigames(commands.Cog, name="Minigames"):
             points = {p.id: 0 for p in players}
             player_ids = {p.id for p in players}
             used_words = set()
+            used_combos = set()
             await asyncio.sleep(2)
 
             for round_num in range(1, 11):
                 if len(player_ids) <= 1:
                     break
 
-                combo = self.get_combo(difficulty)
+                combo = self.get_combo(difficulty, exclude=used_combos)
                 if not combo:
                     continue
+                used_combos.add(combo)
 
                 round_msg = await ctx.send(embed=discord.Embed(
                     description=f"Kteb kelma fiha: **{combo.upper()}**\n⏱️ Round **{round_num}/10**",
@@ -6425,15 +6446,17 @@ class Minigames(commands.Cog, name="Minigames"):
             points = {p.id: 0 for p in players}
             player_ids = {p.id for p in players}
             used_words = set()
+            used_combos = set()
             await asyncio.sleep(2)
 
             for round_num in range(1, 11):
                 if len(player_ids) <= 1:
                     break
 
-                combo = self.get_combo(difficulty)
+                combo = self.get_combo(difficulty, exclude=used_combos)
                 if not combo:
                     continue
+                used_combos.add(combo)
 
                 longest_word = ""
                 longest_len = 0
@@ -7113,13 +7136,14 @@ class Minigames(commands.Cog, name="Minigames"):
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="wordle", aliases=["klma", "kelma"], help="9edder kelmat bach tl9a lkelma fach kanfkr (sat wordle @user [bet:500]).")
+    @commands.command(name="wordle", aliases=["klma", "kelma"], help="9edder kelmat bach tl9a lkelma fach kanfkr (sat wordle [@user] [easy|medium|hard] [bet:500]).")
     @not_fraud()
     async def wordle(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
         bet, _ = parse_bet_argument(*args)
+        _, difficulty = parse_minigame_args(*args, default_duration=0, default_difficulty="easy")
         if member is None:
-            secret = self.get_wordle_secret()
-            view = WordleSoloView(ctx.author, secret, self)
+            secret = self.get_wordle_secret(difficulty)
+            view = WordleSoloView(ctx.author, secret, self, difficulty=difficulty)
             message = await ctx.send(content=view.get_content(), view=view)
             view.message = message
             return
@@ -7143,7 +7167,7 @@ class Minigames(commands.Cog, name="Minigames"):
                 await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
                 return
 
-        challenge_view = WordleChallengeView(ctx.author, member, self, bet=bet or 0)
+        challenge_view = WordleChallengeView(ctx.author, member, self, bet=bet or 0, difficulty=difficulty)
         wager_str = ""
         if bet and bet > 0:
             w_payout, burned, d_split = calculate_pvp_payout(bet)
@@ -7163,13 +7187,14 @@ class Minigames(commands.Cog, name="Minigames"):
         message = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = message
 
-    @commands.command(name="hangman", aliases=["hm", "michna9a"], help="l9a lkelma 9bel matchne9 (sat hangman @user [bet:500]).")
+    @commands.command(name="hangman", aliases=["hm", "michna9a"], help="l9a lkelma 9bel matchne9 (sat hangman [@user] [easy|medium|hard] [bet:500]).")
     @not_fraud()
     async def hangman(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
         bet, _ = parse_bet_argument(*args)
+        _, difficulty = parse_minigame_args(*args, default_duration=0, default_difficulty="easy")
         if member is None:
-            secret = self.get_hangman_secret()
-            view = HangmanSoloView(ctx.author, secret, self)
+            secret = self.get_hangman_secret(difficulty)
+            view = HangmanSoloView(ctx.author, secret, self, difficulty=difficulty)
             message = await ctx.send(content=view.get_content(), view=view)
             view.message = message
             return
@@ -7193,7 +7218,7 @@ class Minigames(commands.Cog, name="Minigames"):
                 await ctx.send(f"❌ **{member.display_name}** ma 3ndo kafi dial flous ({format_tad(w_target['balance'])} / {format_tad(bet)})!")
                 return
 
-        challenge_view = HangmanChallengeView(ctx.author, member, self, bet=bet or 0)
+        challenge_view = HangmanChallengeView(ctx.author, member, self, bet=bet or 0, difficulty=difficulty)
         wager_str = ""
         if bet and bet > 0:
             w_payout, burned, d_split = calculate_pvp_payout(bet)
