@@ -81,7 +81,8 @@ AsyncClient._AsyncClient__handler = _patched_handler
 
 from cogs.games.helpers import (
     record_minigame_win, record_minigame_loss,
-    is_english_word, get_combo, get_typeracer_text, get_dictionary_cursor, WORDS_DB_PATH
+    is_english_word, get_combo, get_typeracer_text, get_dictionary_cursor, WORDS_DB_PATH,
+    get_word, get_words_batch, get_unscramble_word, get_hangman_secret
 )
 
 # ============ CHESS BOARD RENDERER ============
@@ -5119,6 +5120,18 @@ class Minigames(commands.Cog, name="Minigames"):
     def get_typeracer_text(self) -> str:
         return get_typeracer_text()
 
+    def get_word(self, difficulty: str = "medium", min_length: int = 4, max_length: int = 10) -> str:
+        return get_word(difficulty, min_length, max_length)
+
+    def get_words_batch(self, difficulty: str = "medium", count: int = 5, min_length: int = 4, max_length: int = 10) -> list[str]:
+        return get_words_batch(difficulty, count, min_length, max_length)
+
+    def get_unscramble_word(self, difficulty: str = "medium") -> str:
+        return get_unscramble_word(difficulty)
+
+    def get_hangman_secret(self, difficulty: str = "medium") -> str:
+        return get_hangman_secret(difficulty)
+
     async def record_minigame_win(self, guild_id: Optional[int], user_id: int, game: str, earnings: int = 0):
         await record_minigame_win(self.bot, guild_id, user_id, game, earnings)
 
@@ -6548,27 +6561,32 @@ class Minigames(commands.Cog, name="Minigames"):
 
     @commands.command(name="unscramble", aliases=["scramble", "moliniks", "molinix", "chlada", "shlada"], help="An3tik kelma mkhrb9a o nta 9adha.")
     async def unscramble(self, ctx, *args):
-        round_duration = 30
-        for arg in args:
-            try:
-                round_duration = max(5, int(arg))
-                break
-            except (ValueError, TypeError):
-                pass
-        time_display = f"{round_duration}s"
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=30, default_difficulty="easy")
+        if round_duration < 5:
+            round_duration = 5
+            time_display = "5s (Minimum)"
+        else:
+            time_display = f"{round_duration}s"
+
+        mult = DIFFICULTY_STAKES.get(difficulty, 1.0)
 
         try:
             join_emoji = "✅"
             signup_embed = discord.Embed(
                 title="🧩 Word Unscramble",
-                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**",
+                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
                 color=0x000000
             )
-            start = await ctx.send(embed=signup_embed)
-            await start.add_reaction(join_emoji)
+            diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
+            signup_msg = await ctx.send(embed=signup_embed, view=diff_view)
+            await signup_msg.add_reaction(join_emoji)
             await asyncio.sleep(19)
 
-            signup_msg = await ctx.channel.fetch_message(start.id)
+            difficulty = diff_view.difficulty
+            diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.0)
+            diff_view.stop()
+
+            signup_msg = await ctx.channel.fetch_message(signup_msg.id)
             reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
 
             players = []
@@ -6578,10 +6596,10 @@ class Minigames(commands.Cog, name="Minigames"):
                         players.append(user)
 
             if not players:
-                await start.edit(embed=discord.Embed(
+                await signup_msg.edit(embed=discord.Embed(
                     description="💨 7ta wa7d ma dkhel lgame ._.",
                     color=0x000000
-                ))
+                ), view=None)
                 return
 
             single_player = len(players) == 1
@@ -6591,23 +6609,23 @@ class Minigames(commands.Cog, name="Minigames"):
             used_secrets = set()
 
             if single_player:
-                await start.edit(embed=discord.Embed(
-                    description="▶️ Bdina! 3ndek **3 HP**.",
+                await signup_msg.edit(embed=discord.Embed(
+                    description=f"▶️ Bdina! 3ndek **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
                     color=0x000000
-                ))
+                ), view=None)
             else:
-                await start.edit(embed=discord.Embed(
-                    description="▶️ Bdina! Kola wa7d 3ndo **3 HP**.\nPlayers: " + ", ".join(p.mention for p in players),
+                await signup_msg.edit(embed=discord.Embed(
+                    description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)\nPlayers: " + ", ".join(p.mention for p in players),
                     color=0x000000
-                ))
+                ), view=None)
             await asyncio.sleep(2)
 
             if single_player:
                 player = active_players[0]
                 while lives[player.id] > 0:
-                    secret = self.get_hangman_secret().strip().lower()
+                    secret = self.get_unscramble_word(difficulty).strip().lower()
                     if not secret or len(secret) < 3 or not secret.isalpha() or secret in used_secrets:
-                        secret = random.choice([w for w in ["planet", "castle", "dragon", "monster", "python", "bridge", "silver", "garden", "forest", "wizard", "shadow", "knight", "rocket", "pirate", "jungle"] if w not in used_secrets] or ["planet"])
+                        secret = self.get_word(difficulty=difficulty, min_length=4, max_length=9).strip().lower()
                     used_secrets.add(secret)
 
                     letters = list(secret)
@@ -6649,15 +6667,15 @@ class Minigames(commands.Cog, name="Minigames"):
 
                 economy_cog = self.bot.get_cog("Economy")
                 correct_count = player_correct_words.get(player.id, 0)
-                gross = (len(players) * 50) + (correct_count * 20)
+                gross = (len(players) * 50) + int(round((correct_count * 20) * diff_mult))
                 eco_msg = ""
                 if economy_cog and correct_count > 0:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Unscramble Solo")
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context=f"Unscramble Solo ({difficulty.capitalize()})")
                     eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                     if ctx.guild:
                         await self.record_minigame_win(ctx.guild.id, player.id, "unscramble", earnings=net)
                 await ctx.send(embed=discord.Embed(
-                    description=f"🎯 Game Over {player.mention}! L9iti **{correct_count} kelmat**.{eco_msg}",
+                    description=f"🎯 Game Over {player.mention}! L9iti **{correct_count} kelmat** (Difficulty: **{difficulty.upper()}**).{eco_msg}",
                     color=0x000000
                 ))
             else:
@@ -6668,9 +6686,9 @@ class Minigames(commands.Cog, name="Minigames"):
                         if len(active_players) <= 1:
                             break
 
-                        secret = self.get_hangman_secret().strip().lower()
+                        secret = self.get_unscramble_word(difficulty).strip().lower()
                         if not secret or len(secret) < 3 or not secret.isalpha() or secret in used_secrets:
-                            secret = random.choice([w for w in ["planet", "castle", "dragon", "monster", "python", "bridge", "silver", "garden", "forest", "wizard", "shadow", "knight", "rocket", "pirate", "jungle"] if w not in used_secrets] or ["planet"])
+                            secret = self.get_word(difficulty=difficulty, min_length=4, max_length=9).strip().lower()
                         used_secrets.add(secret)
 
                         letters = list(secret)
@@ -6750,19 +6768,19 @@ class Minigames(commands.Cog, name="Minigames"):
                     eco_msg = ""
                     w_words = player_correct_words.get(winner.id, 0)
                     if economy_cog:
-                        gross = (len(players) * 50) + (w_words * 20)
-                        net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Unscramble Win")
+                        gross = (len(players) * 50) + int(round((w_words * 20) * diff_mult))
+                        net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context=f"Unscramble Win ({difficulty.capitalize()})")
                         player_earnings[winner.id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
                         if ctx.guild:
                             await self.record_minigame_win(ctx.guild.id, winner.id, "unscramble", earnings=net)
 
-                        # Other players only get 20 for each word with no bonus
+                        # Other players get 20 per correct word scaled by diff_mult
                         for pid, words_count in player_correct_words.items():
                             if pid != winner.id and words_count > 0:
-                                p_gross = words_count * 20
+                                p_gross = int(round((words_count * 20) * diff_mult))
                                 if p_gross > 0:
-                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Unscramble Words Reward")
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context=f"Unscramble Words Reward ({difficulty.capitalize()})")
                                     player_earnings[pid] = p_net
 
                     others_msg = ""
@@ -6771,7 +6789,7 @@ class Minigames(commands.Cog, name="Minigames"):
                         others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
 
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner.mention} rbe7 lgame b **{w_words} kelmat**!{eco_msg}{others_msg}",
+                        description=f"🏆 {winner.mention} rbe7 lgame b **{w_words} kelmat** (Difficulty: **{difficulty.upper()}**)!{eco_msg}{others_msg}",
                         color=0x000000
                     ))
         except Exception as e:

@@ -57,8 +57,90 @@ def get_combo(difficulty: str = "medium") -> str:
     }
     return random.choice(fallbacks.get(diff, fallbacks["medium"]))
 
+_classified_words_cache = {}
+
+def normalize_difficulty(difficulty: str) -> str:
+    if not difficulty or not isinstance(difficulty, str):
+        return "medium"
+    d = difficulty.strip().lower()
+    if d in ("easy", "e", "sahel", "shl"):
+        return "easy"
+    if d in ("hard", "h", "s3ib", "wa3er"):
+        return "hard"
+    return "medium"
+
+def _load_classified_words_cache() -> dict[str, list[str]]:
+    global _classified_words_cache
+    if _classified_words_cache:
+        return _classified_words_cache
+
+    pools = {"easy": [], "medium": [], "hard": []}
+    for attempt in range(2):
+        try:
+            cur = get_dictionary_cursor()
+            cur.execute("SELECT word, difficulty FROM classified_words")
+            rows = cur.fetchall()
+            if rows:
+                for w, diff in rows:
+                    if w and diff in pools:
+                        pools[diff].append(w.lower())
+                break
+        except Exception as e:
+            global _dict_conn
+            _dict_conn = None
+
+    # Fallback lists in case table or DB is unavailable
+    if not pools["easy"]:
+        pools["easy"] = [
+            "apple", "water", "tiger", "bread", "house", "smile", "plant", "beach",
+            "silver", "cloud", "music", "planet", "chair", "light", "river", "dream", "stone"
+        ]
+    if not pools["medium"]:
+        pools["medium"] = [
+            "castle", "danger", "blanket", "whisper", "journey", "diamond", "monster",
+            "stadium", "horizon", "shadow", "future", "beacon", "mirror", "temple", "garden", "forest"
+        ]
+    if not pools["hard"]:
+        pools["hard"] = [
+            "rhythm", "awkward", "blizzard", "symphony", "dungeon", "mystery",
+            "phantom", "labyrinth", "sphinx", "knights", "quench", "puzzle", "wizard", "galaxy", "oxygen"
+        ]
+
+    _classified_words_cache = pools
+    return _classified_words_cache
+
+def get_word(difficulty: str = "medium", min_length: int = 4, max_length: int = 10) -> str:
+    diff = normalize_difficulty(difficulty)
+    cache = _load_classified_words_cache()
+    pool = cache.get(diff) or cache.get("medium", [])
+    filtered = [w for w in pool if min_length <= len(w) <= max_length]
+    if filtered:
+        return random.choice(filtered)
+    if pool:
+        return random.choice(pool)
+    return "planet"
+
+def get_words_batch(difficulty: str = "medium", count: int = 5, min_length: int = 4, max_length: int = 10) -> list[str]:
+    diff = normalize_difficulty(difficulty)
+    cache = _load_classified_words_cache()
+    pool = cache.get(diff) or cache.get("medium", [])
+    filtered = [w for w in pool if min_length <= len(w) <= max_length]
+    chosen_pool = filtered if filtered else pool
+    if not chosen_pool:
+        return ["planet"] * count
+    if len(chosen_pool) >= count:
+        return random.sample(chosen_pool, count)
+    return [random.choice(chosen_pool) for _ in range(count)]
+
+def get_unscramble_word(difficulty: str = "medium") -> str:
+    return get_word(difficulty=difficulty, min_length=4, max_length=9)
+
+def get_hangman_secret(difficulty: str = "medium") -> str:
+    return get_word(difficulty=difficulty, min_length=5, max_length=8)
+
+
 def get_typeracer_text() -> str:
-    count = 5
+    count = 8
     words = []
     for attempt in range(2):
         try:
