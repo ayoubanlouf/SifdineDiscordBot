@@ -6933,8 +6933,7 @@ class Minigames(commands.Cog, name="Minigames"):
 
         if ctx.channel.id in self.active_akinator_channels:
             active_player = self.active_akinator_channels[ctx.channel.id]
-            player_mention = active_player.mention if hasattr(active_player, "mention") else f"<@{active_player.id}>"
-            await ctx.send(f"❌ Kayn chi wa7d kayl3eb Akinator db f had lchannel ({player_mention}), tsna 7ta ysali!")
+            await ctx.send(f"❌ **{active_player.display_name}** deja la3b Akinator db f had lchannel, tsna 7ta ysali!")
             return
 
         self.active_akinator_users.add(ctx.author.id)

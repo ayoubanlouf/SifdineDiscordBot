@@ -497,19 +497,24 @@ class Economy(commands.Cog, name="Economy"):
         new_total_xp = user_data["total_xp"] + xp_amount
         new_lvl, new_curr, new_needed, _ = get_level_info(new_total_xp)
 
-        claimed = list(user_data["claimed_milestones"])
-        milestones_awarded = []
+        claimed = set(user_data["claimed_milestones"])
+        rewards_awarded = []
 
         if new_lvl > old_level:
-            # Check every milestone passed between old_level and new_lvl
-            for m in range(10, new_lvl + 1, 10):
-                if m > old_level and m not in claimed:
-                    claimed.append(m)
-                    milestone_reward = min(m * 1000, 100000)
-                    await self.add_balance(user_id, milestone_reward, context=f"Level {m} Milestone Reward")
-                    milestones_awarded.append((m, milestone_reward))
+            for lvl in range(old_level + 1, new_lvl + 1):
+                if lvl not in claimed:
+                    claimed.add(lvl)
+                    if lvl % 10 == 0:
+                        reward = min(lvl * 1000, 100000)
+                        context = f"Level {lvl} Milestone Reward"
+                    else:
+                        reward = 1000
+                        context = f"Level {lvl} Reward"
+                    await self.add_balance(user_id, reward, context=context)
+                    rewards_awarded.append((lvl, reward))
 
-        claimed_json = json.dumps(claimed)
+        claimed_list = sorted(list(claimed))
+        claimed_json = json.dumps(claimed_list)
 
         await self.bot.db.execute(
             "INSERT INTO user_levels (user_id, level, current_xp, total_xp, claimed_milestones) "
@@ -520,30 +525,38 @@ class Economy(commands.Cog, name="Economy"):
         )
         await self.bot.db.commit()
 
-        # Announce ONLY milestones (standard level-ups are silent!)
-        if milestones_awarded and (channel or message):
+        # Announce level-ups with rewards
+        if rewards_awarded and (channel or message):
             try:
-                for m_lvl, m_rew in milestones_awarded:
-                    user_name = None
-                    if message and hasattr(message, "author") and message.author.id == user_id:
-                        user_name = message.author.display_name
-                    else:
-                        u = self.bot.get_user(user_id)
-                        user_name = u.display_name if u else "Player"
+                user_name = None
+                if message and hasattr(message, "author") and message.author.id == user_id:
+                    user_name = message.author.display_name
+                else:
+                    u = self.bot.get_user(user_id)
+                    user_name = u.display_name if u else "Player"
 
-                    embed = discord.Embed(
-                        title=f"Mbrok a {user_name}",
-                        description=f"Wselti level {m_lvl}! Chediti `{m_rew:,}` TAD {TAD_EMOJI}",
-                        color=0x000000
-                    )
+                if len(rewards_awarded) == 1:
+                    a_lvl, a_rew = rewards_awarded[0]
+                    desc = f"Wselti level {a_lvl}! Chediti `{a_rew:,}` TAD {TAD_EMOJI}"
+                else:
+                    total_rew = sum(r for _, r in rewards_awarded)
+                    desc = f"Wselti level {new_lvl}! Chediti `{total_rew:,}` TAD {TAD_EMOJI}"
 
-                    if message:
-                        try:
-                            await message.reply(embed=embed, mention_author=True)
-                            continue
-                        except Exception:
-                            pass
+                embed = discord.Embed(
+                    title=f"Mbrok a {user_name}",
+                    description=desc,
+                    color=0x000000
+                )
 
+                sent = False
+                if message:
+                    try:
+                        await message.reply(embed=embed, mention_author=True)
+                        sent = True
+                    except Exception:
+                        sent = False
+
+                if not sent:
                     target_channel = channel or (message.channel if message else None)
                     if target_channel:
                         await target_channel.send(embed=embed)
@@ -554,7 +567,7 @@ class Economy(commands.Cog, name="Economy"):
         user_data["current_xp"] = new_curr
         user_data["xp_needed"] = new_needed
         user_data["total_xp"] = new_total_xp
-        user_data["claimed_milestones"] = claimed
+        user_data["claimed_milestones"] = claimed_list
         return user_data
 
     async def remove_xp(self, user_id: int, xp_amount: int) -> dict:
