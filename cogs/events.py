@@ -259,14 +259,16 @@ class Events(commands.Cog, name="Events"):
         if audit_entry and audit_entry.user and audit_entry.user.id != message.author.id:
             deleted_by_str = f"\n**Deleted By:** {audit_entry.user.mention} (`{audit_entry.user.id}`)"
 
-        # Download small attachments into memory (capped to 1MB to preserve 100MB Discloud RAM)
+        # Download attachments into memory (up to Discord's 10-attachment limit, capped to 8MB each / 20MB total)
         discord_files = []
+        total_size = 0
         if message.attachments:
-            for att in message.attachments[:2]:
+            for att in message.attachments[:10]:
                 try:
-                    if att.size <= 1024 * 1024:
+                    if att.size <= 8 * 1024 * 1024 and (total_size + att.size) <= 20 * 1024 * 1024:
                         data = await att.read()
                         discord_files.append(discord.File(io.BytesIO(data), filename=att.filename))
+                        total_size += att.size
                 except Exception:
                     pass
 
@@ -279,7 +281,7 @@ class Events(commands.Cog, name="Events"):
         if message.content:
             embed.add_field(name="Content", value=message.content[:1024], inline=False)
         if message.attachments:
-            att_names = "\n".join(f"• `{att.filename}` ({att.size / 1024:.1f} KB)" for att in message.attachments[:5])
+            att_names = "\n".join(f"• `{att.filename}` ({att.size / 1024:.1f} KB)" for att in message.attachments[:10])
             embed.add_field(name="Attachments Preserved", value=att_names, inline=False)
         embed.set_author(name=message.author.name, icon_url=message.author.display_avatar.url)
         await self.send_log(message.guild, embed, files=discord_files if discord_files else None)
@@ -310,12 +312,14 @@ class Events(commands.Cog, name="Events"):
         })
 
         discord_files = []
+        total_size = 0
         if removed_attachments:
-            for att in removed_attachments[:4]:
+            for att in removed_attachments[:10]:
                 try:
-                    if att.size <= 8 * 1024 * 1024:
+                    if att.size <= 8 * 1024 * 1024 and (total_size + att.size) <= 20 * 1024 * 1024:
                         data = await att.read()
                         discord_files.append(discord.File(io.BytesIO(data), filename=f"removed_{att.filename}"))
+                        total_size += att.size
                 except Exception:
                     pass
 
@@ -328,7 +332,7 @@ class Events(commands.Cog, name="Events"):
         embed.add_field(name="Before", value=(before.content or "_Empty_")[:1024], inline=False)
         embed.add_field(name="After", value=(after.content or "_Empty_")[:1024], inline=False)
         if removed_attachments:
-            rem_names = "\n".join(f"• `{att.filename}` ({att.size / 1024:.1f} KB)" for att in removed_attachments[:5])
+            rem_names = "\n".join(f"• `{att.filename}` ({att.size / 1024:.1f} KB)" for att in removed_attachments[:10])
             embed.add_field(name="Removed Attachments Preserved", value=rem_names, inline=False)
         embed.set_author(name=before.author.name, icon_url=before.author.display_avatar.url)
         await self.send_log(before.guild, embed, files=discord_files if discord_files else None)

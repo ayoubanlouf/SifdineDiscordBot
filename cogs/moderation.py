@@ -1000,8 +1000,11 @@ class Moderation(commands.Cog, name="Moderation"):
             await ctx.send(f"Mat9edch tdir hada l chi b7alk wla fo9 mnk f role ._.")
             return
 
+        # Gather all channels capable of containing messages: text channels, voice channels (text chat), and threads
+        purge_channels = list(ctx.guild.text_channels) + list(ctx.guild.voice_channels) + list(ctx.guild.threads)
+
         deleted_count = 0
-        for channel in ctx.guild.text_channels:
+        for channel in purge_channels:
             try:
                 def is_member(m):
                     return m.author == member
@@ -1014,7 +1017,8 @@ class Moderation(commands.Cog, name="Moderation"):
         if not jail_role:
             try:
                 jail_role = await ctx.guild.create_role(name="Jailed", color=discord.Color.from_rgb(20, 20, 20))
-                for channel in ctx.guild.text_channels:
+                # Lock down text channels and voice channels
+                for channel in list(ctx.guild.text_channels) + list(ctx.guild.voice_channels):
                     if channel.name != "cll":
                         try:
                             await channel.set_permissions(jail_role, view_channel=False)
