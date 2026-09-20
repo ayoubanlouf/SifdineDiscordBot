@@ -398,7 +398,7 @@ class Bot(commands.Cog, name="Bot"):
         embed.add_field(name="Process CPU", value=f"`{local_cpu_pct:.1f}%`", inline=True)
         embed.add_field(name="Process Uptime", value=f"`{uptime_str}`", inline=True)
         embed.add_field(name="🛠️ Available Host Commands", value=subcommands, inline=False)
-        embed.set_footer(text="Sifdine Host Management • Owner Only", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
+        embed.set_footer(text="Owner Only", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
         await ctx.send(embed=embed)
 
     async def _send_host_status(self, ctx):
@@ -479,7 +479,7 @@ class Bot(commands.Cog, name="Bot"):
 
             embed.add_field(name="Database Size", value=f"`{db_size_mb:.2f} MB`", inline=True)
             embed.add_field(name="Project Folder", value=f"`{dir_size_mb:.2f} MB`", inline=True)
-            embed.set_footer(text="Bot-Hosting.net Host Management • Owner Only", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
+            embed.set_footer(text="Owner Only", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
 
             await wait_msg.delete()
             await ctx.send(embed=embed)
@@ -549,7 +549,7 @@ class Bot(commands.Cog, name="Bot"):
 
             embed.add_field(name="Database Size", value=f"`{db_size_mb:.2f} MB`", inline=True)
             embed.add_field(name="Project Folder", value=f"`{dir_size_mb:.2f} MB`", inline=True)
-            embed.set_footer(text="Discloud Host Management • Owner Only", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
+            embed.set_footer(text="Owner Only", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
             await ctx.send(embed=embed)
             return
 
@@ -580,7 +580,7 @@ class Bot(commands.Cog, name="Bot"):
 
             embed.add_field(name="Database Size", value=f"`{db_size_mb:.2f} MB`", inline=True)
             embed.add_field(name="Project Folder", value=f"`{dir_size_mb:.2f} MB`", inline=True)
-            embed.set_footer(text="Local Host Management • Owner Only", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
+            embed.set_footer(text="Owner Only", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
             await ctx.send(embed=embed)
             return
 
@@ -1155,7 +1155,7 @@ class Bot(commands.Cog, name="Bot"):
         if commit_author != "Unknown":
             embed.add_field(name="Author", value=f"`{commit_author}`", inline=True)
 
-        embed.set_footer(text=f"Host: {provider.capitalize()} • Owner Only")
+        embed.set_footer(text=f"Owner Only")
         await ctx.send(embed=embed)
 
     @host.command(name="ping", aliases=["latency", "pong"], help="Chouf latency dyal Discord WebSocket, REST API o Database.")
@@ -1192,7 +1192,7 @@ class Bot(commands.Cog, name="Bot"):
         embed.add_field(name="REST API (Roundtrip)", value=f"`{rest_latency_ms} ms`", inline=True)
         embed.add_field(name="Database (Turso/SQLite)", value=f"`{db_latency_ms} ms`", inline=True)
         embed.add_field(name="Connection Health", value=indicator, inline=False)
-        embed.set_footer(text="Sifdine Host Management • Owner Only")
+        embed.set_footer(text="Owner Only")
 
         await wait_msg.edit(content=None, embed=embed)
 
@@ -1587,7 +1587,7 @@ class Bot(commands.Cog, name="Bot"):
             embed.set_footer(text=f"Server: {ctx.guild.name}")
             await ctx.send(embed=embed)
 
-    @commands.command(name="globaldisable", aliases=["gdisable"], help="[Owner Only] Desactivi command globally f ga3 servers.")
+    @commands.command(name="globaldisable", aliases=["gdisable"], help="Desactivi command globally f ga3 servers.")
     @commands.is_owner()
     async def global_disable(self, ctx: commands.Context, *, command_name: str):
         clean_name = command_name.strip().lower()
@@ -1628,7 +1628,7 @@ class Bot(commands.Cog, name="Bot"):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="globalenable", aliases=["genable"], help="[Owner Only] Activi command li kant mdesactivia globally.")
+    @commands.command(name="globalenable", aliases=["genable"], help="Activi command li kant mdesactivia globally.")
     @commands.is_owner()
     async def global_enable(self, ctx: commands.Context, *, command_name: str):
         clean_name = command_name.strip().lower()
@@ -1662,7 +1662,7 @@ class Bot(commands.Cog, name="Bot"):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="globaldisabled", aliases=["gdisabled"], help="[Owner Only] Chouf ga3 commands li mdesactivyin globally.")
+    @commands.command(name="globaldisabled", aliases=["gdisabled"], help="Chouf ga3 commands li mdesactivyin globally.")
     @commands.is_owner()
     async def list_global_disabled(self, ctx: commands.Context):
         async with self.bot.db.execute(

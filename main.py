@@ -589,6 +589,22 @@ async def setup_hook():
     """)
     await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_user_levels_rank ON user_levels (level DESC, total_xp DESC)")
 
+    # Inventory Table
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS user_inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            item_id TEXT NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            serial_number INTEGER DEFAULT 0,
+            metadata TEXT DEFAULT '{}',
+            acquired_at INTEGER NOT NULL,
+            CONSTRAINT uq_user_item_serial UNIQUE (user_id, item_id, serial_number)
+        )
+    """)
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_inv_user ON user_inventory (user_id)")
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_inv_item ON user_inventory (item_id)")
+
     await bot.db.commit()
 
     # Initialize and pre-populate in-memory performance caches (<100 KB RAM)

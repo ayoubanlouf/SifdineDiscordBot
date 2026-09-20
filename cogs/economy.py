@@ -10,6 +10,14 @@ from typing import Optional, Tuple, Union
 import discord
 from discord.ext import commands
 from converters import FuzzyMember, AmountConverter
+from cogs.shop_catalog import (
+    ShopItem,
+    CATALOG,
+    get_item,
+    get_active_shop_items,
+    get_items_by_category,
+    register_item
+)
 
 
 TAD_EMOJI = "<:TAD:1543808845728710686>"
@@ -372,6 +380,107 @@ class VaultView(discord.ui.View):
                 pass
 
 
+class ShopView(discord.ui.View):
+    def __init__(self, author: Union[discord.Member, discord.User], cog):
+        super().__init__(timeout=90)
+        self.author = author
+        self.cog = cog
+        self.selected_category = "all"
+        self.message: Optional[discord.Message] = None
+        self._build_ui()
+
+    def _build_ui(self):
+        self.clear_items()
+        active_items = get_active_shop_items()
+        if not active_items:
+            return
+
+        categories = sorted(list(set(i.category.lower() for i in active_items)))
+        options = [discord.SelectOption(label="All Items", value="all", emoji="🛒", default=(self.selected_category == "all"))]
+        for cat in categories:
+            options.append(discord.SelectOption(label=cat.capitalize(), value=cat, default=(self.selected_category == cat)))
+
+        select = discord.ui.Select(placeholder="Khtar Category...", options=options)
+        select.callback = self.category_callback
+        self.add_item(select)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l menu machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    async def category_callback(self, interaction: discord.Interaction):
+        self.selected_category = interaction.data["values"][0]
+        self._build_ui()
+        embed = await self.cog.build_shop_embed(self.author.id, category=self.selected_category)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+
+
+class InventoryView(discord.ui.View):
+    def __init__(self, target_user: Union[discord.Member, discord.User], author: Union[discord.Member, discord.User], cog, items: list):
+        super().__init__(timeout=90)
+        self.target_user = target_user
+        self.author = author
+        self.cog = cog
+        self.items = items
+        self.current_page = 0
+        self.page_size = 6
+        self.message: Optional[discord.Message] = None
+        self._update_buttons()
+
+    def _update_buttons(self):
+        self.clear_items()
+        total_pages = max(1, math.ceil(len(self.items) / self.page_size))
+        if total_pages > 1:
+            btn_prev = discord.ui.Button(label="◀️", style=discord.ButtonStyle.primary, disabled=(self.current_page == 0))
+            btn_prev.callback = self.prev_page
+            self.add_item(btn_prev)
+
+            btn_next = discord.ui.Button(label="▶️", style=discord.ButtonStyle.primary, disabled=(self.current_page >= total_pages - 1))
+            btn_next.callback = self.next_page
+            self.add_item(btn_next)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l menu machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    async def prev_page(self, interaction: discord.Interaction):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._update_buttons()
+            embed = self.cog.build_inventory_embed(self.target_user, self.items, self.current_page, self.page_size)
+            await interaction.response.edit_message(embed=embed, view=self)
+
+    async def next_page(self, interaction: discord.Interaction):
+        total_pages = max(1, math.ceil(len(self.items) / self.page_size))
+        if self.current_page < total_pages - 1:
+            self.current_page += 1
+            self._update_buttons()
+            embed = self.cog.build_inventory_embed(self.target_user, self.items, self.current_page, self.page_size)
+            await interaction.response.edit_message(embed=embed, view=self)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+
+
 class Economy(commands.Cog, name="Economy"):
     def __init__(self, bot):
         self.bot = bot
@@ -715,6 +824,241 @@ class Economy(commands.Cog, name="Economy"):
 
         await self.bot.db.commit()
         return True
+
+    # ============ INVENTORY & SHOP DATABASE METHODS ============
+
+    async def get_user_inventory(self, user_id: int) -> list:
+        async with self.bot.db.execute(
+            "SELECT id, item_id, quantity, serial_number, metadata, acquired_at FROM user_inventory WHERE user_id = ? AND quantity > 0 ORDER BY acquired_at DESC",
+            (user_id,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        items = []
+        for r in rows:
+            inv_id, item_id, qty, serial_num, meta_raw, acq_at = r
+            try:
+                meta = json.loads(meta_raw) if meta_raw else {}
+            except Exception:
+                meta = {}
+            catalog_item = get_item(item_id)
+            items.append({
+                "id": inv_id,
+                "item_id": item_id,
+                "quantity": qty,
+                "serial_number": serial_num,
+                "metadata": meta,
+                "acquired_at": acq_at,
+                "catalog_item": catalog_item,
+                "name": catalog_item.name if catalog_item else item_id.replace("_", " ").title(),
+                "emoji": catalog_item.emoji if catalog_item else "📦",
+                "description": catalog_item.description if catalog_item else "Special item",
+                "tradeable": catalog_item.tradeable if catalog_item else False,
+                "usable": catalog_item.usable if catalog_item else False,
+            })
+        return items
+
+    async def add_inventory_item(self, user_id: int, item_id: str, quantity: int = 1, serial_number: int = 0, metadata: Optional[dict] = None) -> bool:
+        if quantity <= 0:
+            return False
+        meta_json = json.dumps(metadata or {})
+        now_ts = int(time.time())
+        clean_id = item_id.lower().strip()
+        await self.bot.db.execute(
+            "INSERT INTO user_inventory (user_id, item_id, quantity, serial_number, metadata, acquired_at) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(user_id, item_id, serial_number) DO UPDATE SET quantity = quantity + ?",
+            (user_id, clean_id, quantity, serial_number, meta_json, now_ts, quantity)
+        )
+        await self.bot.db.commit()
+        return True
+
+    async def remove_inventory_item(self, user_id: int, item_id: str, quantity: int = 1, serial_number: int = 0) -> bool:
+        if quantity <= 0:
+            return False
+        clean_id = item_id.lower().strip()
+        async with self.bot.db.execute(
+            "SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = ? AND serial_number = ?",
+            (user_id, clean_id, serial_number)
+        ) as cursor:
+            row = await cursor.fetchone()
+        if not row or row[0] < quantity:
+            return False
+
+        current_qty = row[0]
+        if current_qty - quantity <= 0:
+            await self.bot.db.execute(
+                "DELETE FROM user_inventory WHERE user_id = ? AND item_id = ? AND serial_number = ?",
+                (user_id, clean_id, serial_number)
+            )
+        else:
+            await self.bot.db.execute(
+                "UPDATE user_inventory SET quantity = quantity - ? WHERE user_id = ? AND item_id = ? AND serial_number = ?",
+                (quantity, user_id, clean_id, serial_number)
+            )
+        await self.bot.db.commit()
+        return True
+
+    async def purchase_shop_item(self, user_id: int, item_id: str, quantity: int = 1, ctx: Optional[commands.Context] = None) -> tuple:
+        if quantity <= 0:
+            return False, "❌ Quantity khas tkoun kber mn 0."
+
+        item = get_item(item_id)
+        if not item or not item.is_active_in_shop:
+            return False, f"❌ Had l item `{item_id}` makayench f l7anout 7aliyan."
+
+        # Level requirement check
+        user_lvl_data = await self.get_user_level(user_id)
+        if user_lvl_data["level"] < item.min_level:
+            return False, f"❌ Khassek tkoun **Level {item.min_level}** bach tchri **{item.name}**! (Level ta3k: {user_lvl_data['level']})"
+
+        # Stack limit check
+        clean_id = item.id.lower()
+        async with self.bot.db.execute(
+            "SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = ? AND serial_number = 0",
+            (user_id, clean_id)
+        ) as cursor:
+            row = await cursor.fetchone()
+        current_owned = row[0] if row else 0
+
+        if current_owned + quantity > item.max_stack:
+            return False, f"❌ Mat9dch tksb kter mn **{item.max_stack}** mn had l-item (3ndek déjà `{current_owned}`)."
+
+        total_cost = item.price * quantity
+        wallet = await self.get_wallet(user_id)
+        if wallet["balance"] < total_cost:
+            return False, f"❌ Flousk makafyinch! Khassek {format_tad(total_cost)} (Balance ta3k: {format_tad(wallet['balance'])})."
+
+        deducted = await self.deduct_balance(user_id, total_cost, context=f"Shop: {item.name} x{quantity}")
+        if not deducted:
+            return False, "❌ Mochkil f l-flous wla wallet dialek mjemda."
+
+        await self.deposit_vault("bank", total_cost, source="shop_purchase", context=f"Purchase of {item.name} x{quantity} by user {user_id}")
+        await self.add_inventory_item(user_id, clean_id, quantity=quantity)
+
+        # Trigger hook if exists
+        if item.on_buy:
+            try:
+                hook_res, hook_msg = await item.on_buy(self.bot, user_id, ctx)
+                if not hook_res:
+                    return True, f"✅ Chriti **{quantity}x {item.emoji} {item.name}** b {format_tad(total_cost)}! (Note: {hook_msg})"
+            except Exception:
+                pass
+
+        return True, f"✅ Chriti **{quantity}x {item.emoji} {item.name}** b {format_tad(total_cost)}!"
+
+    async def use_inventory_item(self, user_id: int, item_id: str, ctx: commands.Context) -> tuple:
+        clean_id = item_id.lower().strip()
+        item = get_item(clean_id)
+
+        # Check ownership
+        async with self.bot.db.execute(
+            "SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = ? AND quantity > 0",
+            (user_id, clean_id)
+        ) as cursor:
+            row = await cursor.fetchone()
+
+        if not row or row[0] <= 0:
+            return False, f"❌ Ma3ndekch had l-item `{item_id}` f chkarata3k."
+
+        if not item or not item.usable:
+            return False, f"❌ Had l-item **{item.name if item else item_id}** ma ymkench yst3mel directly."
+
+        # Execute hook
+        if item.on_use:
+            try:
+                success, msg = await item.on_use(self.bot, user_id, ctx)
+                if not success:
+                    return False, f"❌ Ma 9ditch tsta3mel l-item: {msg}"
+            except Exception as e:
+                return False, f"❌ Mochkil f l-isti3mal dial l-item: {e}"
+
+        await self.remove_inventory_item(user_id, clean_id, quantity=1)
+        return True, f"✨ Sta3melti **{item.emoji} {item.name}** b-naja7!"
+
+    async def build_shop_embed(self, user_id: int, category: str = "all") -> discord.Embed:
+        wallet = await self.get_wallet(user_id)
+        user_lvl = await self.get_user_level(user_id)
+        active_items = get_active_shop_items()
+
+        embed = discord.Embed(
+            title="🏪 Sifdine Central Market",
+            color=0x000000
+        )
+
+        if not active_items:
+            embed.description = (
+                "L7anout khawi 7aliyan..."
+            )
+            embed.set_footer(text="Stock coming soon")
+            return embed
+
+        if category != "all":
+            filtered_items = [i for i in active_items if i.category.lower() == category.lower()]
+        else:
+            filtered_items = active_items
+
+        embed.description = (
+            f"Mar7ba bik f Souk Sifdine!\n"
+            f"💰 **Balance Dialek:** {format_tad(wallet['balance'])} • ⭐ **Level:** {user_lvl['level']}\n"
+        )
+
+        for item in filtered_items:
+            trade_str = "🤝 Tradeable" if item.tradeable else "🔒 Bound"
+            use_str = "⚡ Usable" if item.usable else "📦 Passive/Collectible"
+            lvl_str = f"⭐ Req: Lvl {item.min_level}" if item.min_level > 1 else ""
+            tags = " • ".join(filter(None, [trade_str, use_str, lvl_str]))
+
+            embed.add_field(
+                name=f"{item.emoji} {item.name} — `{item.id}`",
+                value=(
+                    f"*{item.description}*\n"
+                    f"💵 **Price:** {format_tad(item.price)} | {tags}"
+                ),
+                inline=False
+            )
+
+        embed.set_footer(text="Sifdine Shop System")
+        return embed
+
+    def build_inventory_embed(self, target_user: Union[discord.Member, discord.User], items: list, page: int = 0, page_size: int = 6) -> discord.Embed:
+        embed = discord.Embed(
+            title=f"🎒 Chkara ta3 {target_user.display_name}",
+            color=0x000000
+        )
+        if target_user.display_avatar:
+            embed.set_thumbnail(url=target_user.display_avatar.url)
+
+        if not items:
+            embed.description = (
+                "Chkara khaawya am3lm..."
+            )
+            embed.set_footer(text="0 Items")
+            return embed
+
+        total_pages = max(1, math.ceil(len(items) / page_size))
+        start_idx = page * page_size
+        page_items = items[start_idx:start_idx + page_size]
+
+        total_items_count = sum(i["quantity"] for i in items)
+        embed.description = f"Total Items: **{total_items_count}** ({len(items)} types)\n"
+
+        for it in page_items:
+            trade_tag = "🤝 Tradeable" if it["tradeable"] else "🔒 Account-Bound"
+            use_tag = "⚡ Usable" if it["usable"] else "📦 Passive"
+            serial_str = f" • *Mint #{it['serial_number']}*" if it["serial_number"] > 0 else ""
+
+            embed.add_field(
+                name=f"{it['emoji']} {it['name']} x{it['quantity']:,}{serial_str}",
+                value=(
+                    f"*{it['description']}*\n"
+                    f"ID: `{it['item_id']}` • {trade_tag} • {use_tag}"
+                ),
+                inline=False
+            )
+
+        embed.set_footer(text=f"Page {page + 1}/{total_pages} • Sifdine Inventory System")
+        return embed
 
     async def get_wallet_embed(self, user: Union[discord.Member, discord.User]) -> discord.Embed:
         w = await self.get_wallet(user.id)
@@ -1177,7 +1521,7 @@ class Economy(commands.Cog, name="Economy"):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="setvault", help="Beddel balance dial bank wla casino (Owner only).")
+    @commands.command(name="setvault", help="Beddel balance dial bank wla casino.")
     @commands.is_owner()
     async def set_vault_cmd(self, ctx: commands.Context, vault_name: str, amount: AmountConverter):
         v_name = vault_name.lower()
@@ -1406,6 +1750,53 @@ class Economy(commands.Cog, name="Economy"):
             title=f"🚨 Fraud List ({len(rows)})"
         )
         await paginator.send()
+
+    # ============ SHOP & INVENTORY COMMANDS ============
+
+    @commands.command(name="shop", aliases=["store", "lhanout", "l7anout", "lhanot", "l7anot"], help="Chouf l7anout ta3 Sifdine.")
+    @not_fraud()
+    async def shop_cmd(self, ctx: commands.Context):
+        embed = await self.build_shop_embed(ctx.author.id)
+        view = ShopView(ctx.author, self)
+        view.message = await ctx.send(embed=embed, view=view)
+
+    @commands.command(name="inventory", aliases=["inv", "bag", "chkara", "shkara", "xkara"], help="Chouf l items li f chkara dialek wla dial chy user.")
+    @not_fraud()
+    async def inventory_cmd(self, ctx: commands.Context, target: Optional[FuzzyMember] = None):
+        user = target or ctx.author
+        items = await self.get_user_inventory(user.id)
+        embed = self.build_inventory_embed(user, items)
+        view = InventoryView(user, ctx.author, self, items)
+        view.message = await ctx.send(embed=embed, view=view)
+
+    @commands.command(name="giveitem", help="Zid item l chy user.")
+    @commands.is_owner()
+    async def give_item_cmd(self, ctx: commands.Context, target: FuzzyMember, item_id: str, quantity: int = 1):
+        if quantity <= 0:
+            await ctx.send("❌ Quantity khas tkoun kber mn 0.")
+            return
+
+        clean_id = item_id.lower().strip()
+        await self.add_inventory_item(target.id, clean_id, quantity=quantity)
+        cat_item = get_item(clean_id)
+        name_str = f"**{quantity}x {cat_item.emoji} {cat_item.name}**" if cat_item else f"**{quantity}x `{clean_id}`**"
+        await ctx.send(f"✅ Zdna {name_str} f chkaradial **{target.mention}**!")
+
+    @commands.command(name="takeitem", help="N9ess item mn chkara dial chy user.")
+    @commands.is_owner()
+    async def take_item_cmd(self, ctx: commands.Context, target: FuzzyMember, item_id: str, quantity: int = 1):
+        if quantity <= 0:
+            await ctx.send("❌ Quantity khas tkoun kber mn 0.")
+            return
+
+        clean_id = item_id.lower().strip()
+        success = await self.remove_inventory_item(target.id, clean_id, quantity=quantity)
+        if success:
+            cat_item = get_item(clean_id)
+            name_str = f"**{quantity}x {cat_item.emoji} {cat_item.name}**" if cat_item else f"**{quantity}x `{clean_id}`**"
+            await ctx.send(f"✅ N9ssna {name_str} mn chkaradial **{target.mention}**.")
+        else:
+            await ctx.send(f"❌ **{target.mention}** ma3ndoch had quantity dial `{clean_id}` f chkaradialo.")
 
 
 async def setup(bot):
