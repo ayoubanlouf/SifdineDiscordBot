@@ -666,7 +666,7 @@ class FragranticaToggleView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author_id:
-            await interaction.response.send_message("Had l'bouton dial li tlbo.", ephemeral=True)
+            await interaction.response.send_message("Had l button machy ta3k.", ephemeral=True)
             return False
         return True
 
@@ -1788,10 +1788,10 @@ class GlobUtil(commands.Cog, name="Global Util"):
                         return
                     elif err == "too_large":
                         view = discord.ui.View()
-                        view.add_item(discord.ui.Button(label="⬇️ Télécharger l'video (Direct Link)", url=direct_url, style=discord.ButtonStyle.link))
+                        view.add_item(discord.ui.Button(label="⬇️ Download (Direct Link)", url=direct_url, style=discord.ButtonStyle.link))
                         embed = discord.Embed(
                             title="🎬 " + title[:80],
-                            description="L'video kber mn 25MB (Discord limit). T9ed ttelechargih direct mn had l'bouton:",
+                            description="L video kber mn 25MB (Discord limit). T9ed ttelechargih nichan mn had l button:",
                             color=0x000000
                         )
                         await wait.edit(embed=embed, view=view)

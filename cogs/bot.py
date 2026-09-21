@@ -140,7 +140,6 @@ class Bot(commands.Cog, name="Bot"):
                 color=0x000000,
                 timestamp=datetime.now(timezone.utc)
             )
-            embed.set_footer(text=f"Sifdine Host Management • {provider.capitalize()}")
             await msg.edit(content=None, embed=embed)
         except Exception as e:
             print(f"[RESTART] Failed to edit confirmation message: {e}")
@@ -1065,7 +1064,7 @@ class Bot(commands.Cog, name="Bot"):
         embed.add_field(name="📦 Optional Feature APIs", value="\n".join(opt_lines), inline=False)
 
         # Channel IDs
-        channel_vars = ["SUGGESTIONS_CHANNEL_ID", "BUGS_CHANNEL_ID", "BACKUP_CHANNEL_ID"]
+        channel_vars = ["SUGGESTIONS_CHANNEL_ID", "BUGS_CHANNEL_ID", "ASSETS_CHANNEL_ID"]
         chan_lines = []
         for var_name in channel_vars:
             val = os.environ.get(var_name)

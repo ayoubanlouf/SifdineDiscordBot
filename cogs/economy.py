@@ -3,10 +3,13 @@ import re
 import json
 import math
 import os
+import io
 import asyncio
+import aiohttp
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional, Tuple, Union
+from PIL import Image
 import discord
 from discord.ext import commands
 from converters import FuzzyMember, AmountConverter
@@ -17,6 +20,12 @@ from cogs.shop_catalog import (
     get_active_shop_items,
     get_items_by_category,
     register_item
+)
+from cogs.leveling_render import (
+    render_level_card,
+    render_wallet_card,
+    parse_color_input,
+    rgb_to_hex
 )
 
 
@@ -292,14 +301,19 @@ class WalletView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had l bouton machi ta3k!", ephemeral=True)
+            await interaction.response.send_message("❌ Had l button machi ta3k!", ephemeral=True)
             return False
         return True
 
     async def show_wallet_callback(self, interaction: discord.Interaction):
         self.current_page = "wallet"
         self._update_buttons()
-        embed = await self.cog.get_wallet_embed(self.target_user)
+        async with self.cog.bot.db.execute(
+            "SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = 'custom_wallet' AND quantity > 0",
+            (self.target_user.id,)
+        ) as cur:
+            has_cw = bool(await cur.fetchone())
+        embed = await self.cog.get_wallet_embed(self.target_user, has_custom_wallet=has_cw)
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def show_transactions_callback(self, interaction: discord.Interaction):
@@ -357,7 +371,7 @@ class VaultView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had l bouton machi ta3k!", ephemeral=True)
+            await interaction.response.send_message("❌ Had l button machi ta3k!", ephemeral=True)
             return False
         return True
 
@@ -380,12 +394,55 @@ class VaultView(discord.ui.View):
                 pass
 
 
+class ShopCheckoutView(discord.ui.View):
+    def __init__(self, author: Union[discord.Member, discord.User], cog, item: ShopItem):
+        super().__init__(timeout=90)
+        self.author = author
+        self.cog = cog
+        self.item = item
+        self.message: Optional[discord.Message] = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had checkout machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="✅ Confirm Purchase", style=discord.ButtonStyle.success)
+    async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        success, msg = await self.cog.purchase_shop_item(self.author.id, self.item.id)
+        embed = discord.Embed(
+            title="✅ Receipt" if success else "❌ Purchase Failed",
+            description=msg,
+            color=0x000000
+        )
+        for child in self.children:
+            if child.label == "✅ Confirm Purchase":
+                child.disabled = True
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="◀️ Back to Shop", style=discord.ButtonStyle.secondary)
+    async def back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = await self.cog.build_shop_embed(self.author.id)
+        view = ShopView(self.author, self.cog)
+        view.message = self.message
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+
+
 class ShopView(discord.ui.View):
     def __init__(self, author: Union[discord.Member, discord.User], cog):
         super().__init__(timeout=90)
         self.author = author
         self.cog = cog
-        self.selected_category = "all"
         self.message: Optional[discord.Message] = None
         self._build_ui()
 
@@ -395,14 +452,17 @@ class ShopView(discord.ui.View):
         if not active_items:
             return
 
-        categories = sorted(list(set(i.category.lower() for i in active_items)))
-        options = [discord.SelectOption(label="All Items", value="all", emoji="🛒", default=(self.selected_category == "all"))]
-        for cat in categories:
-            options.append(discord.SelectOption(label=cat.capitalize(), value=cat, default=(self.selected_category == cat)))
-
-        select = discord.ui.Select(placeholder="Khtar Category...", options=options)
-        select.callback = self.category_callback
-        self.add_item(select)
+        item_options = []
+        for it in active_items[:25]:
+            item_options.append(discord.SelectOption(
+                label=it.name,
+                value=it.id,
+                description=f"{it.price:,} TAD • Lvl {it.min_level}+",
+                emoji=it.emoji if len(it.emoji) <= 2 else None
+            ))
+        item_select = discord.ui.Select(placeholder="🛍️ Khtar item bach tchrih...", options=item_options, row=0)
+        item_select.callback = self.item_select_callback
+        self.add_item(item_select)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
@@ -410,11 +470,56 @@ class ShopView(discord.ui.View):
             return False
         return True
 
-    async def category_callback(self, interaction: discord.Interaction):
-        self.selected_category = interaction.data["values"][0]
-        self._build_ui()
-        embed = await self.cog.build_shop_embed(self.author.id, category=self.selected_category)
-        await interaction.response.edit_message(embed=embed, view=self)
+    async def item_select_callback(self, interaction: discord.Interaction):
+        selected_id = interaction.data["values"][0]
+        item = get_item(selected_id)
+        if not item:
+            await interaction.response.send_message("❌ Had l item ma kayench!", ephemeral=True)
+            return
+
+        wallet = await self.cog.get_wallet(self.author.id)
+        user_lvl = await self.cog.get_user_level(self.author.id)
+
+        # Check existing inventory count
+        async with self.cog.bot.db.execute(
+            "SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = ?",
+            (self.author.id, item.id)
+        ) as cursor:
+            row = await cursor.fetchone()
+        owned_qty = row[0] if row else 0
+
+        can_afford = wallet["balance"] >= item.price
+        has_level = user_lvl["level"] >= item.min_level
+        not_maxed = owned_qty < item.max_stack
+
+        embed = discord.Embed(
+            title=f"🛒 Checkout — {item.emoji} {item.name}",
+            color=0x000000
+        )
+        embed.description = f"*{item.description}*\n"
+        embed.add_field(name="💵 Prix", value=format_tad(item.price), inline=True)
+        embed.add_field(name="💳 Floussek (Balance)", value=format_tad(wallet["balance"]), inline=True)
+        embed.add_field(name="📦 Deja 3ndek", value=f"`{owned_qty}/{item.max_stack}`", inline=True)
+
+        status_notes = []
+        if not can_afford:
+            status_notes.append("❌ **Flousk makafyinch!** Khessek kter d flous.")
+        if not has_level:
+            status_notes.append(f"❌ **Level Na9ess!** Khassek tkoun Level {item.min_level}.")
+        if not not_maxed:
+            status_notes.append("❌ **Max Stock!** 3ndek deja lmaximum mn had l item.")
+
+        if status_notes:
+            embed.add_field(name="⚠️ Remarques", value="\n".join(status_notes), inline=False)
+
+        checkout_view = ShopCheckoutView(self.author, self.cog, item)
+        checkout_view.message = self.message
+
+        for child in checkout_view.children:
+            if child.label == "✅ Confirm Purchase" and (not can_afford or not has_level or not not_maxed):
+                child.disabled = True
+
+        await interaction.response.edit_message(embed=embed, view=checkout_view)
 
     async def on_timeout(self):
         for item in self.children:
@@ -479,6 +584,188 @@ class InventoryView(discord.ui.View):
                 await self.message.edit(view=self)
             except Exception:
                 pass
+
+
+class CustomizationColorsModal(discord.ui.Modal):
+    def __init__(self, target_name: str, curr_main: str, curr_accent: str, parent_view):
+        super().__init__(title=f"🎨 Colors — {target_name[:20]}")
+        self.parent_view = parent_view
+        self.curr_main = curr_main
+        self.curr_accent = curr_accent
+
+        self.main_input = discord.ui.TextInput(
+            label="Main Color (Glass Tint)",
+            placeholder=f"Hex wla smya (default: {curr_main})",
+            default=curr_main,
+            required=False,
+            max_length=30
+        )
+        self.accent_input = discord.ui.TextInput(
+            label="Accent Color (Glow & Borders)",
+            placeholder=f"Hex wla smya (default: {curr_accent})",
+            default=curr_accent,
+            required=False,
+            max_length=30
+        )
+        self.add_item(self.main_input)
+        self.add_item(self.accent_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        m_val = self.main_input.value.strip()
+        a_val = self.accent_input.value.strip()
+
+        # 1. Main color validation
+        if not m_val or m_val.lower() == "skip":
+            resolved_main = self.curr_main
+        elif m_val.lower() in ("reset", "default"):
+            resolved_main = "#000000"
+        else:
+            parsed = parse_color_input(m_val)
+            if parsed:
+                resolved_main = rgb_to_hex(parsed)
+            else:
+                err_embed = discord.Embed(
+                    title=f"🎨 Customizing {self.parent_view.target_name} - 2/2",
+                    description=(
+                        f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
+                        f"❌ **Erreur:** Main Color `{m_val}` mal9itach.\n"
+                        f"• Kteb colorname (e.g. `black`, `navy`, `purple`, `cyan`, `crimson`) wla Hex code (`#111827`)."
+                    ),
+                    color=0x000000
+                )
+                err_embed.set_footer(text="Kteb 'skip' f ay field bach tkhlli loun l9dim.")
+                await interaction.response.edit_message(embed=err_embed, view=self.parent_view)
+                return
+
+        # 2. Accent color validation
+        if not a_val or a_val.lower() == "skip":
+            resolved_accent = self.curr_accent
+        elif a_val.lower() in ("reset", "default"):
+            resolved_accent = "#ffffff"
+        else:
+            parsed = parse_color_input(a_val)
+            if parsed:
+                resolved_accent = rgb_to_hex(parsed)
+            else:
+                err_embed = discord.Embed(
+                    title=f"🎨 Customizing {self.parent_view.target_name} - 2/2",
+                    description=(
+                        f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
+                        f"❌ **Erreur:** Accent Color `{a_val}` mal9itach.\n"
+                        f"• Kteb colorname (e.g. `black`, `navy`, `purple`, `cyan`, `crimson`) wla Hex code (`#111827`)."
+                    ),
+                    color=0x000000
+                )
+                err_embed.set_footer(text="Kteb 'skip' f ay field bach tkhlli loun l9dim.")
+                await interaction.response.edit_message(embed=err_embed, view=self.parent_view)
+                return
+
+        # Both colors valid!
+        self.parent_view.chosen_main = resolved_main
+        self.parent_view.chosen_accent = resolved_accent
+        self.parent_view.finished.set()
+        await interaction.response.defer()
+
+
+class CustomizationColorsView(discord.ui.View):
+    def __init__(self, author: Union[discord.Member, discord.User], target_name: str, curr_main: str, curr_accent: str):
+        super().__init__(timeout=120)
+        self.author = author
+        self.target_name = target_name
+        self.curr_main = curr_main
+        self.curr_accent = curr_accent
+        self.chosen_main: Optional[str] = None
+        self.chosen_accent: Optional[str] = None
+        self.finished = asyncio.Event()
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had menu machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="🎨 Khtar l alwan (Choose Colors)", style=discord.ButtonStyle.primary)
+    async def open_modal_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        modal = CustomizationColorsModal(self.target_name, self.curr_main, self.curr_accent, self)
+        await interaction.response.send_modal(modal)
+
+
+class CustomizationConfirmView(discord.ui.View):
+    def __init__(self, author: Union[discord.Member, discord.User], cog, item_type: str, new_bg_url: Optional[str], new_main_color: str, new_accent_color: str):
+        super().__init__(timeout=120)
+        self.author = author
+        self.cog = cog
+        self.item_type = item_type  # "wallet" or "rank"
+        self.new_bg_url = new_bg_url
+        self.new_main_color = new_main_color
+        self.new_accent_color = new_accent_color
+        self.message: Optional[discord.Message] = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l menu machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="✅ Confirm & Save", style=discord.ButtonStyle.success)
+    async def confirm_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        now_ts = int(time.time())
+        if self.item_type == "wallet":
+            await self.cog.update_user_cosmetics(
+                self.author.id,
+                wallet_bg_url=self.new_bg_url,
+                wallet_main_color=self.new_main_color,
+                wallet_accent_color=self.new_accent_color,
+                wallet_last_updated=now_ts
+            )
+            title = "✨ Wallet Theme Saved!"
+            desc = "✅ Safi rah 9adit theme dialk. dir `sat wallet` bach tchoufo."
+        else:
+            await self.cog.update_user_cosmetics(
+                self.author.id,
+                rank_bg_url=self.new_bg_url,
+                rank_main_color=self.new_main_color,
+                rank_accent_color=self.new_accent_color,
+                rank_last_updated=now_ts
+            )
+            title = "✨ Rank Card Theme Saved!"
+            desc = "✅ Safi rah 9adit theme dialk. dir `sat rank` bach tchoufo."
+
+        for child in self.children:
+            child.disabled = True
+        self.stop()
+        embed = discord.Embed(title=title, description=desc, color=0x000000)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="❌ Cancel / Discard", style=discord.ButtonStyle.danger)
+    async def cancel_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for child in self.children:
+            child.disabled = True
+        self.stop()
+        embed = discord.Embed(
+            title="🚫 Customization Discarded",
+            description="Tcancela lprocess. Ma tbeddel walo f lcard dialek.",
+            color=0x000000
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            timeout_embed = discord.Embed(
+                title="⏳ Fatt Lweqt (Timeout)",
+                description="T3etelti bzaf f l-preview. Tcancela lprocess o ma tbeddel walo f lcard dialk.",
+                color=0x000000
+            )
+            timeout_embed.set_footer(text="Ila bghiti t3awed t-customizi, dir sat use mra khra.")
+            try:
+                await self.message.edit(embed=timeout_embed, view=self, attachments=[])
+            except Exception:
+                try:
+                    await self.message.edit(embed=timeout_embed, view=self)
+                except Exception:
+                    pass
 
 
 class Economy(commands.Cog, name="Economy"):
@@ -922,7 +1209,7 @@ class Economy(commands.Cog, name="Economy"):
         current_owned = row[0] if row else 0
 
         if current_owned + quantity > item.max_stack:
-            return False, f"❌ Mat9dch tksb kter mn **{item.max_stack}** mn had l-item (3ndek déjà `{current_owned}`)."
+            return False, f"❌ Mat9dch tksb kter mn **{item.max_stack}** mn had l item (3ndek déjà `{current_owned}`)."
 
         total_cost = item.price * quantity
         wallet = await self.get_wallet(user_id)
@@ -931,7 +1218,7 @@ class Economy(commands.Cog, name="Economy"):
 
         deducted = await self.deduct_balance(user_id, total_cost, context=f"Shop: {item.name} x{quantity}")
         if not deducted:
-            return False, "❌ Mochkil f l-flous wla wallet dialek mjemda."
+            return False, "❌ Mochkil f lflous wla wallet dialek mjemda."
 
         await self.deposit_vault("bank", total_cost, source="shop_purchase", context=f"Purchase of {item.name} x{quantity} by user {user_id}")
         await self.add_inventory_item(user_id, clean_id, quantity=quantity)
@@ -959,66 +1246,341 @@ class Economy(commands.Cog, name="Economy"):
             row = await cursor.fetchone()
 
         if not row or row[0] <= 0:
-            return False, f"❌ Ma3ndekch had l-item `{item_id}` f chkarata3k."
+            return False, f"❌ Ma3ndekch had l item `{item_id}` f chkara ta3k."
 
         if not item or not item.usable:
-            return False, f"❌ Had l-item **{item.name if item else item_id}** ma ymkench yst3mel directly."
+            return False, f"❌ Had l item **{item.name if item else item_id}** ma ymkench yst3mel directly."
 
         # Execute hook
         if item.on_use:
             try:
                 success, msg = await item.on_use(self.bot, user_id, ctx)
                 if not success:
-                    return False, f"❌ Ma 9ditch tsta3mel l-item: {msg}"
+                    return False, f"❌ Ma 9ditch tsta3mel l item: {msg}"
             except Exception as e:
-                return False, f"❌ Mochkil f l-isti3mal dial l-item: {e}"
+                return False, f"❌ Mochkil f l usage ta3 l item: {e}"
 
-        await self.remove_inventory_item(user_id, clean_id, quantity=1)
+        if getattr(item, "consumable", True):
+            await self.remove_inventory_item(user_id, clean_id, quantity=1)
         return True, f"✨ Sta3melti **{item.emoji} {item.name}** b-naja7!"
 
-    async def build_shop_embed(self, user_id: int, category: str = "all") -> discord.Embed:
-        wallet = await self.get_wallet(user_id)
-        user_lvl = await self.get_user_level(user_id)
+    async def get_user_cosmetics(self, user_id: int) -> dict:
+        async with self.bot.db.execute(
+            "SELECT wallet_private, wallet_bg_url, wallet_main_color, wallet_accent_color, wallet_last_updated, "
+            "rank_bg_url, rank_main_color, rank_accent_color, rank_last_updated FROM user_cosmetics WHERE user_id = ?",
+            (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+        if not row:
+            return {
+                "wallet_private": 0,
+                "wallet_bg_url": None,
+                "wallet_main_color": "#000000",
+                "wallet_accent_color": "#ffffff",
+                "wallet_last_updated": 0,
+                "rank_bg_url": None,
+                "rank_main_color": "#000000",
+                "rank_accent_color": "#ffffff",
+                "rank_last_updated": 0,
+            }
+        return {
+            "wallet_private": row[0] or 0,
+            "wallet_bg_url": row[1],
+            "wallet_main_color": row[2] or "#000000",
+            "wallet_accent_color": row[3] or "#ffffff",
+            "wallet_last_updated": row[4] or 0,
+            "rank_bg_url": row[5],
+            "rank_main_color": row[6] or "#000000",
+            "rank_accent_color": row[7] or "#ffffff",
+            "rank_last_updated": row[8] or 0,
+        }
+
+    async def update_user_cosmetics(self, user_id: int, **kwargs) -> None:
+        await self.bot.db.execute(
+            "INSERT OR IGNORE INTO user_cosmetics (user_id) VALUES (?)",
+            (user_id,)
+        )
+        valid_cols = {
+            "wallet_private", "wallet_bg_url", "wallet_main_color", "wallet_accent_color", "wallet_last_updated",
+            "rank_bg_url", "rank_main_color", "rank_accent_color", "rank_last_updated"
+        }
+        filtered = {k: v for k, v in kwargs.items() if k in valid_cols}
+        if filtered:
+            set_clauses = [f"{k} = ?" for k in filtered.keys()]
+            values = list(filtered.values()) + [user_id]
+            sql = f"UPDATE user_cosmetics SET {', '.join(set_clauses)} WHERE user_id = ?"
+            await self.bot.db.execute(sql, tuple(values))
+        await self.bot.db.commit()
+
+    async def fetch_image_bytes(self, url: str) -> Optional[bytes]:
+        if not url:
+            return None
+        try:
+            timeout = aiohttp.ClientTimeout(total=8)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        data = await resp.read()
+                        if len(data) <= 10 * 1024 * 1024:
+                            return data
+        except Exception:
+            pass
+        return None
+
+    async def rehost_asset(self, img_bytes: bytes, filename: str, user: Union[discord.Member, discord.User]) -> Optional[str]:
+        assets_channel_id_str = os.getenv("ASSETS_CHANNEL_ID")
+        if not assets_channel_id_str:
+            return None
+        try:
+            channel_id = int(assets_channel_id_str)
+            channel = self.bot.get_channel(channel_id)
+            if not channel:
+                channel = await self.bot.fetch_channel(channel_id)
+            if channel:
+                clean_ext = "png"
+                if filename and "." in filename:
+                    ext = filename.split(".")[-1].lower()
+                    if ext in ["jpg", "jpeg", "webp", "png"]:
+                        clean_ext = ext
+                file = discord.File(io.BytesIO(img_bytes), filename=f"asset_{user.id}_{int(time.time())}.{clean_ext}")
+                msg = await channel.send(f"Asset upload by {user.name} (`{user.id}`):", file=file)
+                if msg.attachments:
+                    return msg.attachments[0].url
+        except Exception:
+            pass
+        return None
+
+    async def run_cosmetic_wizard(self, ctx: commands.Context, item_type: str):
+        user_id = ctx.author.id
+        cosmetics = await self.get_user_cosmetics(user_id)
+
+        target_name = "Wallet Card" if item_type == "wallet" else "Rank Level Card"
+        curr_bg = cosmetics.get(f"{item_type}_bg_url")
+        curr_main = cosmetics.get(f"{item_type}_main_color") or "#000000"
+        curr_accent = cosmetics.get(f"{item_type}_accent_color") or "#ffffff"
+
+        def check(m: discord.Message):
+            return m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
+
+        start_embed = discord.Embed(
+            title=f"🎨 Customizing {target_name} - 1/2",
+            description=(
+                f"🖼️ **Step 1/2: Background Image**\n\n"
+                f"• Sift background jdida f had channel (upload attachment wla direct link).\n"
+            ),
+            color=0x000000
+        )
+        start_embed.set_footer(text="Kteb `skip` bach tkhelli lbackground l9dima, wla `reset` bach trje3 default.")
+        step_msg = await ctx.send(embed=start_embed)
+
+        # Step 1: Background Loop
+        new_bg_url = curr_bg
+        error_msgs = []
+
+        while True:
+            try:
+                user_msg = await self.bot.wait_for("message", timeout=90.0, check=check)
+            except asyncio.TimeoutError:
+                for em in error_msgs:
+                    try:
+                        await em.delete()
+                    except Exception:
+                        pass
+                return await ctx.send("⏳ T3etelti 3lia, 3awd mn lwl.")
+
+            content = user_msg.content.strip()
+            is_valid = False
+            error_reason = None
+
+            if user_msg.attachments:
+                att = user_msg.attachments[0]
+                if att.size > 8 * 1024 * 1024:
+                    error_reason = "⚠️ Tsouira kbeera bazaf (fayta 8MB). Sift tsouira sgher mn 8MB."
+                elif att.content_type and not att.content_type.startswith("image/"):
+                    error_reason = "⚠️ Had lfile machi tsouira. Sift tsouira (PNG, JPG, WEBP)."
+                else:
+                    try:
+                        att_bytes = await att.read()
+                        Image.open(io.BytesIO(att_bytes)).verify()
+                        rehosted_url = await self.rehost_asset(att_bytes, att.filename, ctx.author)
+                        new_bg_url = rehosted_url or att.url
+                        is_valid = True
+                    except Exception:
+                        error_reason = "⚠️ Had lfile machi tsouira valid. 3awd jereb b tsouira khra."
+
+            elif content.lower() in ["reset", "none", "remove", "default"]:
+                new_bg_url = None
+                is_valid = True
+
+            elif content.lower() == "skip":
+                new_bg_url = curr_bg
+                is_valid = True
+
+            elif content.startswith("http://") or content.startswith("https://"):
+                url_bytes = await self.fetch_image_bytes(content)
+                if url_bytes:
+                    try:
+                        Image.open(io.BytesIO(url_bytes)).verify()
+                        rehosted_url = await self.rehost_asset(url_bytes, "wallpaper.png", ctx.author)
+                        new_bg_url = rehosted_url or content
+                        is_valid = True
+                    except Exception:
+                        error_reason = "⚠️ Had link machi tsouira valid. 3tini direct link wla upload-iha."
+                else:
+                    error_reason = "⚠️ Ma9ditch ntelechargi had link d tsouira. 3tini direct link wla upload-iha."
+            else:
+                error_reason = "⚠️ Sift tsouira (upload attachment) wla direct link, wla kteb `skip` / `reset`."
+
+            if is_valid:
+                try:
+                    await user_msg.add_reaction("✅")
+                except Exception:
+                    pass
+                await asyncio.sleep(2)
+                try:
+                    await user_msg.delete()
+                except Exception:
+                    pass
+                for em in error_msgs:
+                    try:
+                        await em.delete()
+                    except Exception:
+                        pass
+                break
+            else:
+                try:
+                    await user_msg.add_reaction("❌")
+                except Exception:
+                    pass
+                err_reply = await user_msg.reply(error_reason, mention_author=True)
+                error_msgs.append(err_reply)
+
+        # Step 2: Main Color & Accent Color via Modal
+        step2_embed = discord.Embed(
+            title=f"🎨 Customizing {target_name} - 2/2",
+            description=(
+                f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
+                f"• Wrek 3la l button lte7t bach tkhtar **Main Color** o **Accent Color**.\n"
+                f"• Dekhel colorname (e.g. `black`, `navy`, `purple`, `cyan`, `pink`, `orange`, `gold`) wla Hexcode (`#111827`, `#ff2a85`)."
+            ),
+            color=0x000000
+        )
+        step2_embed.set_footer(text="Kteb 'skip' f ay champ bach tkhlli loun l9dim.")
+        colors_view = CustomizationColorsView(ctx.author, target_name, curr_main, curr_accent)
+        await step_msg.edit(embed=step2_embed, view=colors_view)
+
+        try:
+            await asyncio.wait_for(colors_view.finished.wait(), timeout=120.0)
+        except asyncio.TimeoutError:
+            colors_view.stop()
+            try:
+                await step_msg.edit(view=None)
+            except Exception:
+                pass
+            return await ctx.send("⏳ T3etelti 3lia, 3awd mn lwl.")
+
+        new_main_color = colors_view.chosen_main or curr_main
+        new_accent_color = colors_view.chosen_accent or curr_accent
+
+        try:
+            await step_msg.delete()
+        except Exception:
+            pass
+
+        # Step 4: Live Card Preview & Confirmation
+        loading_msg = await ctx.send("⏳ Sber n9ad lik l preview...")
+
+        avatar_bytes = None
+        if ctx.author.display_avatar:
+            try:
+                avatar_bytes = await ctx.author.display_avatar.with_format("png").with_size(128).read()
+            except Exception:
+                avatar_bytes = None
+
+        bg_bytes = None
+        if new_bg_url:
+            bg_bytes = await self.fetch_image_bytes(new_bg_url)
+
+        if item_type == "wallet":
+            w = await self.get_wallet(user_id)
+            async with self.bot.db.execute("SELECT daily_streak FROM economy_cooldowns WHERE user_id = ?", (user_id,)) as cur:
+                cdr = await cur.fetchone()
+            d_streak = cdr[0] if cdr and cdr[0] else 0
+            buf = await asyncio.to_thread(
+                render_wallet_card,
+                username=ctx.author.display_name,
+                balance=w["balance"],
+                is_active=(w["is_fraud"] == 0),
+                is_private=bool(cosmetics.get("wallet_private", 0)),
+                daily_streak=d_streak,
+                avatar_bytes=avatar_bytes,
+                bg_bytes=bg_bytes,
+                main_color_str=new_main_color,
+                accent_color_str=new_accent_color
+            )
+            preview_filename = "wallet_preview.png"
+        else:
+            user_data = await self.get_user_level(user_id)
+            next_lvl, next_rew = get_next_milestone_info(user_data["level"])
+            buf = await asyncio.to_thread(
+                render_level_card,
+                username=ctx.author.display_name,
+                level=user_data["level"],
+                current_xp=user_data["current_xp"],
+                xp_needed=user_data["xp_needed"],
+                total_xp=user_data["total_xp"],
+                rank=user_data["rank"],
+                avatar_bytes=avatar_bytes,
+                next_milestone_level=next_lvl,
+                next_milestone_reward=next_rew,
+                bg_bytes=bg_bytes,
+                main_color_str=new_main_color,
+                accent_color_str=new_accent_color
+            )
+            preview_filename = "rank_preview.png"
+
+        file = discord.File(buf, filename=preview_filename)
+        preview_embed = discord.Embed(
+            title=f"👁️ Preview — {target_name}",
+            description=(
+                f"Haka ghadi tban lcard ta3k!\n"
+                f"• **Main Color:** `{new_main_color}`\n"
+                f"• **Accent Color:** `{new_accent_color}`\n"
+                f"• **Background:** {'`Custom Image`' if new_bg_url else '`Default Solid`'}"
+            ),
+            color=0x000000
+        )
+        preview_embed.set_image(url=f"attachment://{preview_filename}")
+        preview_embed.set_footer(text="3ndek 2 d9ayeq bach t-confirmi wla t-canceli.")
+
+        confirm_view = CustomizationConfirmView(ctx.author, self, item_type, new_bg_url, new_main_color, new_accent_color)
+        try:
+            await loading_msg.delete()
+        except Exception:
+            pass
+        confirm_view.message = await ctx.send(embed=preview_embed, file=file, view=confirm_view)
+
+    async def build_shop_embed(self, user_id: int) -> discord.Embed:
         active_items = get_active_shop_items()
 
         embed = discord.Embed(
-            title="🏪 Sifdine Central Market",
+            title="🏪 L7anout ta3 Sifdine",
             color=0x000000
         )
 
         if not active_items:
-            embed.description = (
-                "L7anout khawi 7aliyan..."
-            )
-            embed.set_footer(text="Stock coming soon")
+            embed.description = "*L7anout khawi 7aliyan...*"
             return embed
 
-        if category != "all":
-            filtered_items = [i for i in active_items if i.category.lower() == category.lower()]
-        else:
-            filtered_items = active_items
-
-        embed.description = (
-            f"Mar7ba bik f Souk Sifdine!\n"
-            f"💰 **Balance Dialek:** {format_tad(wallet['balance'])} • ⭐ **Level:** {user_lvl['level']}\n"
-        )
-
-        for item in filtered_items:
-            trade_str = "🤝 Tradeable" if item.tradeable else "🔒 Bound"
-            use_str = "⚡ Usable" if item.usable else "📦 Passive/Collectible"
-            lvl_str = f"⭐ Req: Lvl {item.min_level}" if item.min_level > 1 else ""
-            tags = " • ".join(filter(None, [trade_str, use_str, lvl_str]))
-
-            embed.add_field(
-                name=f"{item.emoji} {item.name} — `{item.id}`",
-                value=(
-                    f"*{item.description}*\n"
-                    f"💵 **Price:** {format_tad(item.price)} | {tags}"
-                ),
-                inline=False
+        desc_parts = []
+        for item in active_items:
+            desc_parts.append(
+                f"{item.emoji} **{item.name}** — {format_tad(item.price)}\n"
+                f"-# {item.description}"
             )
 
-        embed.set_footer(text="Sifdine Shop System")
+        embed.description = "\n\n".join(desc_parts)
+        embed.set_footer(text="💡 Khtar item mn dropdown menu bach tchrih.")
         return embed
 
     def build_inventory_embed(self, target_user: Union[discord.Member, discord.User], items: list, page: int = 0, page_size: int = 6) -> discord.Embed:
@@ -1030,39 +1592,41 @@ class Economy(commands.Cog, name="Economy"):
             embed.set_thumbnail(url=target_user.display_avatar.url)
 
         if not items:
-            embed.description = (
-                "Chkara khaawya am3lm..."
-            )
+            embed.description = "*Chkara khawya... Ma3ndek 7ta item daba.*"
             embed.set_footer(text="0 Items")
             return embed
 
         total_pages = max(1, math.ceil(len(items) / page_size))
         start_idx = page * page_size
         page_items = items[start_idx:start_idx + page_size]
-
-        total_items_count = sum(i["quantity"] for i in items)
-        embed.description = f"Total Items: **{total_items_count}** ({len(items)} types)\n"
+        desc_lines = []
 
         for it in page_items:
-            trade_tag = "🤝 Tradeable" if it["tradeable"] else "🔒 Account-Bound"
-            use_tag = "⚡ Usable" if it["usable"] else "📦 Passive"
-            serial_str = f" • *Mint #{it['serial_number']}*" if it["serial_number"] > 0 else ""
-
-            embed.add_field(
-                name=f"{it['emoji']} {it['name']} x{it['quantity']:,}{serial_str}",
-                value=(
-                    f"*{it['description']}*\n"
-                    f"ID: `{it['item_id']}` • {trade_tag} • {use_tag}"
-                ),
-                inline=False
+            serial_str = f" `#{it['serial_number']}`" if it["serial_number"] > 0 else ""
+            desc_lines.append(
+                f"{it['emoji']} **{it['name']}** ×{it['quantity']:,}{serial_str}\n"
+                f"-# {it['description']} (ID: `{it['item_id']}`)"
             )
 
-        embed.set_footer(text=f"Page {page + 1}/{total_pages} • Sifdine Inventory System")
+        embed.description = "\n\n".join(desc_lines)
+        embed.set_footer(text=f"Inventory Overview • Page {page + 1}/{total_pages}")
         return embed
 
-    async def get_wallet_embed(self, user: Union[discord.Member, discord.User]) -> discord.Embed:
+    async def get_wallet_embed(self, user: Union[discord.Member, discord.User], has_custom_wallet: bool = False) -> discord.Embed:
         w = await self.get_wallet(user.id)
         status_str = "🔒 **Frozen (Fraud)**" if w["is_fraud"] == 1 else "🟢 **Active**"
+
+        embed = discord.Embed(
+            title=f"💼 Bstam ta3 {user.display_name}",
+            color=0x000000
+        )
+        embed.set_footer(text=f"Wallet Overview • Page 1/3 • {user.display_name}")
+
+        if has_custom_wallet:
+            embed.set_image(url="attachment://wallet.png")
+            return embed
+
+        embed.set_thumbnail(url=user.display_avatar.url)
 
         # Check daily and weekly cooldown status
         async with self.bot.db.execute(
@@ -1075,7 +1639,6 @@ class Economy(commands.Cog, name="Economy"):
         daily_streak = cd_row[1] if cd_row and cd_row[1] else 0
         last_weekly = cd_row[2] if cd_row and cd_row[2] else 0
 
-        now_ts = int(time.time())
         now_casa = datetime.now(CASA_TZ)
         today_date = now_casa.date()
 
@@ -1101,16 +1664,10 @@ class Economy(commands.Cog, name="Economy"):
         else:
             weekly_val = f"⏳ Resets <t:{next_week_start_ts}:R>"
 
-        embed = discord.Embed(
-            title=f"💼 Bstam ta3 {user.display_name}",
-            color=0x000000
-        )
-        embed.set_thumbnail(url=user.display_avatar.url)
         embed.add_field(name="Balance", value=format_tad(w['balance']), inline=True)
         embed.add_field(name="Status", value=status_str, inline=True)
         embed.add_field(name="Daily Reward", value=daily_val, inline=False)
         embed.add_field(name="Weekly Reward", value=weekly_val, inline=False)
-        embed.set_footer(text=f"Wallet Overview • Page 1/3 • {user.display_name}")
         return embed
 
     async def get_transactions_embed(self, user: Union[discord.Member, discord.User], filter_mode: str = "all") -> discord.Embed:
@@ -1243,9 +1800,96 @@ class Economy(commands.Cog, name="Economy"):
     @not_fraud()
     async def wallet(self, ctx: commands.Context, member: Optional[FuzzyMember] = None):
         target = member or ctx.author
-        embed = await self.get_wallet_embed(target)
+        cosmetics = await self.get_user_cosmetics(target.id)
+
+        # Privacy Check
+        if target.id != ctx.author.id:
+            if cosmetics.get("wallet_private", 0) == 1:
+                await ctx.send("🔒 Mat9edch tchouf had lbstam.")
+                return
+
+        # Check custom_wallet ownership
+        async with self.bot.db.execute(
+            "SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = 'custom_wallet' AND quantity > 0",
+            (target.id,)
+        ) as cur:
+            has_custom_wallet = bool(await cur.fetchone())
+
+        embed = await self.get_wallet_embed(target, has_custom_wallet=has_custom_wallet)
         view = WalletView(target, ctx.author, self)
-        msg = await ctx.send(embed=embed, view=view)
+
+        if has_custom_wallet:
+            # Render custom wallet card
+            avatar_bytes = None
+            if target.display_avatar:
+                try:
+                    avatar_bytes = await target.display_avatar.with_format("png").with_size(128).read()
+                except Exception:
+                    avatar_bytes = None
+
+            bg_bytes = None
+            if cosmetics.get("wallet_bg_url"):
+                bg_bytes = await self.fetch_image_bytes(cosmetics["wallet_bg_url"])
+
+            w = await self.get_wallet(target.id)
+
+            # Check daily/weekly cooldown status
+            async with self.bot.db.execute(
+                "SELECT last_daily, daily_streak, last_weekly FROM economy_cooldowns WHERE user_id = ?",
+                (target.id,)
+            ) as cursor:
+                cd_row = await cursor.fetchone()
+
+            last_daily = cd_row[0] if cd_row and cd_row[0] else 0
+            daily_streak = cd_row[1] if cd_row and cd_row[1] else 0
+            last_weekly = cd_row[2] if cd_row and cd_row[2] else 0
+
+            now_ts = int(time.time())
+            now_casa = datetime.now(CASA_TZ)
+            today_date = now_casa.date()
+            daily_claimed = (datetime.fromtimestamp(last_daily, tz=CASA_TZ).date() == today_date) if last_daily else False
+            next_midnight = (now_casa + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            diff_secs = max(0, int(next_midnight.timestamp() - now_ts))
+            hours = diff_secs // 3600
+            mins = (diff_secs % 3600) // 60
+            if hours > 0:
+                daily_resets_in_str = f"Resets in {hours}h {mins}m"
+            else:
+                daily_resets_in_str = f"Resets in {mins}m"
+
+            current_week_start_ts = get_current_week_start_ts()
+            next_week_start_ts = get_next_week_start_ts()
+            weekly_claimed = bool(last_weekly and last_weekly >= current_week_start_ts)
+            diff_week = max(0, int(next_week_start_ts - now_ts))
+            w_days = diff_week // 86400
+            w_hours = (diff_week % 86400) // 3600
+            if w_days > 0:
+                weekly_resets_in_str = f"Resets in {w_days}d {w_hours}h"
+            else:
+                weekly_resets_in_str = f"Resets in {w_hours}h"
+
+            buf = await asyncio.to_thread(
+                render_wallet_card,
+                username=target.display_name,
+                balance=w["balance"],
+                is_active=(w["is_fraud"] == 0),
+                is_private=bool(cosmetics.get("wallet_private", 0)),
+                daily_streak=daily_streak,
+                daily_claimed=daily_claimed,
+                daily_resets_in_str=daily_resets_in_str,
+                weekly_claimed=weekly_claimed,
+                weekly_resets_in_str="Resets Monday",
+                avatar_bytes=avatar_bytes,
+                bg_bytes=bg_bytes,
+                main_color_str=cosmetics.get("wallet_main_color"),
+                accent_color_str=cosmetics.get("wallet_accent_color")
+            )
+
+            file = discord.File(buf, filename="wallet.png")
+            msg = await ctx.send(embed=embed, file=file, view=view)
+        else:
+            msg = await ctx.send(embed=embed, view=view)
+
         view.message = msg
 
     @commands.command(name="wallets", aliases=["bsatm", "bzatm", "rich", "richest"], help="Chouf tertib tl flous ta3 bnadm.")
@@ -1257,12 +1901,18 @@ class Economy(commands.Cog, name="Economy"):
             all_rows = await cursor.fetchall()
 
         if not all_rows:
-            await ctx.send("❌ Ba9i ta 7sab ma mssjl f l'economy.")
+            await ctx.send("❌ Mazal makayna ta wallet.")
             return
 
+        # Query private wallet user IDs
+        async with self.bot.db.execute("SELECT user_id FROM user_cosmetics WHERE wallet_private = 1") as cur:
+            private_rows = await cur.fetchall()
+        private_users = set(r[0] for r in private_rows)
+
+        bot_id = self.bot.user.id if self.bot.user else 0
         guild_member_ids = set(m.id for m in ctx.guild.members if not m.bot) if ctx.guild else set()
-        server_rows = [r for r in all_rows if r[0] in guild_member_ids][:50] if ctx.guild else []
-        global_rows = all_rows[:50]
+        server_rows = [r for r in all_rows if r[0] in guild_member_ids and r[0] != bot_id][:50] if ctx.guild else []
+        global_rows = [r for r in all_rows if r[0] != bot_id and not self.is_bot_user(r[0])][:50]
 
         medals = {1: "🥇", 2: "🥈", 3: "🥉"}
         chunk_size = 10
@@ -1291,7 +1941,9 @@ class Economy(commands.Cog, name="Economy"):
                     else:
                         u = self.bot.get_user(u_id)
                         member_str = f"**{u.name}**" if u else f"<@{u_id}>"
-                    lines.append(f"{rank_badge} {member_str} • {format_tad(bal)}")
+
+                    bal_display = "Hidden" if u_id in private_users else format_tad(bal)
+                    lines.append(f"{rank_badge} {member_str} • {bal_display}")
 
                 embed.description = "\n".join(lines)
                 embed.set_footer(text=f"Page {page_idx + 1}/{total_pages} • Top {len(rows_list)} {scope_name}")
@@ -1587,6 +2239,8 @@ class Economy(commands.Cog, name="Economy"):
         user_data = await self.get_user_level(user.id)
         next_lvl, next_rew = get_next_milestone_info(user_data["level"])
 
+        cosmetics = await self.get_user_cosmetics(user.id)
+
         avatar_bytes = None
         if user.display_avatar:
             try:
@@ -1594,6 +2248,10 @@ class Economy(commands.Cog, name="Economy"):
                 avatar_bytes = await user.display_avatar.with_format("png").with_size(128).read()
             except Exception:
                 avatar_bytes = None
+
+        bg_bytes = None
+        if cosmetics.get("rank_bg_url"):
+            bg_bytes = await self.fetch_image_bytes(cosmetics["rank_bg_url"])
 
         from cogs.leveling_render import render_level_card
         buf = await asyncio.to_thread(
@@ -1606,7 +2264,10 @@ class Economy(commands.Cog, name="Economy"):
             rank=user_data["rank"],
             avatar_bytes=avatar_bytes,
             next_milestone_level=next_lvl,
-            next_milestone_reward=next_rew
+            next_milestone_reward=next_rew,
+            bg_bytes=bg_bytes,
+            main_color_str=cosmetics.get("rank_main_color"),
+            accent_color_str=cosmetics.get("rank_accent_color")
         )
 
         file = discord.File(buf, filename="rank.png")
@@ -1769,34 +2430,116 @@ class Economy(commands.Cog, name="Economy"):
         view = InventoryView(user, ctx.author, self, items)
         view.message = await ctx.send(embed=embed, view=view)
 
-    @commands.command(name="giveitem", help="Zid item l chy user.")
+    @commands.command(name="use", help="Sta3mel item mn chkara dialek. Mital: sat use private_wallet")
+    @not_fraud()
+    async def use_cmd(self, ctx: commands.Context, *, item_id: Optional[str] = None):
+        if not item_id:
+            await ctx.send("❌ Khessek t-khtar l item li baghi tsta3mel. Mital: `sat use private_wallet` wla `sat use custom_wallet` wla `sat use custom_rank`.")
+            return
+
+        raw_id = item_id.lower().strip()
+        clean_id = raw_id.replace(" ", "_").replace("-", "_")
+        item = get_item(raw_id) or get_item(clean_id)
+        if item:
+            clean_id = item.id
+
+        # Check ownership
+        async with self.bot.db.execute(
+            "SELECT quantity FROM user_inventory WHERE user_id = ? AND item_id = ? AND quantity > 0",
+            (ctx.author.id, clean_id)
+        ) as cursor:
+            row = await cursor.fetchone()
+
+        if not row or row[0] <= 0:
+            item_name = item.name if item else clean_id
+            await ctx.send(f"❌ Ma3ndekch had l item `{item_name}` f chkara ta3k.")
+            return
+
+        if not item or not item.usable:
+            name_str = item.name if item else clean_id
+            await ctx.send(f"❌ Had l item **{name_str}** ma ymkench yst3mel directly.")
+            return
+
+        # Special cosmetic / perk item handlers
+        if clean_id == "private_wallet":
+            cosmetics = await self.get_user_cosmetics(ctx.author.id)
+            current_priv = cosmetics.get("wallet_private", 0)
+            new_priv = 0 if current_priv == 1 else 1
+            await self.update_user_cosmetics(ctx.author.id, wallet_private=new_priv)
+            if new_priv == 1:
+                await ctx.send("🔒 Safi ta wa7d may9ed ichouf bstamk db.")
+            else:
+                await ctx.send("🔓 Koulchy i9ed ichouf bstamk db.")
+            return
+
+        elif clean_id == "custom_wallet":
+            await self.run_cosmetic_wizard(ctx, item_type="wallet")
+            return
+
+        elif clean_id == "custom_rank":
+            await self.run_cosmetic_wizard(ctx, item_type="rank")
+            return
+
+        # Generic usable item fallback
+        success, msg = await self.use_inventory_item(ctx.author.id, clean_id, ctx)
+        await ctx.send(msg)
+
+    @commands.command(name="additem", aliases=["giveitem"], help="Zid item l chy user.")
     @commands.is_owner()
-    async def give_item_cmd(self, ctx: commands.Context, target: FuzzyMember, item_id: str, quantity: int = 1):
+    async def add_item_cmd(self, ctx: commands.Context, arg1: str, arg2: str, quantity: int = 1):
         if quantity <= 0:
             await ctx.send("❌ Quantity khas tkoun kber mn 0.")
             return
+
+        fuzzy_conv = FuzzyMember()
+        target = None
+        item_id = None
+        try:
+            target = await fuzzy_conv.convert(ctx, arg1)
+            item_id = arg2.lower().strip()
+        except Exception:
+            try:
+                target = await fuzzy_conv.convert(ctx, arg2)
+                item_id = arg1.lower().strip()
+            except Exception:
+                await ctx.send("❌ Kteb: `sat additem @User <item_id> [quantity]`")
+                return
 
         clean_id = item_id.lower().strip()
         await self.add_inventory_item(target.id, clean_id, quantity=quantity)
         cat_item = get_item(clean_id)
         name_str = f"**{quantity}x {cat_item.emoji} {cat_item.name}**" if cat_item else f"**{quantity}x `{clean_id}`**"
-        await ctx.send(f"✅ Zdna {name_str} f chkaradial **{target.mention}**!")
+        await ctx.send(f"✅ Zdna {name_str} f chkara dial **{target.mention}**!")
 
-    @commands.command(name="takeitem", help="N9ess item mn chkara dial chy user.")
+    @commands.command(name="removeitem", aliases=["takeitem", "delitem"], help="N9ess item mn chkara dial chy user.")
     @commands.is_owner()
-    async def take_item_cmd(self, ctx: commands.Context, target: FuzzyMember, item_id: str, quantity: int = 1):
+    async def remove_item_cmd(self, ctx: commands.Context, arg1: str, arg2: str, quantity: int = 1):
         if quantity <= 0:
             await ctx.send("❌ Quantity khas tkoun kber mn 0.")
             return
+
+        fuzzy_conv = FuzzyMember()
+        target = None
+        item_id = None
+        try:
+            target = await fuzzy_conv.convert(ctx, arg1)
+            item_id = arg2.lower().strip()
+        except Exception:
+            try:
+                target = await fuzzy_conv.convert(ctx, arg2)
+                item_id = arg1.lower().strip()
+            except Exception:
+                await ctx.send("❌ Kteb: `sat removeitem @User <item_id> [quantity]`")
+                return
 
         clean_id = item_id.lower().strip()
         success = await self.remove_inventory_item(target.id, clean_id, quantity=quantity)
         if success:
             cat_item = get_item(clean_id)
             name_str = f"**{quantity}x {cat_item.emoji} {cat_item.name}**" if cat_item else f"**{quantity}x `{clean_id}`**"
-            await ctx.send(f"✅ N9ssna {name_str} mn chkaradial **{target.mention}**.")
+            await ctx.send(f"✅ N9ssna {name_str} mn chkara dial **{target.mention}**.")
         else:
-            await ctx.send(f"❌ **{target.mention}** ma3ndoch had quantity dial `{clean_id}` f chkaradialo.")
+            await ctx.send(f"❌ **{target.mention}** ma3ndoch had quantity dial `{clean_id}` f chkara dialo.")
 
 
 async def setup(bot):

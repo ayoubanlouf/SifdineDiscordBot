@@ -605,6 +605,22 @@ async def setup_hook():
     await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_inv_user ON user_inventory (user_id)")
     await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_inv_item ON user_inventory (item_id)")
 
+    # User Cosmetics & Privacy Table
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS user_cosmetics (
+            user_id INTEGER PRIMARY KEY,
+            wallet_private INTEGER DEFAULT 0,
+            wallet_bg_url TEXT DEFAULT NULL,
+            wallet_main_color TEXT DEFAULT '#000000',
+            wallet_accent_color TEXT DEFAULT '#ffffff',
+            wallet_last_updated INTEGER DEFAULT 0,
+            rank_bg_url TEXT DEFAULT NULL,
+            rank_main_color TEXT DEFAULT '#000000',
+            rank_accent_color TEXT DEFAULT '#ffffff',
+            rank_last_updated INTEGER DEFAULT 0
+        )
+    """)
+
     await bot.db.commit()
 
     # Initialize and pre-populate in-memory performance caches (<100 KB RAM)
