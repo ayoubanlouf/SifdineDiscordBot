@@ -9,7 +9,7 @@ import aiohttp
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional, Tuple, Union
-from PIL import Image
+from PIL import Image, ImageOps
 import discord
 from discord.ext import commands
 from converters import FuzzyMember, AmountConverter
@@ -73,6 +73,28 @@ def get_next_week_start_ts() -> int:
     current_week_start = (now_casa - timedelta(days=now_casa.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     next_week_start = current_week_start + timedelta(days=7)
     return int(next_week_start.timestamp())
+
+
+def optimize_card_background(raw_bytes: bytes, target_size: Tuple[int, int]) -> bytes:
+    """
+    Pre-crops and compresses background wallpapers to exact card dimensions (e.g. 1640x640).
+    Saves as 88-quality JPEG (~150KB) or PNG (if transparent).
+    Prevents 8MB upload limit issues and accelerates future card renders by ~70%.
+    """
+    with Image.open(io.BytesIO(raw_bytes)) as img:
+        img = img.convert("RGBA")
+        fitted = ImageOps.fit(img, target_size, Image.Resampling.LANCZOS)
+        out = io.BytesIO()
+        has_transparency = any(p[3] < 255 for p in fitted.getdata()) if fitted.mode in ("RGBA", "LA") else False
+        if has_transparency:
+            fitted.save(out, format="PNG", optimize=False)
+        else:
+            fitted_rgb = fitted.convert("RGB")
+            fitted_rgb.save(out, format="JPEG", quality=88, optimize=True)
+            fitted_rgb.close()
+        fitted.close()
+        out.seek(0)
+        return out.getvalue()
 
 
 def parse_bet_argument(*args, user_balance: Optional[int] = None) -> Tuple[Optional[int], list]:
@@ -250,11 +272,12 @@ WalletsPaginationView = LeaderboardFilterPaginationView
 
 
 class WalletView(discord.ui.View):
-    def __init__(self, target_user: Union[discord.Member, discord.User], author: Union[discord.Member, discord.User], cog):
+    def __init__(self, target_user: Union[discord.Member, discord.User], author: Union[discord.Member, discord.User], cog, cached_card_bytes: Optional[bytes] = None):
         super().__init__(timeout=90)
         self.target_user = target_user
         self.author = author
         self.cog = cog
+        self.cached_card_bytes = cached_card_bytes
         self.current_page = "wallet"  # "wallet", "transactions", "summary"
         self.filter_mode = "all"  # "all", "plus", "minus"
         self.message: Optional[discord.Message] = None
@@ -314,20 +337,25 @@ class WalletView(discord.ui.View):
         ) as cur:
             has_cw = bool(await cur.fetchone())
         embed = await self.cog.get_wallet_embed(self.target_user, has_custom_wallet=has_cw)
-        await interaction.response.edit_message(embed=embed, view=self)
+        if has_cw and self.cached_card_bytes:
+            file = discord.File(io.BytesIO(self.cached_card_bytes), filename="wallet.png")
+            embed.set_image(url="attachment://wallet.png")
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[file])
+        else:
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[])
 
     async def show_transactions_callback(self, interaction: discord.Interaction):
         self.current_page = "transactions"
         self.filter_mode = "all"
         self._update_buttons()
         embed = await self.cog.get_transactions_embed(self.target_user, self.filter_mode)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=self, attachments=[])
 
     async def show_summary_callback(self, interaction: discord.Interaction):
         self.current_page = "summary"
         self._update_buttons()
         embed = await self.cog.get_wallet_summary_embed(self.target_user)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=self, attachments=[])
 
     async def toggle_filter_callback(self, interaction: discord.Interaction):
         modes = ["all", "plus", "minus"]
@@ -335,7 +363,7 @@ class WalletView(discord.ui.View):
         self.filter_mode = modes[(curr_idx + 1) % len(modes)]
         self._update_buttons()
         embed = await self.cog.get_transactions_embed(self.target_user, self.filter_mode)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=self, attachments=[])
 
     async def on_timeout(self):
         for item in self.children:
@@ -503,7 +531,7 @@ class ShopView(discord.ui.View):
 
         status_notes = []
         if not can_afford:
-            status_notes.append("❌ **Flousk makafyinch!** Khessek kter d flous.")
+            status_notes.append(f"❌ **Flousk makafyinch!** Khassak {format_tad(item.price - wallet['balance'])}.")
         if not has_level:
             status_notes.append(f"❌ **Level Na9ess!** Khassek tkoun Level {item.min_level}.")
         if not not_maxed:
@@ -532,12 +560,13 @@ class ShopView(discord.ui.View):
 
 
 class InventoryView(discord.ui.View):
-    def __init__(self, target_user: Union[discord.Member, discord.User], author: Union[discord.Member, discord.User], cog, items: list):
+    def __init__(self, target_user: Union[discord.Member, discord.User], author: Union[discord.Member, discord.User], cog, items: list, cosmetics: Optional[dict] = None):
         super().__init__(timeout=90)
         self.target_user = target_user
         self.author = author
         self.cog = cog
         self.items = items
+        self.cosmetics = cosmetics or {}
         self.current_page = 0
         self.page_size = 6
         self.message: Optional[discord.Message] = None
@@ -547,13 +576,76 @@ class InventoryView(discord.ui.View):
         self.clear_items()
         total_pages = max(1, math.ceil(len(self.items) / self.page_size))
         if total_pages > 1:
-            btn_prev = discord.ui.Button(label="◀️", style=discord.ButtonStyle.primary, disabled=(self.current_page == 0))
+            btn_prev = discord.ui.Button(label="◀️", style=discord.ButtonStyle.primary, disabled=(self.current_page == 0), row=0)
             btn_prev.callback = self.prev_page
             self.add_item(btn_prev)
 
-            btn_next = discord.ui.Button(label="▶️", style=discord.ButtonStyle.primary, disabled=(self.current_page >= total_pages - 1))
+            btn_next = discord.ui.Button(label="▶️", style=discord.ButtonStyle.primary, disabled=(self.current_page >= total_pages - 1), row=0)
             btn_next.callback = self.next_page
             self.add_item(btn_next)
+
+        # Usable items dropdown menu (only available if viewing own inventory)
+        if self.author.id == self.target_user.id:
+            now_ts = int(time.time())
+            usable_options = []
+            seen_ids = set()
+
+            for it in self.items:
+                i_id = it["item_id"]
+                if i_id in seen_ids:
+                    continue
+                seen_ids.add(i_id)
+
+                cat_item = get_item(i_id)
+                if not cat_item or not cat_item.usable:
+                    continue
+
+                # Filter out items that are currently on cooldown (1h cooldown)
+                if i_id == "custom_wallet":
+                    last_up = self.cosmetics.get("wallet_last_updated", 0) or 0
+                    if now_ts - last_up < 1 * 3600:
+                        continue
+                elif i_id == "custom_rank":
+                    last_up = self.cosmetics.get("rank_last_updated", 0) or 0
+                    if now_ts - last_up < 1 * 3600:
+                        continue
+
+                label = cat_item.name[:25]
+                desc = f"Sta3mel {cat_item.name}"[:50]
+                usable_options.append(discord.SelectOption(
+                    label=label,
+                    value=i_id,
+                    emoji=cat_item.emoji or "📦",
+                    description=desc
+                ))
+
+            if usable_options:
+                select = discord.ui.Select(
+                    placeholder="⚡ Sta3mel item mn chkara...",
+                    options=usable_options[:25],
+                    row=1
+                )
+                select.callback = self.on_use_select
+                self.add_item(select)
+
+    async def on_use_select(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l menu machi ta3k!", ephemeral=True)
+            return
+
+        selected_id = interaction.data["values"][0]
+
+        # Disable view items to prevent duplicate actions
+        for item in self.children:
+            item.disabled = True
+        try:
+            await interaction.response.edit_message(view=self)
+        except Exception:
+            pass
+
+        ctx = await self.cog.bot.get_context(interaction.message)
+        ctx.author = self.author
+        await self.cog.use_cmd(ctx, item_id=selected_id)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
@@ -565,7 +657,7 @@ class InventoryView(discord.ui.View):
         if self.current_page > 0:
             self.current_page -= 1
             self._update_buttons()
-            embed = self.cog.build_inventory_embed(self.target_user, self.items, self.current_page, self.page_size)
+            embed = self.cog.build_inventory_embed(self.target_user, self.items, self.current_page, self.page_size, cosmetics=self.cosmetics)
             await interaction.response.edit_message(embed=embed, view=self)
 
     async def next_page(self, interaction: discord.Interaction):
@@ -573,7 +665,7 @@ class InventoryView(discord.ui.View):
         if self.current_page < total_pages - 1:
             self.current_page += 1
             self._update_buttons()
-            embed = self.cog.build_inventory_embed(self.target_user, self.items, self.current_page, self.page_size)
+            embed = self.cog.build_inventory_embed(self.target_user, self.items, self.current_page, self.page_size, cosmetics=self.cosmetics)
             await interaction.response.edit_message(embed=embed, view=self)
 
     async def on_timeout(self):
@@ -607,8 +699,16 @@ class CustomizationColorsModal(discord.ui.Modal):
             required=False,
             max_length=30
         )
+        self.hex_input = discord.ui.TextInput(
+            label="Hexcodes",
+            default="https://share.google/BfHGfcbhTi1r6Yt89",
+            placeholder="Hexcodes: https://share.google/BfHGfcbhTi1r6Yt89",
+            required=False,
+            max_length=100
+        )
         self.add_item(self.main_input)
         self.add_item(self.accent_input)
+        self.add_item(self.hex_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         m_val = self.main_input.value.strip()
@@ -629,7 +729,8 @@ class CustomizationColorsModal(discord.ui.Modal):
                     description=(
                         f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
                         f"❌ **Erreur:** Main Color `{m_val}` mal9itach.\n"
-                        f"• Kteb colorname (e.g. `black`, `navy`, `purple`, `cyan`, `crimson`) wla Hex code (`#111827`)."
+                        f"• Kteb colorname (e.g. `black`, `navy`, `purple`, `cyan`, `crimson`) wla Hex code (`#111827`).\n\n"
+                        f"Hexcodes: https://share.google/BfHGfcbhTi1r6Yt89"
                     ),
                     color=0x000000
                 )
@@ -652,7 +753,8 @@ class CustomizationColorsModal(discord.ui.Modal):
                     description=(
                         f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
                         f"❌ **Erreur:** Accent Color `{a_val}` mal9itach.\n"
-                        f"• Kteb colorname (e.g. `black`, `navy`, `purple`, `cyan`, `crimson`) wla Hex code (`#111827`)."
+                        f"• Kteb colorname (e.g. `black`, `navy`, `purple`, `cyan`, `crimson`) wla Hex code (`#111827`).\n\n"
+                        f"Hexcodes: https://share.google/BfHGfcbhTi1r6Yt89"
                     ),
                     color=0x000000
                 )
@@ -667,6 +769,26 @@ class CustomizationColorsModal(discord.ui.Modal):
         await interaction.response.defer()
 
 
+class CustomizationBackgroundView(discord.ui.View):
+    def __init__(self, author: Union[discord.Member, discord.User]):
+        super().__init__(timeout=90)
+        self.author = author
+        self.skipped = False
+        self.finished = asyncio.Event()
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l menu machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="⏭️ Skip", style=discord.ButtonStyle.secondary)
+    async def skip_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.skipped = True
+        self.finished.set()
+        await interaction.response.defer()
+
+
 class CustomizationColorsView(discord.ui.View):
     def __init__(self, author: Union[discord.Member, discord.User], target_name: str, curr_main: str, curr_accent: str):
         super().__init__(timeout=120)
@@ -676,6 +798,7 @@ class CustomizationColorsView(discord.ui.View):
         self.curr_accent = curr_accent
         self.chosen_main: Optional[str] = None
         self.chosen_accent: Optional[str] = None
+        self.went_back: bool = False
         self.finished = asyncio.Event()
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -684,16 +807,30 @@ class CustomizationColorsView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="🎨 Khtar l alwan (Choose Colors)", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="⏮️ Back", style=discord.ButtonStyle.secondary)
+    async def back_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.went_back = True
+        self.finished.set()
+        await interaction.response.defer()
+
+    @discord.ui.button(label="🎨 Choose Colors", style=discord.ButtonStyle.primary)
     async def open_modal_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = CustomizationColorsModal(self.target_name, self.curr_main, self.curr_accent, self)
         await interaction.response.send_modal(modal)
 
+    @discord.ui.button(label="⏭️ Skip", style=discord.ButtonStyle.secondary)
+    async def skip_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.chosen_main = self.curr_main
+        self.chosen_accent = self.curr_accent
+        self.finished.set()
+        await interaction.response.defer()
+
 
 class CustomizationConfirmView(discord.ui.View):
-    def __init__(self, author: Union[discord.Member, discord.User], cog, item_type: str, new_bg_url: Optional[str], new_main_color: str, new_accent_color: str):
+    def __init__(self, ctx: commands.Context, cog, item_type: str, new_bg_url: Optional[str], new_main_color: str, new_accent_color: str):
         super().__init__(timeout=120)
-        self.author = author
+        self.ctx = ctx
+        self.author = ctx.author
         self.cog = cog
         self.item_type = item_type  # "wallet" or "rank"
         self.new_bg_url = new_bg_url
@@ -707,7 +844,7 @@ class CustomizationConfirmView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="✅ Confirm & Save", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="✅ Save", style=discord.ButtonStyle.success)
     async def confirm_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         now_ts = int(time.time())
         if self.item_type == "wallet":
@@ -737,7 +874,18 @@ class CustomizationConfirmView(discord.ui.View):
         embed = discord.Embed(title=title, description=desc, color=0x000000)
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label="❌ Cancel / Discard", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="🔄 Retry", style=discord.ButtonStyle.secondary)
+    async def retry_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for child in self.children:
+            child.disabled = True
+        self.stop()
+        try:
+            await interaction.message.delete()
+        except Exception:
+            pass
+        await self.cog.run_cosmetic_wizard(self.ctx, item_type=self.item_type)
+
+    @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.danger)
     async def cancel_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         for child in self.children:
             child.disabled = True
@@ -747,7 +895,10 @@ class CustomizationConfirmView(discord.ui.View):
             description="Tcancela lprocess. Ma tbeddel walo f lcard dialek.",
             color=0x000000
         )
-        await interaction.response.edit_message(embed=embed, view=self)
+        try:
+            await interaction.response.edit_message(embed=embed, view=self, attachments=[])
+        except Exception:
+            await interaction.response.edit_message(embed=embed, view=self)
 
     async def on_timeout(self):
         for child in self.children:
@@ -755,10 +906,10 @@ class CustomizationConfirmView(discord.ui.View):
         if self.message:
             timeout_embed = discord.Embed(
                 title="⏳ Fatt Lweqt (Timeout)",
-                description="T3etelti bzaf f l-preview. Tcancela lprocess o ma tbeddel walo f lcard dialk.",
+                description="T3etelti bzaf f lpreview. Tcancela lprocess o ma tbeddel walo f lcard dialk.",
                 color=0x000000
             )
-            timeout_embed.set_footer(text="Ila bghiti t3awed t-customizi, dir sat use mra khra.")
+            timeout_embed.set_footer(text="Ila bghiti t3awed tcustomizi, dir sat use mra khra.")
             try:
                 await self.message.edit(embed=timeout_embed, view=self, attachments=[])
             except Exception:
@@ -1362,130 +1513,186 @@ class Economy(commands.Cog, name="Economy"):
         def check(m: discord.Message):
             return m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
 
-        start_embed = discord.Embed(
-            title=f"🎨 Customizing {target_name} - 1/2",
-            description=(
-                f"🖼️ **Step 1/2: Background Image**\n\n"
-                f"• Sift background jdida f had channel (upload attachment wla direct link).\n"
-            ),
-            color=0x000000
-        )
-        start_embed.set_footer(text="Kteb `skip` bach tkhelli lbackground l9dima, wla `reset` bach trje3 default.")
-        step_msg = await ctx.send(embed=start_embed)
-
-        # Step 1: Background Loop
+        current_step = 1
         new_bg_url = curr_bg
-        error_msgs = []
+        new_main_color = curr_main
+        new_accent_color = curr_accent
+        step_msg = None
 
         while True:
-            try:
-                user_msg = await self.bot.wait_for("message", timeout=90.0, check=check)
-            except asyncio.TimeoutError:
-                for em in error_msgs:
+            if current_step == 1:
+                start_embed = discord.Embed(
+                    title=f"🎨 Customizing {target_name} - 1/2",
+                    description=(
+                        f"🖼️ **Step 1/2: Background Image**\n\n"
+                        f"• Sift background jdida f had channel (upload attachment wla direct link).\n"
+                        f"• Wla wrek 3la **Skip** bach tkhlli background l9dima.\n"
+                    ),
+                    color=0x000000
+                )
+                start_embed.set_footer(text="Wrek 3la Skip wla kteb 'reset' bach trje3 default.")
+                bg_view = CustomizationBackgroundView(ctx.author)
+                if step_msg is None:
+                    step_msg = await ctx.send(embed=start_embed, view=bg_view)
+                else:
+                    await step_msg.edit(embed=start_embed, view=bg_view)
+
+                # Step 1: Background Loop
+                error_msgs = []
+                step1_done = False
+
+                while not step1_done:
+                    msg_task = asyncio.create_task(self.bot.wait_for("message", check=check))
+                    btn_task = asyncio.create_task(bg_view.finished.wait())
+
+                    done, pending = await asyncio.wait(
+                        [msg_task, btn_task],
+                        timeout=90.0,
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                    for t in pending:
+                        t.cancel()
+
+                    if not done:
+                        bg_view.stop()
+                        for em in error_msgs:
+                            try:
+                                await em.delete()
+                            except Exception:
+                                pass
+                        return await ctx.send("⏳ T3etelti 3lia, 3awd mn lwl.")
+
+                    if btn_task in done:
+                        # User clicked the Skip button!
+                        new_bg_url = curr_bg
+                        bg_view.stop()
+                        current_step = 2
+                        step1_done = True
+                        break
+
+                    user_msg = msg_task.result()
+                    content = user_msg.content.strip()
+                    is_valid = False
+                    error_reason = None
+
+                    if user_msg.attachments:
+                        att = user_msg.attachments[0]
+                        if att.size > 15 * 1024 * 1024:
+                            error_reason = "⚠️ Tsouira kbeera bazaf (fayta 15MB). Sift tsouira sgher mn 15MB."
+                        elif att.content_type and not att.content_type.startswith("image/"):
+                            error_reason = "⚠️ Had lfile machi tsouira. Sift tsouira (PNG, JPG, WEBP)."
+                        else:
+                            try:
+                                att_bytes = await att.read()
+                                Image.open(io.BytesIO(att_bytes)).verify()
+                                target_size = (1640, 640) if item_type == "wallet" else (1640, 540)
+                                processed_bytes = await asyncio.to_thread(optimize_card_background, att_bytes, target_size)
+                                rehosted_url = await self.rehost_asset(processed_bytes, "wallpaper.jpg", ctx.author)
+                                new_bg_url = rehosted_url or att.url
+                                is_valid = True
+                            except Exception:
+                                error_reason = "⚠️ Had lfile machi tsouira valid. 3awd jereb b tsouira khra."
+
+                    elif content.lower() in ["reset", "none", "remove", "default"]:
+                        new_bg_url = None
+                        is_valid = True
+
+                    elif content.lower() == "skip":
+                        new_bg_url = curr_bg
+                        is_valid = True
+
+                    elif content.startswith("http://") or content.startswith("https://"):
+                        url_bytes = await self.fetch_image_bytes(content)
+                        if url_bytes:
+                            try:
+                                Image.open(io.BytesIO(url_bytes)).verify()
+                                target_size = (1640, 640) if item_type == "wallet" else (1640, 540)
+                                processed_bytes = await asyncio.to_thread(optimize_card_background, url_bytes, target_size)
+                                rehosted_url = await self.rehost_asset(processed_bytes, "wallpaper.jpg", ctx.author)
+                                new_bg_url = rehosted_url or content
+                                is_valid = True
+                            except Exception:
+                                error_reason = "⚠️ Had link machi tsouira valid. 3tini direct link wla upload-iha."
+                        else:
+                            error_reason = "⚠️ Ma9ditch ntelechargi had link d tsouira. 3tini direct link wla upload-iha."
+                    else:
+                        error_reason = "⚠️ Sift tsouira (upload attachment) wla direct link, wla kteb `skip` / `reset`."
+
+                    if is_valid:
+                        bg_view.stop()
+                        try:
+                            await user_msg.add_reaction("✅")
+                        except Exception:
+                            pass
+                        await asyncio.sleep(1.5)
+                        try:
+                            await user_msg.delete()
+                        except Exception:
+                            pass
+                        for em in error_msgs:
+                            try:
+                                await em.delete()
+                            except Exception:
+                                pass
+                        current_step = 2
+                        step1_done = True
+                        break
+                    else:
+                        try:
+                            await user_msg.add_reaction("❌")
+                        except Exception:
+                            pass
+                        err_reply = await user_msg.reply(error_reason, mention_author=True)
+                        error_msgs.append(err_reply)
+
+            elif current_step == 2:
+                # Step 2: Main Color & Accent Color via Modal
+                step2_embed = discord.Embed(
+                    title=f"🎨 Customizing {target_name} - 2/2",
+                    description=(
+                        f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
+                        f"• Wrek 3la **Choose Colors** bach tkhtar **Main Color** o **Accent Color**.\n"
+                        f"• Wrek 3la **Skip** bach tkhlli l alwan l9dam.\n"
+                        f"• Wla wrek 3la **Back** bach trje3 l Step 1 (Background).\n"
+                        f"• Dekhel colorname (e.g. `black`, `navy`, `purple`, `cyan`, `pink`, `orange`, `gold`) wla Hexcode (`#111827`, `#ff2a85`).\n\n"
+                        f"Hexcodes: https://share.google/BfHGfcbhTi1r6Yt89"
+                    ),
+                    color=0x000000
+                )
+                step2_embed.set_footer(text="Kteb 'skip' f ay field bach tkhlli loun l9dim.")
+                colors_view = CustomizationColorsView(ctx.author, target_name, curr_main, curr_accent)
+                await step_msg.edit(embed=step2_embed, view=colors_view)
+
+                try:
+                    await asyncio.wait_for(colors_view.finished.wait(), timeout=120.0)
+                except asyncio.TimeoutError:
+                    colors_view.stop()
                     try:
-                        await em.delete()
+                        await step_msg.edit(view=None)
                     except Exception:
                         pass
-                return await ctx.send("⏳ T3etelti 3lia, 3awd mn lwl.")
+                    return await ctx.send("⏳ T3etelti 3lia, 3awd mn lwl.")
 
-            content = user_msg.content.strip()
-            is_valid = False
-            error_reason = None
+                if colors_view.went_back:
+                    colors_view.stop()
+                    current_step = 1
+                    continue
 
-            if user_msg.attachments:
-                att = user_msg.attachments[0]
-                if att.size > 8 * 1024 * 1024:
-                    error_reason = "⚠️ Tsouira kbeera bazaf (fayta 8MB). Sift tsouira sgher mn 8MB."
-                elif att.content_type and not att.content_type.startswith("image/"):
-                    error_reason = "⚠️ Had lfile machi tsouira. Sift tsouira (PNG, JPG, WEBP)."
-                else:
-                    try:
-                        att_bytes = await att.read()
-                        Image.open(io.BytesIO(att_bytes)).verify()
-                        rehosted_url = await self.rehost_asset(att_bytes, att.filename, ctx.author)
-                        new_bg_url = rehosted_url or att.url
-                        is_valid = True
-                    except Exception:
-                        error_reason = "⚠️ Had lfile machi tsouira valid. 3awd jereb b tsouira khra."
-
-            elif content.lower() in ["reset", "none", "remove", "default"]:
-                new_bg_url = None
-                is_valid = True
-
-            elif content.lower() == "skip":
-                new_bg_url = curr_bg
-                is_valid = True
-
-            elif content.startswith("http://") or content.startswith("https://"):
-                url_bytes = await self.fetch_image_bytes(content)
-                if url_bytes:
-                    try:
-                        Image.open(io.BytesIO(url_bytes)).verify()
-                        rehosted_url = await self.rehost_asset(url_bytes, "wallpaper.png", ctx.author)
-                        new_bg_url = rehosted_url or content
-                        is_valid = True
-                    except Exception:
-                        error_reason = "⚠️ Had link machi tsouira valid. 3tini direct link wla upload-iha."
-                else:
-                    error_reason = "⚠️ Ma9ditch ntelechargi had link d tsouira. 3tini direct link wla upload-iha."
-            else:
-                error_reason = "⚠️ Sift tsouira (upload attachment) wla direct link, wla kteb `skip` / `reset`."
-
-            if is_valid:
-                try:
-                    await user_msg.add_reaction("✅")
-                except Exception:
-                    pass
-                await asyncio.sleep(2)
-                try:
-                    await user_msg.delete()
-                except Exception:
-                    pass
-                for em in error_msgs:
-                    try:
-                        await em.delete()
-                    except Exception:
-                        pass
+                new_main_color = colors_view.chosen_main or curr_main
+                new_accent_color = colors_view.chosen_accent or curr_accent
                 break
-            else:
-                try:
-                    await user_msg.add_reaction("❌")
-                except Exception:
-                    pass
-                err_reply = await user_msg.reply(error_reason, mention_author=True)
-                error_msgs.append(err_reply)
-
-        # Step 2: Main Color & Accent Color via Modal
-        step2_embed = discord.Embed(
-            title=f"🎨 Customizing {target_name} - 2/2",
-            description=(
-                f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
-                f"• Wrek 3la l button lte7t bach tkhtar **Main Color** o **Accent Color**.\n"
-                f"• Dekhel colorname (e.g. `black`, `navy`, `purple`, `cyan`, `pink`, `orange`, `gold`) wla Hexcode (`#111827`, `#ff2a85`)."
-            ),
-            color=0x000000
-        )
-        step2_embed.set_footer(text="Kteb 'skip' f ay champ bach tkhlli loun l9dim.")
-        colors_view = CustomizationColorsView(ctx.author, target_name, curr_main, curr_accent)
-        await step_msg.edit(embed=step2_embed, view=colors_view)
-
-        try:
-            await asyncio.wait_for(colors_view.finished.wait(), timeout=120.0)
-        except asyncio.TimeoutError:
-            colors_view.stop()
-            try:
-                await step_msg.edit(view=None)
-            except Exception:
-                pass
-            return await ctx.send("⏳ T3etelti 3lia, 3awd mn lwl.")
-
-        new_main_color = colors_view.chosen_main or curr_main
-        new_accent_color = colors_view.chosen_accent or curr_accent
 
         try:
             await step_msg.delete()
         except Exception:
             pass
+
+        # If user didn't change anything, cancel without rendering preview or cooldown
+        bg_unchanged = (new_bg_url == curr_bg)
+        main_unchanged = (new_main_color.lower() == curr_main.lower())
+        accent_unchanged = (new_accent_color.lower() == curr_accent.lower())
+        if bg_unchanged and main_unchanged and accent_unchanged:
+            return await ctx.send("ℹ️ Mabeddelti walou f lcard dialk. Customization cancelled.")
 
         # Step 4: Live Card Preview & Confirmation
         loading_msg = await ctx.send("⏳ Sber n9ad lik l preview...")
@@ -1503,9 +1710,39 @@ class Economy(commands.Cog, name="Economy"):
 
         if item_type == "wallet":
             w = await self.get_wallet(user_id)
-            async with self.bot.db.execute("SELECT daily_streak FROM economy_cooldowns WHERE user_id = ?", (user_id,)) as cur:
+            async with self.bot.db.execute(
+                "SELECT last_daily, daily_streak, last_weekly FROM economy_cooldowns WHERE user_id = ?",
+                (user_id,)
+            ) as cur:
                 cdr = await cur.fetchone()
-            d_streak = cdr[0] if cdr and cdr[0] else 0
+            last_daily = cdr[0] if cdr and cdr[0] else 0
+            d_streak = cdr[1] if cdr and cdr[1] else 0
+            last_weekly = cdr[2] if cdr and cdr[2] else 0
+
+            now_ts = int(time.time())
+            now_casa = datetime.now(CASA_TZ)
+            today_date = now_casa.date()
+            daily_claimed = (datetime.fromtimestamp(last_daily, tz=CASA_TZ).date() == today_date) if last_daily else False
+            next_midnight = (now_casa + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            diff_secs = max(0, int(next_midnight.timestamp() - now_ts))
+            hours = diff_secs // 3600
+            mins = (diff_secs % 3600) // 60
+            if hours > 0:
+                daily_resets_in_str = f"Resets in {hours}h {mins}m"
+            else:
+                daily_resets_in_str = f"Resets in {mins}m"
+
+            current_week_start_ts = get_current_week_start_ts()
+            next_week_start_ts = get_next_week_start_ts()
+            weekly_claimed = bool(last_weekly and last_weekly >= current_week_start_ts)
+            diff_week = max(0, int(next_week_start_ts - now_ts))
+            w_days = diff_week // 86400
+            w_hours = (diff_week % 86400) // 3600
+            if w_days > 0:
+                weekly_resets_in_str = f"Resets in {w_days}d {w_hours}h"
+            else:
+                weekly_resets_in_str = f"Resets in {w_hours}h"
+
             buf = await asyncio.to_thread(
                 render_wallet_card,
                 username=ctx.author.display_name,
@@ -1513,6 +1750,10 @@ class Economy(commands.Cog, name="Economy"):
                 is_active=(w["is_fraud"] == 0),
                 is_private=bool(cosmetics.get("wallet_private", 0)),
                 daily_streak=d_streak,
+                daily_claimed=daily_claimed,
+                daily_resets_in_str=daily_resets_in_str,
+                weekly_claimed=weekly_claimed,
+                weekly_resets_in_str=weekly_resets_in_str,
                 avatar_bytes=avatar_bytes,
                 bg_bytes=bg_bytes,
                 main_color_str=new_main_color,
@@ -1551,9 +1792,8 @@ class Economy(commands.Cog, name="Economy"):
             color=0x000000
         )
         preview_embed.set_image(url=f"attachment://{preview_filename}")
-        preview_embed.set_footer(text="3ndek 2 d9ayeq bach t-confirmi wla t-canceli.")
 
-        confirm_view = CustomizationConfirmView(ctx.author, self, item_type, new_bg_url, new_main_color, new_accent_color)
+        confirm_view = CustomizationConfirmView(ctx, self, item_type, new_bg_url, new_main_color, new_accent_color)
         try:
             await loading_msg.delete()
         except Exception:
@@ -1583,7 +1823,7 @@ class Economy(commands.Cog, name="Economy"):
         embed.set_footer(text="💡 Khtar item mn dropdown menu bach tchrih.")
         return embed
 
-    def build_inventory_embed(self, target_user: Union[discord.Member, discord.User], items: list, page: int = 0, page_size: int = 6) -> discord.Embed:
+    def build_inventory_embed(self, target_user: Union[discord.Member, discord.User], items: list, page: int = 0, page_size: int = 6, cosmetics: Optional[dict] = None) -> discord.Embed:
         embed = discord.Embed(
             title=f"🎒 Chkara ta3 {target_user.display_name}",
             color=0x000000
@@ -1600,13 +1840,26 @@ class Economy(commands.Cog, name="Economy"):
         start_idx = page * page_size
         page_items = items[start_idx:start_idx + page_size]
         desc_lines = []
+        now_ts = int(time.time())
 
         for it in page_items:
             serial_str = f" `#{it['serial_number']}`" if it["serial_number"] > 0 else ""
-            desc_lines.append(
-                f"{it['emoji']} **{it['name']}** ×{it['quantity']:,}{serial_str}\n"
-                f"-# {it['description']} (ID: `{it['item_id']}`)"
-            )
+            item_text = f"{it['emoji']} **{it['name']}** ×{it['quantity']:,}{serial_str}\n-# {it['description']} (ID: `{it['item_id']}`)"
+
+            # Check if this item is on cooldown
+            if cosmetics:
+                if it['item_id'] == 'custom_wallet':
+                    w_last = cosmetics.get('wallet_last_updated', 0) or 0
+                    if now_ts - w_last < 1 * 3600:
+                        ready_ts = w_last + 1 * 3600
+                        item_text += f"\n-# ⏳ Cooldown: <t:{ready_ts}:R>"
+                elif it['item_id'] == 'custom_rank':
+                    r_last = cosmetics.get('rank_last_updated', 0) or 0
+                    if now_ts - r_last < 1 * 3600:
+                        ready_ts = r_last + 1 * 3600
+                        item_text += f"\n-# ⏳ Cooldown: <t:{ready_ts}:R>"
+
+            desc_lines.append(item_text)
 
         embed.description = "\n\n".join(desc_lines)
         embed.set_footer(text=f"Inventory Overview • Page {page + 1}/{total_pages}")
@@ -1816,7 +2069,6 @@ class Economy(commands.Cog, name="Economy"):
             has_custom_wallet = bool(await cur.fetchone())
 
         embed = await self.get_wallet_embed(target, has_custom_wallet=has_custom_wallet)
-        view = WalletView(target, ctx.author, self)
 
         if has_custom_wallet:
             # Render custom wallet card
@@ -1878,16 +2130,19 @@ class Economy(commands.Cog, name="Economy"):
                 daily_claimed=daily_claimed,
                 daily_resets_in_str=daily_resets_in_str,
                 weekly_claimed=weekly_claimed,
-                weekly_resets_in_str="Resets Monday",
+                weekly_resets_in_str=weekly_resets_in_str,
                 avatar_bytes=avatar_bytes,
                 bg_bytes=bg_bytes,
                 main_color_str=cosmetics.get("wallet_main_color"),
                 accent_color_str=cosmetics.get("wallet_accent_color")
             )
 
-            file = discord.File(buf, filename="wallet.png")
+            card_bytes = buf.getvalue()
+            view = WalletView(target, ctx.author, self, cached_card_bytes=card_bytes)
+            file = discord.File(io.BytesIO(card_bytes), filename="wallet.png")
             msg = await ctx.send(embed=embed, file=file, view=view)
         else:
+            view = WalletView(target, ctx.author, self)
             msg = await ctx.send(embed=embed, view=view)
 
         view.message = msg
@@ -2426,15 +2681,16 @@ class Economy(commands.Cog, name="Economy"):
     async def inventory_cmd(self, ctx: commands.Context, target: Optional[FuzzyMember] = None):
         user = target or ctx.author
         items = await self.get_user_inventory(user.id)
-        embed = self.build_inventory_embed(user, items)
-        view = InventoryView(user, ctx.author, self, items)
+        cosmetics = await self.get_user_cosmetics(user.id)
+        embed = self.build_inventory_embed(user, items, cosmetics=cosmetics)
+        view = InventoryView(user, ctx.author, self, items, cosmetics=cosmetics)
         view.message = await ctx.send(embed=embed, view=view)
 
     @commands.command(name="use", help="Sta3mel item mn chkara dialek. Mital: sat use private_wallet")
     @not_fraud()
     async def use_cmd(self, ctx: commands.Context, *, item_id: Optional[str] = None):
         if not item_id:
-            await ctx.send("❌ Khessek t-khtar l item li baghi tsta3mel. Mital: `sat use private_wallet` wla `sat use custom_wallet` wla `sat use custom_rank`.")
+            await ctx.send("Ina item bghiti tsta3mel? dir `sat inv` bach tchouf items ta3k.")
             return
 
         raw_id = item_id.lower().strip()
@@ -2473,10 +2729,26 @@ class Economy(commands.Cog, name="Economy"):
             return
 
         elif clean_id == "custom_wallet":
+            cosmetics = await self.get_user_cosmetics(ctx.author.id)
+            last_up = cosmetics.get("wallet_last_updated", 0) or 0
+            now_ts = int(time.time())
+            cooldown_dur = 1 * 3600
+            if now_ts - last_up < cooldown_dur:
+                ready_ts = last_up + cooldown_dur
+                await ctx.send(f"⏳ Mat9edch tkhedem **Custom Wallet** db. Rje3 <t:{ready_ts}:R>.")
+                return
             await self.run_cosmetic_wizard(ctx, item_type="wallet")
             return
 
         elif clean_id == "custom_rank":
+            cosmetics = await self.get_user_cosmetics(ctx.author.id)
+            last_up = cosmetics.get("rank_last_updated", 0) or 0
+            now_ts = int(time.time())
+            cooldown_dur = 1 * 3600
+            if now_ts - last_up < cooldown_dur:
+                ready_ts = last_up + cooldown_dur
+                await ctx.send(f"⏳ Mat9edch tkhedem **Custom Rank Card** db. Rje3 <t:{ready_ts}:R>.")
+                return
             await self.run_cosmetic_wizard(ctx, item_type="rank")
             return
 

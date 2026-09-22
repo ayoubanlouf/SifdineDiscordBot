@@ -11,8 +11,80 @@ import discord
 from discord.ext import commands
 from converters import FuzzyMember
 
-
 RESTART_STATE_FILE = ".pending_restart.json"
+
+
+class HostLogsView(discord.ui.View):
+    def __init__(self, cog, ctx, provider: str, pages: list, title: str, lines: int = 100):
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.ctx = ctx
+        self.provider = provider
+        self.pages = pages
+        self.title = title
+        self.lines = lines
+        self.current_page = 0
+        self.total_pages = len(pages)
+        self.message = None
+        self._update_buttons()
+
+    def _update_buttons(self):
+        self.clear_items()
+        if self.total_pages > 1:
+            btn_prev = discord.ui.Button(label="◀️", style=discord.ButtonStyle.primary, disabled=(self.current_page == 0))
+            btn_prev.callback = self.prev_page
+            self.add_item(btn_prev)
+
+        btn_refresh = discord.ui.Button(label="🔄 Refresh", style=discord.ButtonStyle.secondary)
+        btn_refresh.callback = self.refresh_logs
+        self.add_item(btn_refresh)
+
+        if self.total_pages > 1:
+            btn_next = discord.ui.Button(label="▶️", style=discord.ButtonStyle.primary, disabled=(self.current_page >= self.total_pages - 1))
+            btn_next.callback = self.next_page
+            self.add_item(btn_next)
+
+    def get_page(self):
+        embed = discord.Embed(
+            title=self.title,
+            description=self.pages[self.current_page],
+            color=0x000000
+        )
+        footer_text = f"Page {self.current_page + 1}/{self.total_pages}" if self.total_pages > 1 else "Page 1/1"
+        embed.set_footer(text=footer_text)
+        return embed
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("❌ Had l menu machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    async def prev_page(self, interaction: discord.Interaction):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._update_buttons()
+            await interaction.response.edit_message(embed=self.get_page(), view=self)
+
+    async def next_page(self, interaction: discord.Interaction):
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            self._update_buttons()
+            await interaction.response.edit_message(embed=self.get_page(), view=self)
+
+    async def refresh_logs(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        pages, title = await self.cog._fetch_logs_pages(self.provider, self.lines)
+        if pages:
+            self.pages = pages
+            self.title = title
+            self.total_pages = len(pages)
+            if self.current_page >= self.total_pages:
+                self.current_page = 0
+            self._update_buttons()
+            await interaction.edit_original_response(embed=self.get_page(), view=self)
+        else:
+            await interaction.followup.send("⚠️ Mal9itch logs jdad.", ephemeral=True)
 
 
 class Bot(commands.Cog, name="Bot"):
@@ -594,23 +666,15 @@ class Bot(commands.Cog, name="Bot"):
     async def host_status(self, ctx):
         await self._send_host_status(ctx)
 
-    @host.command(name="logs", aliases=["log", "terminal"], help="Tchouf live terminal console logs.")
-    @commands.is_owner()
-    async def host_logs(self, ctx, lines: int = 100):
-        provider = self.detect_hosting_provider()
-
+    async def _fetch_logs_pages(self, provider: str, lines: int = 100):
         if provider == "bothosting":
             dep_id = await self.get_bothosting_deployment_id()
             if not dep_id:
-                await ctx.send("❌ Mal9itch chi deployment ID.")
-                return
+                return None, "Mal9itch chi deployment ID."
 
-            wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
             data = await self._bothosting_request("GET", f"/deployments/{dep_id}/logs", params={"size": lines})
-
             if data.get("status") == "error":
-                await wait_msg.edit(content=f"❌ Mochkil f Bot-Hosting logs: `{data.get('message')}`")
-                return
+                return None, data.get("message", "Error unknown")
 
             log_lines = data.get("lines", [])
             if isinstance(log_lines, str):
@@ -619,8 +683,7 @@ class Bot(commands.Cog, name="Bot"):
                 log_lines = []
 
             if not log_lines:
-                await wait_msg.edit(content="📄 Console logs khawyin f Bot-Hosting.net.")
-                return
+                return ["```ini\n[Empty logs]\n```"], f"🖥️ Bot-Hosting.net Logs ({lines} lines)"
 
             clean_lines = [re.sub(r'\x1b\[[0-9;]*[mGKH]', '', l) for l in log_lines]
             pages = []
@@ -639,14 +702,9 @@ class Bot(commands.Cog, name="Bot"):
                 pages.append("```ini\n" + "\n".join(current_chunk) + "\n```")
 
             pages.reverse()
-
-            await wait_msg.delete()
-            view = self.bot.Paginator(ctx, pages=pages, title=f"🖥️ Bot-Hosting.net Logs — Latest first ({len(clean_lines)} lines)")
-            view.message = await ctx.send(embed=view.get_page(), view=view if len(pages) > 1 else None)
-            return
+            return pages, f"🖥️ Bot-Hosting.net Logs — Latest first ({len(clean_lines)} lines)"
 
         elif provider == "discloud":
-            wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
             app_id = await self.get_discloud_app_id()
             data = await self._discloud_request("GET", f"/app/{app_id}/logs")
 
@@ -655,9 +713,7 @@ class Bot(commands.Cog, name="Bot"):
                 data = await self._discloud_request("GET", f"/app/{app_id}/logs")
 
             if data.get("status") != "ok" or "apps" not in data:
-                err = data.get("message", "Mal9itch logs")
-                await wait_msg.edit(content=f"❌ Mochkil f Discloud API: `{err}`")
-                return
+                return None, data.get("message", "Mal9itch logs")
 
             apps_data = data["apps"]
             if isinstance(apps_data, list) and apps_data:
@@ -675,8 +731,7 @@ class Bot(commands.Cog, name="Bot"):
                 raw_logs = terminal_data
 
             if not raw_logs.strip():
-                await wait_msg.edit(content="📄 Terminal logs khawyin f Discloud.")
-                return
+                return ["```ini\n[Empty logs]\n```"], f"🖥️ Discloud Terminal Logs ({lines} lines)"
 
             log_lines = raw_logs.strip().splitlines()
             pages = []
@@ -695,21 +750,34 @@ class Bot(commands.Cog, name="Bot"):
                 pages.append("```ini\n" + "\n".join(current_chunk) + "\n```")
 
             pages.reverse()
+            return pages, f"🖥️ Discloud Terminal Logs — Latest first ({len(log_lines)} lines)"
 
-            await wait_msg.delete()
-            view = self.bot.Paginator(ctx, pages=pages, title=f"🖥️ Discloud Terminal Logs — Latest first ({len(log_lines)} lines)")
-            view.message = await ctx.send(embed=view.get_page(), view=view if len(pages) > 1 else None)
+        return None, "Not hosted"
+
+    @host.command(name="logs", aliases=["log", "terminal"], help="Tchouf live terminal console logs.")
+    @commands.is_owner()
+    async def host_logs(self, ctx, lines: int = 100):
+        provider = self.detect_hosting_provider()
+        if provider not in ["bothosting", "discloud"]:
+            await ctx.send("ℹ️ Running locally — stdout/stderr is printing to your local terminal console.")
             return
 
-        else:
-            await ctx.send("ℹ️ Running locally — stdout/stderr is printing to your local terminal console.")
+        wait_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
+        pages, title_or_err = await self._fetch_logs_pages(provider, lines)
+
+        if not pages:
+            await wait_msg.edit(content=f"❌ Mochkil f logs: `{title_or_err}`")
+            return
+
+        await wait_msg.delete()
+        view = HostLogsView(self, ctx, provider, pages, title_or_err, lines=lines)
+        view.message = await ctx.send(embed=view.get_page(), view=view)
 
     @host.command(name="restart", aliases=["reboot"], help="Rebooti container / process.")
     @commands.is_owner()
     async def host_restart(self, ctx):
         provider = self.detect_hosting_provider()
 
-        
         confirm_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
 
         await self._save_pending_restart(
@@ -726,7 +794,7 @@ class Bot(commands.Cog, name="Bot"):
                 await confirm_msg.edit(embed=discord.Embed(description="❌ Mal9itch chi deployment ID.", color=0x000000))
                 return
 
-            data = await self._bothosting_request("POST", f"/deployments/{dep_id}/power", json_data={"signal": "restart"})
+            data = await self._bothosting_request("POST", f"/deployments/{dep_id}/power", json_data={"action": "restart"})
 
             if data.get("status") == "error":
                 err = data.get("message", "Error unknown")

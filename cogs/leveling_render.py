@@ -225,18 +225,31 @@ def render_level_card(
     luminance = (0.299 * effective_main[0] + 0.587 * effective_main[1] + 0.114 * effective_main[2]) / 255.0
     is_light = is_custom and (luminance > 0.6)
 
+    # Stat boxes layout (needed for cutout mask if custom)
+    av_size = 142 * scale
+    av_x = 44 * scale
+    content_x = av_x + av_size + int(24 * scale)
+    stat_y = int(168 * scale)
+    stat_h = 60 * scale
+    stat1_w = int(185 * scale)
+    stat1_box = [content_x, stat_y, content_x + stat1_w, stat_y + stat_h]
+    stat2_x = content_x + stat1_w + int(14 * scale)
+    stat2_w = int((w_base - 46) * scale) - stat2_x
+    stat2_box = [stat2_x, stat_y, stat2_x + stat2_w, stat_y + stat_h]
+
     # Custom Glass Overlay
     if is_custom:
-        glass = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-        gdraw = ImageDraw.Draw(glass)
         c_box = [int(16 * scale), int(16 * scale), int((w_base - 16) * scale), int((h_base - 16) * scale)]
         radius_c = 24 * scale
 
-        glass_fill = (effective_main[0], effective_main[1], effective_main[2], 160)
-        border_col = (effective_accent[0], effective_accent[1], effective_accent[2], 220)
+        # Mask for main glass container: cut out stat boxes so they sit directly on the background
+        glass_mask = Image.new("L", (w, h), 0)
+        m_draw = ImageDraw.Draw(glass_mask)
+        m_draw.rounded_rectangle(c_box, radius=radius_c, fill=255)
+        m_draw.rounded_rectangle(stat1_box, radius=12 * scale, fill=0)
+        m_draw.rounded_rectangle(stat2_box, radius=12 * scale, fill=0)
 
-        gdraw.rounded_rectangle(c_box, radius=radius_c, fill=glass_fill)
-        gdraw.rounded_rectangle(c_box, radius=radius_c, outline=border_col, width=int(1.5 * scale))
+        main_glass_layer = Image.new("RGBA", (w, h), (effective_main[0], effective_main[1], effective_main[2], 100))
 
         streak = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         sdraw = ImageDraw.Draw(streak)
@@ -247,10 +260,29 @@ def render_level_card(
             (int(90 * scale), int((h_base - 16) * scale)),
             (int(20 * scale), int((h_base - 16) * scale)),
         ], fill=(255, 255, 255, s_alpha))
-        glass = Image.alpha_composite(glass, streak)
+        main_glass_layer = Image.alpha_composite(main_glass_layer, streak)
         streak.close()
+
+        glass = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        glass.paste(main_glass_layer, (0, 0), glass_mask)
+        main_glass_layer.close()
+        glass_mask.close()
+
+        border_col = (effective_accent[0], effective_accent[1], effective_accent[2], 220)
+        gdraw = ImageDraw.Draw(glass)
+        gdraw.rounded_rectangle(c_box, radius=radius_c, outline=border_col, width=int(1.5 * scale))
         card = Image.alpha_composite(card, glass)
         glass.close()
+
+        # Draw stat cards directly on wallpaper layer (cut through main div)
+        tiles_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        tdraw = ImageDraw.Draw(tiles_layer)
+        tile_fill = (effective_main[0], effective_main[1], effective_main[2], 185)
+        tile_border = (effective_accent[0], effective_accent[1], effective_accent[2], 140 if is_light else 160)
+        tdraw.rounded_rectangle(stat1_box, radius=12 * scale, fill=tile_fill, outline=tile_border, width=scale)
+        tdraw.rounded_rectangle(stat2_box, radius=12 * scale, fill=tile_fill, outline=tile_border, width=scale)
+        card = Image.alpha_composite(card, tiles_layer)
+        tiles_layer.close()
 
     draw = ImageDraw.Draw(card)
 
@@ -295,7 +327,7 @@ def render_level_card(
     # Fonts
     font_name = _get_font(29 * scale, bold=True)
     font_rank = _get_font(15 * scale, bold=True)
-    font_lvl_badge = _get_font(18 * scale, bold=True)
+    font_lvl = _get_font(16 * scale, bold=True)
     font_label = _get_font(12 * scale, bold=True)
     font_val = _get_font(15 * scale, bold=True)
     font_nums = _get_font(15 * scale, bold=True)
@@ -311,37 +343,71 @@ def render_level_card(
     bbox_name = font_name.getbbox(display_name)
     name_w = bbox_name[2] - bbox_name[0]
 
-    # Rank Pill
+    # Rank Pill Geometry
     rank_str = f"RANK #{rank}" if rank > 0 else "UNRANKED"
     bbox_rank = font_rank.getbbox(rank_str)
-    rank_w = (bbox_rank[2] - bbox_rank[0]) + (24 * scale)
-    rank_h = 28 * scale
+    rank_w = (bbox_rank[2] - bbox_rank[0]) + (44 * scale)
+    rank_h = 32 * scale
     rank_x = content_x + name_w + int(14 * scale)
-    rank_box = [rank_x, name_y + int(3 * scale), rank_x + rank_w, name_y + int(3 * scale) + rank_h]
+    rank_y = name_y + int(1 * scale)
+    rank_box = [rank_x, rank_y, rank_x + rank_w, rank_y + rank_h]
 
-    rank_pill_fill = (effective_main[0], effective_main[1], effective_main[2], 255) if is_custom else (28, 28, 34, 255)
-    rank_pill_border = (effective_accent[0], effective_accent[1], effective_accent[2], 190) if is_custom else (210, 212, 222, 190)
-    draw.rounded_rectangle(rank_box, radius=rank_h // 2, fill=rank_pill_fill, outline=rank_pill_border, width=scale)
-    draw.text((rank_x + rank_w // 2, name_y + int(3 * scale) + rank_h // 2), rank_str, fill=text_primary, font=font_rank, anchor="mm")
-
-    # Level Badge
+    # Level Badge Geometry (Symmetrical Twin Height & Alignment)
     lvl_str = f"LEVEL {level}"
-    bbox_lvl = font_lvl_badge.getbbox(lvl_str)
-    lvl_w = (bbox_lvl[2] - bbox_lvl[0]) + (32 * scale)
-    lvl_h = 36 * scale
+    bbox_lvl = font_lvl.getbbox(lvl_str)
+    lvl_w = (bbox_lvl[2] - bbox_lvl[0]) + (44 * scale)
+    lvl_h = 32 * scale
     lvl_x = int((w_base - 46) * scale) - lvl_w
-    lvl_y = name_y - int(1 * scale)
+    lvl_y = name_y + int(1 * scale)
     lvl_box = [lvl_x, lvl_y, lvl_x + lvl_w, lvl_y + lvl_h]
 
-    badge_fill = (effective_accent[0], effective_accent[1], effective_accent[2], 240) if is_custom else (225, 228, 235, 255)
-    draw.rounded_rectangle(lvl_box, radius=12 * scale, fill=badge_fill)
-    draw.rounded_rectangle([lvl_x + int(4 * scale), lvl_y + int(2 * scale), lvl_x + lvl_w - int(4 * scale), lvl_y + int(6 * scale)],
-                           radius=3 * scale, fill=(255, 255, 255, 200))
-    badge_lum = (0.299 * badge_fill[0] + 0.587 * badge_fill[1] + 0.114 * badge_fill[2]) / 255.0
-    badge_text_col = (12, 12, 14, 255) if badge_lum > 0.5 else (255, 255, 255, 255)
-    draw.text((lvl_x + lvl_w // 2, lvl_y + lvl_h // 2), lvl_str, fill=badge_text_col, font=font_lvl_badge, anchor="mm")
+    # Alpha composite layer for Rank & Level pills (Matching 185 transparency of bottom stat cards)
+    pills_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    pdraw = ImageDraw.Draw(pills_layer)
 
-    # --- MIDDLE ROW: Progression Bar & XP Info ---
+    pill_fill = (effective_main[0], effective_main[1], effective_main[2], 185) if is_custom else (24, 24, 28, 185)
+    pill_border = (effective_accent[0], effective_accent[1], effective_accent[2], 220) if is_custom else (210, 212, 222, 220)
+
+    # 1. Rank Pill background & glowing star gem
+    pdraw.rounded_rectangle(rank_box, radius=rank_h // 2, fill=pill_fill, outline=pill_border, width=scale)
+    gem_r = int(10 * scale)
+    gem_cx = rank_x + int(15 * scale)
+    gem_cy = rank_y + rank_h // 2
+    pdraw.ellipse([gem_cx - gem_r, gem_cy - gem_r, gem_cx + gem_r, gem_cy + gem_r],
+                 fill=(effective_accent[0], effective_accent[1], effective_accent[2], 220) if is_custom else (220, 222, 230, 220))
+    pts = [
+        (gem_cx, gem_cy - int(5 * scale)),
+        (gem_cx + int(1.5 * scale), gem_cy - int(1.5 * scale)),
+        (gem_cx + int(5 * scale), gem_cy),
+        (gem_cx + int(1.5 * scale), gem_cy + int(1.5 * scale)),
+        (gem_cx, gem_cy + int(5 * scale)),
+        (gem_cx - int(1.5 * scale), gem_cy + int(1.5 * scale)),
+        (gem_cx - int(5 * scale), gem_cy),
+        (gem_cx - int(1.5 * scale), gem_cy - int(1.5 * scale)),
+    ]
+    accent_lum = (0.299 * effective_accent[0] + 0.587 * effective_accent[1] + 0.114 * effective_accent[2]) / 255.0
+    star_fill = (20, 20, 25, 255) if (accent_lum > 0.6 if is_custom else True) else (255, 255, 255, 255)
+    pdraw.polygon(pts, fill=star_fill)
+
+    # 2. Level Badge background & glowing status jewel
+    pdraw.rounded_rectangle(lvl_box, radius=lvl_h // 2, fill=pill_fill, outline=pill_border, width=scale)
+    jewel_r = int(5 * scale)
+    jewel_cx = lvl_x + int(18 * scale)
+    jewel_cy = lvl_y + lvl_h // 2
+    jewel_aura_col = (effective_accent[0], effective_accent[1], effective_accent[2], 90) if is_custom else (255, 255, 255, 90)
+    jewel_core_col = (effective_accent[0], effective_accent[1], effective_accent[2], 255) if is_custom else (255, 255, 255, 255)
+    pdraw.ellipse([jewel_cx - jewel_r - 2 * scale, jewel_cy - jewel_r - 2 * scale, jewel_cx + jewel_r + 2 * scale, jewel_cy + jewel_r + 2 * scale], fill=jewel_aura_col)
+    pdraw.ellipse([jewel_cx - jewel_r, jewel_cy - jewel_r, jewel_cx + jewel_r, jewel_cy + jewel_r], fill=jewel_core_col)
+
+    card = Image.alpha_composite(card, pills_layer)
+    pills_layer.close()
+    draw = ImageDraw.Draw(card)
+
+    # Text for Rank and Level
+    draw.text((rank_x + int(32 * scale), rank_y + rank_h // 2), rank_str, fill=text_primary, font=font_rank, anchor="lm")
+    draw.text((lvl_x + int(32 * scale), lvl_y + lvl_h // 2), lvl_str, fill=text_primary, font=font_lvl, anchor="lm")
+
+    # --- MIDDLE ROW: Progression Bar & XP Info (Style 3 3D Spatial Glass) ---
     bar_y = int(124 * scale)
     bar_w = int((w_base - 46) * scale) - content_x
     bar_h = 24 * scale
@@ -354,44 +420,61 @@ def render_level_card(
     draw.text((content_x, bar_y - int(22 * scale)), "PROGRESSION", fill=text_muted, font=font_label)
     draw.text((content_x + bar_w, bar_y - int(22 * scale)), f"{xp_str}  •  {pct_str}", fill=text_primary, font=font_nums, anchor="ra")
 
-    trough_fill = (effective_main[0], effective_main[1], effective_main[2], 255) if is_custom else (12, 12, 15, 255)
+    # Trough: Inset frosted channel
+    t_col = (int(effective_main[0] * 0.82), int(effective_main[1] * 0.82), int(effective_main[2] * 0.82), 220) if is_custom and not is_light else (
+        (int(effective_main[0] * 0.88), int(effective_main[1] * 0.88), int(effective_main[2] * 0.88), 220) if is_custom else (12, 12, 15, 255)
+    )
     trough_border = (effective_accent[0], effective_accent[1], effective_accent[2], 160) if is_custom else (42, 42, 48, 220)
-    draw.rounded_rectangle([content_x, bar_y, content_x + bar_w, bar_y + bar_h], radius=bar_radius, fill=trough_fill, outline=trough_border, width=scale)
+    draw.rounded_rectangle([content_x, bar_y, content_x + bar_w, bar_y + bar_h], radius=bar_radius, fill=t_col, outline=trough_border, width=scale)
+    draw.line([(content_x + bar_radius, bar_y + scale), (content_x + bar_w - bar_radius, bar_y + scale)], fill=(0, 0, 0, 50), width=scale)
 
     fill_len = int(bar_w * pct)
-    if fill_len >= bar_radius:
+    if fill_len > 0:
+        pad = int(2.5 * scale)
+        core_h = bar_h - pad * 2
+        core_r = core_h // 2
+        fill_len = max(core_r, fill_len)
+
         fill_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         f_draw = ImageDraw.Draw(fill_layer)
-        bar_col = (effective_accent[0], effective_accent[1], effective_accent[2], 255) if is_custom else (215, 218, 228, 255)
-        f_draw.rounded_rectangle([content_x, bar_y, content_x + fill_len, bar_y + bar_h], radius=bar_radius, fill=bar_col)
-        f_draw.rounded_rectangle([content_x + int(6 * scale), bar_y + int(2.5 * scale), content_x + fill_len - int(6 * scale), bar_y + int(6.5 * scale)],
-                                 radius=int(2 * scale), fill=(255, 255, 255, 200))
+
+        accent_lum = (0.299 * effective_accent[0] + 0.587 * effective_accent[1] + 0.114 * effective_accent[2]) / 255.0
+        if is_custom:
+            core_col = (230, 235, 245, 235) if accent_lum < 0.1 else (effective_accent[0], effective_accent[1], effective_accent[2], 235)
+        else:
+            core_col = (215, 218, 228, 235)
+
+        # Inset floating liquid core
+        f_draw.rounded_rectangle([content_x + pad, bar_y + pad, content_x + fill_len, bar_y + bar_h - pad],
+                                radius=core_r, fill=core_col)
+        # Top cylindrical glass refraction line
+        f_draw.line([(content_x + pad + core_r, bar_y + pad + scale), (content_x + fill_len - core_r, bar_y + pad + scale)],
+                    fill=(255, 255, 255, 95), width=scale)
+        # Glowing pulse bead at the head of progress
+        p_cx = content_x + fill_len - core_r
+        p_cy = bar_y + bar_h // 2
+        f_draw.ellipse([p_cx - int(5 * scale), p_cy - int(5 * scale), p_cx + int(5 * scale), p_cy + int(5 * scale)],
+                       fill=(255, 255, 255, 240), outline=(effective_accent[0], effective_accent[1], effective_accent[2], 255) if is_custom else (255, 255, 255, 255), width=scale)
+
         card = Image.alpha_composite(card, fill_layer)
+        fill_layer.close()
         draw = ImageDraw.Draw(card)
 
     # --- BOTTOM ROW: Lifetime XP + Milestone Glass Cards ---
     stat_y = int(168 * scale)
     stat_h = 60 * scale
 
-    if is_custom:
-        tile_fill = (effective_main[0], effective_main[1], effective_main[2], 255)
-        tile_border = (effective_accent[0], effective_accent[1], effective_accent[2], 140 if is_light else 160)
-    else:
+    if not is_custom:
         tile_fill = (16, 16, 18, 255)
         tile_border = (255, 255, 255, 26)
+        draw.rounded_rectangle(stat1_box, radius=12 * scale, fill=tile_fill, outline=tile_border, width=scale)
+        draw.rounded_rectangle(stat2_box, radius=12 * scale, fill=tile_fill, outline=tile_border, width=scale)
 
     # Card 1: Lifetime Mined
-    stat1_w = int(185 * scale)
-    stat1_box = [content_x, stat_y, content_x + stat1_w, stat_y + stat_h]
-    draw.rounded_rectangle(stat1_box, radius=12 * scale, fill=tile_fill, outline=tile_border, width=scale)
     draw.text((content_x + int(14 * scale), stat_y + int(11 * scale)), "LIFETIME XP MINED", fill=text_muted, font=font_label)
     draw.text((content_x + int(14 * scale), stat_y + int(32 * scale)), f"{total_xp:,} XP", fill=text_primary, font=font_val)
 
     # Card 2: Next Milestone Reward
-    stat2_x = content_x + stat1_w + int(14 * scale)
-    stat2_w = int((w_base - 46) * scale) - stat2_x
-    stat2_box = [stat2_x, stat_y, stat2_x + stat2_w, stat_y + stat_h]
-    draw.rounded_rectangle(stat2_box, radius=12 * scale, fill=tile_fill, outline=tile_border, width=scale)
     draw.text((stat2_x + int(14 * scale), stat_y + int(11 * scale)), f"NEXT MILESTONE (LVL {next_milestone_level})", fill=text_muted, font=font_label)
 
     coin_size = int(21 * scale)
@@ -407,7 +490,7 @@ def render_level_card(
     # Downsample 2x to 1x via Lanczos
     final_card = card.resize((w_base, h_base), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
-    final_card.save(buf, format="PNG", optimize=True)
+    final_card.save(buf, format="PNG", optimize=False)
     buf.seek(0)
 
     try:
@@ -442,6 +525,8 @@ def render_wallet_card(
     bg_bytes: Optional[bytes] = None,
     main_color_str: Optional[str] = None,
     accent_color_str: Optional[str] = None,
+    container_alpha: Optional[int] = None,
+    tile_alpha: Optional[int] = None,
 ) -> io.BytesIO:
     """
     Renders a high-end glassmorphic/claymorphic wallet card in Pillow.
@@ -479,17 +564,28 @@ def render_wallet_card(
     luminance = (0.299 * effective_main[0] + 0.587 * effective_main[1] + 0.114 * effective_main[2]) / 255.0
     is_light = luminance > 0.6
 
-    # Glass container panel
-    glass = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    gdraw = ImageDraw.Draw(glass)
     c_box = [int(16 * scale), int(16 * scale), int((w_base - 16) * scale), int((h_base - 16) * scale)]
     radius_c = 24 * scale
 
-    glass_fill = (effective_main[0], effective_main[1], effective_main[2], 160 if (bg_bytes or main_rgb) else 150)
-    border_col = (effective_accent[0], effective_accent[1], effective_accent[2], 200)
+    # Bottom Tiles geometry
+    div_y = int(185 * scale)
+    box_w = int((w_base - 88 - 16) * scale // 2)
+    box_h = int(90 * scale)
+    box_y = div_y + int(18 * scale)
+    b1_x = int(44 * scale)
+    b2_x = b1_x + box_w + int(16 * scale)
+    tile1_box = [b1_x, box_y, b1_x + box_w, box_y + box_h]
+    tile2_box = [b2_x, box_y, b2_x + box_w, box_y + box_h]
 
-    gdraw.rounded_rectangle(c_box, radius=radius_c, fill=glass_fill)
-    gdraw.rounded_rectangle(c_box, radius=radius_c, outline=border_col, width=int(1.5 * scale))
+    # Mask for main glass container: cut out the two tile areas so they sit directly on the background
+    glass_mask = Image.new("L", (w, h), 0)
+    m_draw = ImageDraw.Draw(glass_mask)
+    m_draw.rounded_rectangle(c_box, radius=radius_c, fill=255)
+    m_draw.rounded_rectangle(tile1_box, radius=14 * scale, fill=0)
+    m_draw.rounded_rectangle(tile2_box, radius=14 * scale, fill=0)
+
+    g_alpha = container_alpha if container_alpha is not None else (100 if (bg_bytes or main_rgb) else 90)
+    main_glass_layer = Image.new("RGBA", (w, h), (effective_main[0], effective_main[1], effective_main[2], g_alpha))
 
     # Frosted diagonal glass reflection
     streak = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -501,10 +597,30 @@ def render_wallet_card(
         (int(100 * scale), int((h_base - 16) * scale)),
         (int(20 * scale), int((h_base - 16) * scale)),
     ], fill=(255, 255, 255, s_alpha))
-    glass = Image.alpha_composite(glass, streak)
+    main_glass_layer = Image.alpha_composite(main_glass_layer, streak)
     streak.close()
+
+    glass = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    glass.paste(main_glass_layer, (0, 0), glass_mask)
+    main_glass_layer.close()
+    glass_mask.close()
+
+    border_col = (effective_accent[0], effective_accent[1], effective_accent[2], 200)
+    gdraw = ImageDraw.Draw(glass)
+    gdraw.rounded_rectangle(c_box, radius=radius_c, outline=border_col, width=int(1.5 * scale))
     card = Image.alpha_composite(card, glass)
     glass.close()
+
+    # Draw tiles directly on wallpaper layer (cut through main div)
+    tiles_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    tdraw = ImageDraw.Draw(tiles_layer)
+    t_alpha = tile_alpha if tile_alpha is not None else 185
+    tile_fill = (effective_main[0], effective_main[1], effective_main[2], t_alpha)
+    tile_border = (effective_accent[0], effective_accent[1], effective_accent[2], 140) if accent_rgb else ((255, 255, 255, 32) if not is_light else (0, 0, 0, 32))
+    tdraw.rounded_rectangle(tile1_box, radius=14 * scale, fill=tile_fill, outline=tile_border, width=scale)
+    tdraw.rounded_rectangle(tile2_box, radius=14 * scale, fill=tile_fill, outline=tile_border, width=scale)
+    card = Image.alpha_composite(card, tiles_layer)
+    tiles_layer.close()
 
     draw = ImageDraw.Draw(card)
 
@@ -591,15 +707,6 @@ def render_wallet_card(
     div_y = int(185 * scale)
     draw.line([(int(44 * scale), div_y), (int((w_base - 44) * scale), div_y)], fill=divider_color, width=scale)
 
-    # Bottom Tiles
-    box_w = int((w_base - 88 - 16) * scale // 2)
-    box_h = int(90 * scale)
-    box_y = div_y + int(18 * scale)
-
-    # Main color with no transparency (100% solid opacity)
-    tile_fill = (effective_main[0], effective_main[1], effective_main[2], 255)
-    tile_border = (effective_accent[0], effective_accent[1], effective_accent[2], 140) if accent_rgb else ((255, 255, 255, 32) if not is_light else (0, 0, 0, 32))
-
     def _draw_tile_status_icon(center_x: int, center_y: int, is_ready: bool):
         badge_r = int(18 * scale)
         if is_ready:
@@ -621,9 +728,7 @@ def render_wallet_card(
             draw.line([(center_x, center_y), (center_x, center_y - int(4.5 * scale))], fill=icon_col, width=max(1, int(1.5 * scale)))
             draw.line([(center_x, center_y), (center_x + int(3.5 * scale), center_y)], fill=icon_col, width=max(1, int(1.5 * scale)))
 
-    # Tile 1: Daily Reward
-    b1_x = int(44 * scale)
-    draw.rounded_rectangle([b1_x, box_y, b1_x + box_w, box_y + box_h], radius=14 * scale, fill=tile_fill, outline=tile_border, width=scale)
+    # Tile 1: Daily Reward Texts
     draw.text((b1_x + int(16 * scale), box_y + int(14 * scale)), "DAILY REWARD", fill=text_muted, font=f_label)
     draw.text((b1_x + int(16 * scale), box_y + int(36 * scale)), f"Streak: {daily_streak}/7 Days", fill=text_primary, font=f_val)
     status_daily = "Ready to Claim" if not daily_claimed else (daily_resets_in_str if daily_resets_in_str.startswith("Resets") else f"Resets in {daily_resets_in_str}")
@@ -631,9 +736,7 @@ def render_wallet_card(
     draw.text((b1_x + int(16 * scale), box_y + int(62 * scale)), status_daily, fill=daily_status_col, font=_get_font(13 * scale, bold=True if is_light else False))
     _draw_tile_status_icon(b1_x + box_w - int(34 * scale), box_y + box_h // 2, not daily_claimed)
 
-    # Tile 2: Weekly Reward
-    b2_x = b1_x + box_w + int(16 * scale)
-    draw.rounded_rectangle([b2_x, box_y, b2_x + box_w, box_y + box_h], radius=14 * scale, fill=tile_fill, outline=tile_border, width=scale)
+    # Tile 2: Weekly Reward Texts
     draw.text((b2_x + int(16 * scale), box_y + int(14 * scale)), "WEEKLY REWARD", fill=text_muted, font=f_label)
     draw.text((b2_x + int(16 * scale), box_y + int(36 * scale)), "Reward: 5,000 TAD", fill=text_primary, font=f_val)
     status_weekly = "Ready to Claim" if not weekly_claimed else (weekly_resets_in_str if weekly_resets_in_str.startswith("Resets") else f"Resets in {weekly_resets_in_str}")
@@ -643,7 +746,7 @@ def render_wallet_card(
 
     final_card = card.resize((w_base, h_base), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
-    final_card.save(buf, format="PNG", optimize=True)
+    final_card.save(buf, format="PNG", optimize=False)
     buf.seek(0)
 
     try:
