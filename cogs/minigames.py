@@ -33,8 +33,10 @@ from cogs.games.akinator_client import ModernAsyncAkinator as AsyncAkinator
 from cogs.games.helpers import (
     record_minigame_win, record_minigame_loss,
     is_english_word, get_combo, get_typeracer_text, get_dictionary_cursor, WORDS_DB_PATH,
-    get_word, get_words_batch, get_unscramble_word, get_hangman_secret, get_wordle_secret
+    get_word, get_words_batch, get_unscramble_word, get_hangman_secret, get_wordle_secret,
+    is_user_in_game, set_user_in_game, clear_user_game
 )
+
 
 # ============ CHESS BOARD RENDERER ============
 
@@ -622,6 +624,14 @@ class ChessView(View):
         board_file = await self.generate_board_file()
         await interaction.response.edit_message(embed=embed, attachments=[board_file], view=None)
 
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot"):
+            if self.player_white and not getattr(self.player_white, "bot", False):
+                clear_user_game(self.cog.bot, self.player_white.id)
+            if self.player_black and not getattr(self.player_black, "bot", False):
+                clear_user_game(self.cog.bot, self.player_black.id)
+        super().stop()
+
 class ChessChallengeView(View):
     def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
         super().__init__(timeout=60)
@@ -634,6 +644,13 @@ class ChessChallengeView(View):
     async def accept(self, interaction: discord.Interaction, button: Button):
         if interaction.user != self.challenged:
             await interaction.response.send_message("Had l challenge mashi lik!", ephemeral=True)
+            return
+
+        if is_user_in_game(self.cog.bot, self.challenger.id):
+            await interaction.response.send_message(f"❌ {self.challenger.mention} 3ndo deja game khddama!", ephemeral=True)
+            return
+        if is_user_in_game(self.cog.bot, self.challenged.id):
+            await interaction.response.send_message("❌ 3ndek deja game khddama!", ephemeral=True)
             return
 
         if self.bet > 0:
@@ -649,6 +666,9 @@ class ChessChallengeView(View):
                     return
                 await economy_cog.deduct_balance(self.challenger.id, self.bet, context=f"Chess Wager Stake ({self.bet} TAD)")
                 await economy_cog.deduct_balance(self.challenged.id, self.bet, context=f"Chess Wager Stake ({self.bet} TAD)")
+
+        set_user_in_game(self.cog.bot, self.challenger.id, "Chess")
+        set_user_in_game(self.cog.bot, self.challenged.id, "Chess")
 
         players = [self.challenger, self.challenged]
         random.shuffle(players)
@@ -898,6 +918,14 @@ class ChessPuzzleView(View):
             view=self
         )
 
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot") and self.author:
+            clear_user_game(self.cog.bot, self.author.id)
+        super().stop()
+
+    async def on_timeout(self):
+        self.stop()
+
 # ============ TIC-TAC-TOE UI CLASSES (Module Level) ============
 
 class TicTacToeButton(Button):
@@ -1053,6 +1081,11 @@ class TicTacToeView(View):
     def stop(self):
         if hasattr(self, '_timeout_task') and self._timeout_task and not self._timeout_task.done():
             self._timeout_task.cancel()
+        if self.cog and hasattr(self.cog, "bot"):
+            if self.player_x and not getattr(self.player_x, "bot", False):
+                clear_user_game(self.cog.bot, self.player_x.id)
+            if self.player_o and not getattr(self.player_o, "bot", False):
+                clear_user_game(self.cog.bot, self.player_o.id)
         super().stop()
 
     def make_bot_move(self):
@@ -1214,6 +1247,13 @@ class ChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if is_user_in_game(self.cog.bot, self.challenger.id):
+            await interaction.response.send_message(f"❌ {self.challenger.mention} 3ndo deja game khddama!", ephemeral=True)
+            return
+        if is_user_in_game(self.cog.bot, self.challenged.id):
+            await interaction.response.send_message("❌ 3ndek deja game khddama!", ephemeral=True)
+            return
+
         if self.bet > 0:
             economy_cog = self.cog.bot.get_cog("Economy")
             if economy_cog:
@@ -1230,6 +1270,9 @@ class ChallengeView(View):
 
         self.accepted = True
         self.stop()
+
+        set_user_in_game(self.cog.bot, self.challenger.id, "Tic-Tac-Toe")
+        set_user_in_game(self.cog.bot, self.challenged.id, "Tic-Tac-Toe")
 
         players = [self.challenger, self.challenged]
         random.shuffle(players)
@@ -1555,6 +1598,11 @@ class ConnectFourView(View):
     def stop(self):
         if hasattr(self, '_timeout_task') and self._timeout_task and not self._timeout_task.done():
             self._timeout_task.cancel()
+        if self.cog and hasattr(self.cog, "bot"):
+            if self.player_red and not getattr(self.player_red, "bot", False):
+                clear_user_game(self.cog.bot, self.player_red.id)
+            if self.player_yellow and not getattr(self.player_yellow, "bot", False):
+                clear_user_game(self.cog.bot, self.player_yellow.id)
         super().stop()
 
     async def button_callback(self, interaction: discord.Interaction):
@@ -1665,6 +1713,13 @@ class ConnectFourChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if is_user_in_game(self.cog.bot, self.challenger.id):
+            await interaction.response.send_message(f"❌ {self.challenger.mention} 3ndo deja game khddama!", ephemeral=True)
+            return
+        if is_user_in_game(self.cog.bot, self.challenged.id):
+            await interaction.response.send_message("❌ 3ndek deja game khddama!", ephemeral=True)
+            return
+
         if self.bet > 0:
             economy_cog = self.cog.bot.get_cog("Economy")
             if economy_cog:
@@ -1681,6 +1736,9 @@ class ConnectFourChallengeView(View):
 
         self.accepted = True
         self.stop()
+
+        set_user_in_game(self.cog.bot, self.challenger.id, "Connect 4")
+        set_user_in_game(self.cog.bot, self.challenged.id, "Connect 4")
 
         players = [self.challenger, self.challenged]
         random.shuffle(players)
@@ -1749,8 +1807,14 @@ class AkinatorView(View):
             self.cog.active_akinator_users.discard(self.player.id)
             if self.channel_id:
                 self.cog.active_akinator_channels.pop(self.channel_id, None)
+            if hasattr(self.cog, "bot") and self.player:
+                clear_user_game(self.cog.bot, self.player.id)
         if hasattr(self.aki, "close"):
             asyncio.create_task(self.aki.close())
+
+    def stop(self):
+        self.cleanup_session()
+        super().stop()
 
     async def start_game(self) -> discord.Embed:
         """Starts the Akinator session asynchronously with automatic retries."""
@@ -2048,9 +2112,15 @@ class RPSBotView(View):
         )
         await interaction.response.edit_message(embed=embed, view=self)
 
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot") and self.player:
+            clear_user_game(self.cog.bot, self.player.id)
+        super().stop()
+
     async def on_timeout(self):
         if not self.game_over:
             self.game_over = True
+            self.stop()
             for item in self.children:
                 item.disabled = True
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
@@ -2083,6 +2153,14 @@ class RPSMultiplayerView(View):
         self.bet = bet
         self.choices = {player1.id: None, player2.id: None}
         self.message: Optional[discord.Message] = None
+
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot"):
+            if self.player1:
+                clear_user_game(self.cog.bot, self.player1.id)
+            if self.player2:
+                clear_user_game(self.cog.bot, self.player2.id)
+        super().stop()
 
     @discord.ui.button(label="Rock", style=discord.ButtonStyle.secondary, emoji="🪨", custom_id="rps_m_rock")
     async def rock(self, interaction: discord.Interaction, button: Button):
@@ -2187,6 +2265,7 @@ class RPSMultiplayerView(View):
             await interaction.message.edit(embed=embed)
 
     async def on_timeout(self):
+        self.stop()
         for item in self.children:
             item.disabled = True
         if self.message:
@@ -2217,6 +2296,13 @@ class RPSChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if is_user_in_game(self.cog.bot, self.challenger.id):
+            await interaction.response.send_message(f"❌ {self.challenger.mention} 3ndo deja game khddama!", ephemeral=True)
+            return
+        if is_user_in_game(self.cog.bot, self.challenged.id):
+            await interaction.response.send_message("❌ 3ndek deja game khddama!", ephemeral=True)
+            return
+
         if self.bet > 0:
             economy_cog = self.cog.bot.get_cog("Economy")
             if economy_cog:
@@ -2233,6 +2319,9 @@ class RPSChallengeView(View):
 
         self.accepted = True
         self.stop()
+
+        set_user_in_game(self.cog.bot, self.challenger.id, "Rock Paper Scissors")
+        set_user_in_game(self.cog.bot, self.challenged.id, "Rock Paper Scissors")
 
         game_view = RPSMultiplayerView(self.challenger, self.challenged, cog=self.cog, bet=self.bet)
         embed = discord.Embed(
@@ -2450,9 +2539,15 @@ class MinesweeperSoloView(View):
         content = f"💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **{len(self.revealed)}/{total_safe}**"
         await interaction.response.edit_message(content=content, view=self)
 
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot") and self.player:
+            clear_user_game(self.cog.bot, self.player.id)
+        super().stop()
+
     async def on_timeout(self):
         if not self.game_over:
             self.game_over = True
+            self.stop()
             for item in self.children:
                 item.disabled = True
             if self.message:
@@ -2656,9 +2751,18 @@ class MinesweeperMultiplayerView(View):
 
         await interaction.response.edit_message(content=self.get_content(), view=self)
 
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot"):
+            if self.p1:
+                clear_user_game(self.cog.bot, self.p1.id)
+            if self.p2:
+                clear_user_game(self.cog.bot, self.p2.id)
+        super().stop()
+
     async def on_timeout(self):
         if not self.game_over:
             self.game_over = True
+            self.stop()
             eco_msg = await self.handle_economy_payout(is_draw=True)
             for item in self.children:
                 item.disabled = True
@@ -2685,6 +2789,13 @@ class MinesweeperChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if is_user_in_game(self.cog.bot, self.challenger.id):
+            await interaction.response.send_message(f"❌ {self.challenger.mention} 3ndo deja game khddama!", ephemeral=True)
+            return
+        if is_user_in_game(self.cog.bot, self.challenged.id):
+            await interaction.response.send_message("❌ 3ndek deja game khddama!", ephemeral=True)
+            return
+
         if self.bet > 0:
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             if economy_cog:
@@ -2701,6 +2812,9 @@ class MinesweeperChallengeView(View):
 
         self.accepted = True
         self.stop()
+
+        set_user_in_game(self.cog.bot, self.challenger.id, "Minesweeper")
+        set_user_in_game(self.cog.bot, self.challenged.id, "Minesweeper")
 
         game_view = MinesweeperMultiplayerView(self.challenger, self.challenged, cog=self.cog, bet=self.bet)
         await interaction.response.edit_message(content=game_view.get_content(), view=game_view)
@@ -2872,9 +2986,15 @@ class WordleSoloView(View):
 
         await interaction.response.edit_message(content=self.get_content(), view=self)
 
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot") and self.player:
+            clear_user_game(self.cog.bot, self.player.id)
+        super().stop()
+
     async def on_timeout(self):
         if not self.game_over:
             self.game_over = True
+            self.stop()
             for item in self.children:
                 item.disabled = True
             if self.message:
@@ -2929,6 +3049,17 @@ class WordleDMView(View):
     @discord.ui.button(label="Exit Game", style=discord.ButtonStyle.danger, emoji="🚪")
     async def exit_button(self, interaction: discord.Interaction, button: Button):
         await self.match.player_quit(interaction, self.player)
+
+    async def on_timeout(self):
+        if not self.match.game_over:
+            self.match.quit[self.player.id] = True
+            self.match.finished[self.player.id] = True
+            opponent = self.match.p2 if self.player == self.match.p1 else self.match.p1
+            if self.match.finished[opponent.id] or self.match.quit[opponent.id]:
+                self.match.game_over = True
+                if self.match.cog and hasattr(self.match.cog, "bot"):
+                    clear_user_game(self.match.cog.bot, self.match.p1.id)
+                    clear_user_game(self.match.cog.bot, self.match.p2.id)
 
 
 class WordleMultiplayerMatch:
@@ -3141,6 +3272,9 @@ class WordleMultiplayerMatch:
             else:
                 is_draw = True
             eco_msg = await self.handle_economy_payout(winner=winner, is_draw=is_draw)
+            if self.cog and hasattr(self.cog, "bot"):
+                clear_user_game(self.cog.bot, self.p1.id)
+                clear_user_game(self.cog.bot, self.p2.id)
 
             for p in (self.p1, self.p2):
                 dm_msg = self.dm_messages.get(p.id)
@@ -3180,6 +3314,9 @@ class WordleMultiplayerMatch:
 
         eco_msg = ""
         if self.game_over:
+            if self.cog and hasattr(self.cog, "bot"):
+                clear_user_game(self.cog.bot, self.p1.id)
+                clear_user_game(self.cog.bot, self.p2.id)
             winner = None
             is_draw = False
             if self.quit[self.p1.id] and self.quit[self.p2.id]:
@@ -3224,6 +3361,13 @@ class WordleChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if is_user_in_game(self.cog.bot, self.challenger.id):
+            await interaction.response.send_message(f"❌ {self.challenger.mention} 3ndo deja game khddama!", ephemeral=True)
+            return
+        if is_user_in_game(self.cog.bot, self.challenged.id):
+            await interaction.response.send_message("❌ 3ndek deja game khddama!", ephemeral=True)
+            return
+
         if self.bet > 0:
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             if economy_cog:
@@ -3241,6 +3385,9 @@ class WordleChallengeView(View):
         self.accepted = True
         self.stop()
 
+        set_user_in_game(self.cog.bot, self.challenger.id, "Wordle")
+        set_user_in_game(self.cog.bot, self.challenged.id, "Wordle")
+
         secret = self.cog.get_wordle_secret(self.difficulty)
         match = WordleMultiplayerMatch(self.challenger, self.challenged, interaction.message, secret, self.cog, bet=self.bet)
 
@@ -3250,6 +3397,8 @@ class WordleChallengeView(View):
             match.dm_messages[self.challenger.id] = p1_msg
             match.dm_views[self.challenger.id] = p1_view
         except discord.Forbidden:
+            clear_user_game(self.cog.bot, self.challenger.id)
+            clear_user_game(self.cog.bot, self.challenged.id)
             if self.bet > 0:
                 economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                 if economy_cog:
@@ -3267,6 +3416,8 @@ class WordleChallengeView(View):
             match.dm_messages[self.challenged.id] = p2_msg
             match.dm_views[self.challenged.id] = p2_view
         except discord.Forbidden:
+            clear_user_game(self.cog.bot, self.challenger.id)
+            clear_user_game(self.cog.bot, self.challenged.id)
             if self.bet > 0:
                 economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                 if economy_cog:
@@ -3504,9 +3655,15 @@ class HangmanSoloView(View):
 
         await interaction.response.edit_message(content=self.get_content(), view=self)
 
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot") and self.player:
+            clear_user_game(self.cog.bot, self.player.id)
+        super().stop()
+
     async def on_timeout(self):
         if not self.game_over:
             self.game_over = True
+            self.stop()
             for item in self.children:
                 item.disabled = True
             if self.message:
@@ -3557,6 +3714,17 @@ class HangmanDMView(View):
     @discord.ui.button(label="Exit Game", style=discord.ButtonStyle.danger, emoji="🚪")
     async def exit_button(self, interaction: discord.Interaction, button: Button):
         await self.match.player_quit(interaction, self.player)
+
+    async def on_timeout(self):
+        if not self.match.game_over:
+            self.match.quit[self.player.id] = True
+            self.match.finished[self.player.id] = True
+            opponent = self.match.p2 if self.player == self.match.p1 else self.match.p1
+            if self.match.finished[opponent.id] or self.match.quit[opponent.id]:
+                self.match.game_over = True
+                if self.match.cog and hasattr(self.match.cog, "bot"):
+                    clear_user_game(self.match.cog.bot, self.match.p1.id)
+                    clear_user_game(self.match.cog.bot, self.match.p2.id)
 
 
 class HangmanMultiplayerMatch:
@@ -3784,6 +3952,9 @@ class HangmanMultiplayerMatch:
             else:
                 is_draw = True
             eco_msg = await self.handle_economy_payout(winner=winner, is_draw=is_draw)
+            if self.cog and hasattr(self.cog, "bot"):
+                clear_user_game(self.cog.bot, self.p1.id)
+                clear_user_game(self.cog.bot, self.p2.id)
 
             for p in (self.p1, self.p2):
                 dm_msg = self.dm_messages.get(p.id)
@@ -3823,6 +3994,9 @@ class HangmanMultiplayerMatch:
 
         eco_msg = ""
         if self.game_over:
+            if self.cog and hasattr(self.cog, "bot"):
+                clear_user_game(self.cog.bot, self.p1.id)
+                clear_user_game(self.cog.bot, self.p2.id)
             winner = None
             is_draw = False
             if self.quit[self.p1.id] and self.quit[self.p2.id]:
@@ -3867,6 +4041,13 @@ class HangmanChallengeView(View):
             await interaction.response.send_message("Ta wa7d ma challengak nta.", ephemeral=True)
             return
 
+        if is_user_in_game(self.cog.bot, self.challenger.id):
+            await interaction.response.send_message(f"❌ {self.challenger.mention} 3ndo deja game khddama!", ephemeral=True)
+            return
+        if is_user_in_game(self.cog.bot, self.challenged.id):
+            await interaction.response.send_message("❌ 3ndek deja game khddama!", ephemeral=True)
+            return
+
         if self.bet > 0:
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             if economy_cog:
@@ -3884,6 +4065,9 @@ class HangmanChallengeView(View):
         self.accepted = True
         self.stop()
 
+        set_user_in_game(self.cog.bot, self.challenger.id, "Hangman")
+        set_user_in_game(self.cog.bot, self.challenged.id, "Hangman")
+
         secret = self.cog.get_hangman_secret(self.difficulty)
         match = HangmanMultiplayerMatch(self.challenger, self.challenged, interaction.message, secret, self.cog, bet=self.bet)
 
@@ -3893,6 +4077,8 @@ class HangmanChallengeView(View):
             match.dm_messages[self.challenger.id] = p1_msg
             match.dm_views[self.challenger.id] = p1_view
         except discord.Forbidden:
+            clear_user_game(self.cog.bot, self.challenger.id)
+            clear_user_game(self.cog.bot, self.challenged.id)
             if self.bet > 0:
                 economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                 if economy_cog:
@@ -3910,6 +4096,8 @@ class HangmanChallengeView(View):
             match.dm_messages[self.challenged.id] = p2_msg
             match.dm_views[self.challenged.id] = p2_view
         except discord.Forbidden:
+            clear_user_game(self.cog.bot, self.challenger.id)
+            clear_user_game(self.cog.bot, self.challenged.id)
             if self.bet > 0:
                 economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                 if economy_cog:
@@ -4569,7 +4757,7 @@ MEDIUM_COUNTRIES = EASY_COUNTRIES | {
     "lb", "jo", "kw", "om", "ye", "kz", "uz", "az", "ge", "am", "cy", "mt"
 }
 
-def parse_minigame_args(*args, default_duration=15, default_difficulty="easy"):
+def parse_minigame_args(*args, default_duration=20, default_difficulty="easy"):
     duration = default_duration
     difficulty = default_difficulty
     for arg in args:
@@ -4998,6 +5186,14 @@ class GuessTheRankView(discord.ui.View):
 
         return callback
 
+    def stop(self):
+        if self.cog and hasattr(self.cog, "bot") and self.author:
+            clear_user_game(self.cog.bot, self.author.id)
+        super().stop()
+
+    async def on_timeout(self):
+        self.stop()
+
 class GuessTheRankSelectView(discord.ui.View):
     def __init__(self, author: discord.User, cog):
         super().__init__(timeout=60)
@@ -5036,6 +5232,10 @@ class GuessTheRankSelectView(discord.ui.View):
             await interaction.response.send_message("❌ Game invalid.", ephemeral=True)
             return
 
+        if is_user_in_game(self.cog.bot, self.author.id):
+            await interaction.response.send_message("❌ 3ndek deja game khddama!", ephemeral=True)
+            return
+
         self.clear_items()
         await interaction.response.edit_message(
             embed=discord.Embed(description="Sber 3lia...", color=0x000000),
@@ -5053,6 +5253,7 @@ class GuessTheRankSelectView(discord.ui.View):
             await interaction.followup.send("❌ Mal9itch clip f had lwe9t. 3awed jereb mn b3d.")
             return
 
+        set_user_in_game(self.cog.bot, self.author.id, "Guess The Rank")
         view = GuessTheRankView(self.author, self.cog, target_game, opener, clip)
         content = (
             f"**{target_game['emoji']} Guess The Rank — {target_game['name']}**\n"
@@ -5103,11 +5304,25 @@ class Minigames(commands.Cog, name="Minigames"):
     async def record_minigame_win(self, guild_id: Optional[int], user_id: int, game: str, earnings: int = 0):
         await record_minigame_win(self.bot, guild_id, user_id, game, earnings)
 
-    async def record_minigame_loss(self, guild_id: Optional[int], user_id: int, game: str, loss_amount: int = 0):
-        await record_minigame_loss(self.bot, guild_id, user_id, game, loss_amount)
+    async def ensure_user_free(self, ctx: commands.Context, target_user: Optional[Union[discord.Member, discord.User]] = None) -> bool:
+        """Returns True if author (and optional target_user) is free, else sends notice and returns False."""
+        busy = is_user_in_game(self.bot, ctx.author.id)
+        if busy:
+            await ctx.send(f"❌ 3ndek deja game khddama (**{busy}**)! Kemmelha wla tsennaha tsali 9bel matbda w7da khra.")
+            return False
+        if target_user and not getattr(target_user, "bot", False):
+            target_busy = is_user_in_game(self.bot, target_user.id)
+            if target_busy:
+                await ctx.send(f"❌ **{target_user.display_name}** 3ndo deja game khddama (**{target_busy}**).")
+                return False
+        return True
 
     @commands.command(name="flags", aliases=["gtf"], help="N3tik flag o goul lia chno smit dawla.")
+
     async def flags(self, ctx, *args):
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "Guess the Flag")
         round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
@@ -5155,194 +5370,51 @@ class Minigames(commands.Cog, name="Minigames"):
         if reaction:
             async for user in reaction.users():
                 if not user.bot:
+                    if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                        continue
                     players.append(user)
 
         if not players:
+            clear_user_game(self.bot, ctx.author.id)
             await signup_msg.edit(embed=discord.Embed(description="💨 7ta wa7d ma dkhel lgame ._.", color=0x000000), view=None)
             return
 
-        single_player = len(players) == 1
-        hp = {player.id: 3 for player in players}
-        active_players = list(players)
+        for p in players:
+            set_user_in_game(self.bot, p.id, "Guess the Flag")
 
-        # Apply difficulty filter to flag pool
-        if difficulty == "easy":
-            country_pool = [c for c in country_pool if c["code"] in EASY_COUNTRIES] or country_pool
-        elif difficulty == "medium":
-            country_pool = [c for c in country_pool if c["code"] in MEDIUM_COUNTRIES] or country_pool
+        try:
+            single_player = len(players) == 1
+            hp = {player.id: 3 for player in players}
+            active_players = list(players)
 
-        # Match pool to prevent any repeated flags in the same match
-        match_pool = list(country_pool)
-        random.shuffle(match_pool)
+            # Apply difficulty filter to flag pool
+            if difficulty == "easy":
+                country_pool = [c for c in country_pool if c["code"] in EASY_COUNTRIES] or country_pool
+            elif difficulty == "medium":
+                country_pool = [c for c in country_pool if c["code"] in MEDIUM_COUNTRIES] or country_pool
 
-        start_embed = discord.Embed(
-            description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
-            color=0x000000
-        )
-        await signup_msg.edit(embed=start_embed, view=None)
-        await asyncio.sleep(2)
+            # Match pool to prevent any repeated flags in the same match
+            match_pool = list(country_pool)
+            random.shuffle(match_pool)
 
-        player_correct_flags = {p.id: 0 for p in players}
-
-        while len(active_players) > 0:
-            if not single_player and len(active_players) == 1:
-                winner = active_players[0]
-                economy_cog = self.bot.get_cog("Economy")
-                eco_msg = ""
-                player_earnings = {}
-                winner_flags = player_correct_flags.get(winner.id, 0)
-                if economy_cog:
-                    gross = (len(players) * 50) + int(round((winner_flags * 15) * diff_mult))
-                    net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
-                    player_earnings[winner.id] = net
-                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
-                    if ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, winner.id, "flags", earnings=net)
-
-                    for pid, p_flags in player_correct_flags.items():
-                        if pid != winner.id and p_flags > 0:
-                            p_gross = int(round((p_flags * 15) * diff_mult))
-                            if p_gross > 0:
-                                p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Flags Reward")
-                                player_earnings[pid] = p_net
-
-                others_msg = ""
-                other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_flags[pid]} flags)" for pid, net in player_earnings.items() if pid != winner.id]
-                if other_rewards:
-                    others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
-
-                win_embed = discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame b **{winner_flags} flags**!{eco_msg}{others_msg}",
-                    color=0x000000
-                )
-                await ctx.send(embed=win_embed)
-                return
-
-            if not match_pool:
-                await ctx.send(embed=discord.Embed(
-                    description="🏁 **Flags pool salaw kamlin! Game sala.**",
-                    color=0x000000
-                ))
-                break
-
-            for player in list(active_players):
-                if player not in active_players:
-                    continue
-                if not single_player and len(active_players) <= 1:
-                    break
-
-                if not match_pool:
-                    break
-
-                target = match_pool.pop()
-                correct_name = target["name"]
-                target_code = target["code"]
-                flag_url = f"https://flagcdn.com/w640/{target_code}.png"
-
-                game_embed = discord.Embed(
-                    description=f"❓ Chno smit had dawla?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n🚩 Flags left: **{len(match_pool) + 1}**",
-                    color=0x000000
-                )
-                game_embed.set_image(url=flag_url)
-                round_msg = await ctx.send(player.mention, embed=game_embed)
-
-                def check(m):
-                    if m.channel.id != ctx.channel.id:
-                        return False
-                    if m.author.id == player.id:
-                        return True
-                    if m.content.strip().lower() == "exitgame" and any(p.id == m.author.id for p in active_players):
-                        return True
-                    return False
-
-                start_time = time.time()
-                guessed_correctly = False
-                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
-
-                while time.time() - start_time < round_duration:
-                    time_left = round_duration - (time.time() - start_time)
-                    if time_left <= 0:
-                        break
-
-                    try:
-                        msg = await self.bot.wait_for("message", check=check, timeout=time_left)
-
-                        if msg.content.strip().lower() == "exitgame":
-                            leaver = next((p for p in active_players if p.id == msg.author.id), None)
-                            if leaver:
-                                hp[leaver.id] = 0
-                                active_players.remove(leaver)
-                                await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame.")
-                                if leaver.id == player.id:
-                                    if not countdown_task.done():
-                                        countdown_task.cancel()
-                                    guessed_correctly = True
-                                    break
-                                elif not single_player and len(active_players) <= 1:
-                                    if not countdown_task.done():
-                                        countdown_task.cancel()
-                                    break
-                            continue
-
-                        if msg.author.id == player.id and is_flag_guess_correct(msg.content, target_code, correct_name):
-                            if not countdown_task.done():
-                                countdown_task.cancel()
-                            try:
-                                await msg.add_reaction("✅")
-                            except Exception:
-                                pass
-                            guessed_correctly = True
-                            player_correct_flags[player.id] = player_correct_flags.get(player.id, 0) + 1
-                            break
-
-                    except asyncio.TimeoutError:
-                        break
-
-                if not countdown_task.done():
-                    countdown_task.cancel()
-
-                if not single_player and len(active_players) <= 1:
-                    break
-
-                if not guessed_correctly and player in active_players:
-                    hp[player.id] -= 1
-                    if hp[player.id] <= 0:
-                        await ctx.send(
-                            embed=discord.Embed(description=f"💥 **{player.mention}** t elimina **0 HP**. Ljawab howa **{correct_name}**.",
-                                                color=0x000000))
-                        active_players.remove(player)
-                    else:
-                        await ctx.send(embed=discord.Embed(description=f"⌛ Sala lwe9t {player.mention}: **-1 HP**. Ljawab howa **{correct_name}**.",
-                                            color=0x000000))
-
-                await asyncio.sleep(2)
-
-        if single_player:
-            player = players[0]
-            economy_cog = self.bot.get_cog("Economy")
-            p_flags = player_correct_flags.get(player.id, 0)
-            gross = 50 + int(round((p_flags * 15) * diff_mult))
-            eco_msg = ""
-            if economy_cog and p_flags > 0:
-                net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Flags Solo")
-                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
-                if ctx.guild:
-                    await self.record_minigame_win(ctx.guild.id, player.id, "flags", earnings=net)
-            await ctx.send(embed=discord.Embed(
-                description=f"🎯 Game Over {player.mention}! L9iti **{p_flags} flags**.{eco_msg}",
+            start_embed = discord.Embed(
+                description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
                 color=0x000000
-            ))
-        elif not single_player:
-            max_guesses = max(player_correct_flags.values()) if player_correct_flags else 0
-            if max_guesses > 0:
-                top_players = [p for p in players if player_correct_flags.get(p.id, 0) == max_guesses]
-                economy_cog = self.bot.get_cog("Economy")
-                player_earnings = {}
-                if len(top_players) == 1:
-                    winner = top_players[0]
+            )
+            await signup_msg.edit(embed=start_embed, view=None)
+            await asyncio.sleep(2)
+
+            player_correct_flags = {p.id: 0 for p in players}
+
+            while len(active_players) > 0:
+                if not single_player and len(active_players) == 1:
+                    winner = active_players[0]
+                    economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
+                    player_earnings = {}
+                    winner_flags = player_correct_flags.get(winner.id, 0)
                     if economy_cog:
-                        gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
+                        gross = (len(players) * 50) + int(round((winner_flags * 15) * diff_mult))
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
                         player_earnings[winner.id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
@@ -5361,37 +5433,195 @@ class Minigames(commands.Cog, name="Minigames"):
                     if other_rewards:
                         others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
 
+                    win_embed = discord.Embed(
+                        description=f"🏆 {winner.mention} rbe7 lgame b **{winner_flags} flags**!{eco_msg}{others_msg}",
+                        color=0x000000
+                    )
+                    await ctx.send(embed=win_embed)
+                    return
+
+                if not match_pool:
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} flags** o rbe7 lgame!{eco_msg}{others_msg}",
+                        description="🏁 **Flags pool salaw kamlin! Game sala.**",
                         color=0x000000
                     ))
-                else:
-                    winners_mention = " o ".join(p.mention for p in top_players)
-                    if economy_cog:
-                        for pid, p_flags in player_correct_flags.items():
-                            if p_flags > 0:
-                                p_gross = int(round((p_flags * 15) * diff_mult))
-                                if p_gross > 0:
-                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Flags Reward (Tie)")
-                                    player_earnings[pid] = p_net
+                    break
 
-                    others_msg = ""
-                    rewards_list = [f"<@{pid}>: **+{net}** TAD ({player_correct_flags[pid]} flags)" for pid, net in player_earnings.items()]
-                    if rewards_list:
-                        others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+                for player in list(active_players):
+                    if player not in active_players:
+                        continue
+                    if not single_player and len(active_players) <= 1:
+                        break
 
-                    await ctx.send(embed=discord.Embed(
-                        description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} flags**!{others_msg}",
+                    if not match_pool:
+                        break
+
+                    target = match_pool.pop()
+                    correct_name = target["name"]
+                    target_code = target["code"]
+                    flag_url = f"https://flagcdn.com/w640/{target_code}.png"
+
+                    game_embed = discord.Embed(
+                        description=f"❓ Chno smit had dawla?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n🚩 Flags left: **{len(match_pool) + 1}**",
                         color=0x000000
-                    ))
-            else:
+                    )
+                    game_embed.set_image(url=flag_url)
+                    round_msg = await ctx.send(player.mention, embed=game_embed)
+
+                    def check(m):
+                        if m.channel.id != ctx.channel.id:
+                            return False
+                        if m.author.id == player.id:
+                            return True
+                        if m.content.strip().lower() == "exitgame" and any(p.id == m.author.id for p in active_players):
+                            return True
+                        return False
+
+                    start_time = time.time()
+                    guessed_correctly = False
+                    countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+
+                    while time.time() - start_time < round_duration:
+                        time_left = round_duration - (time.time() - start_time)
+                        if time_left <= 0:
+                            break
+
+                        try:
+                            msg = await self.bot.wait_for("message", check=check, timeout=time_left)
+
+                            if msg.content.strip().lower() == "exitgame":
+                                leaver = next((p for p in active_players if p.id == msg.author.id), None)
+                                if leaver:
+                                    clear_user_game(self.bot, leaver.id)
+                                    hp[leaver.id] = 0
+                                    active_players.remove(leaver)
+                                    await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame.")
+                                    if leaver.id == player.id:
+                                        if not countdown_task.done():
+                                            countdown_task.cancel()
+                                        guessed_correctly = True
+                                        break
+                                    elif not single_player and len(active_players) <= 1:
+                                        if not countdown_task.done():
+                                            countdown_task.cancel()
+                                        break
+                                continue
+
+                            if msg.author.id == player.id and is_flag_guess_correct(msg.content, target_code, correct_name):
+                                if not countdown_task.done():
+                                    countdown_task.cancel()
+                                try:
+                                    await msg.add_reaction("✅")
+                                except Exception:
+                                    pass
+                                guessed_correctly = True
+                                player_correct_flags[player.id] = player_correct_flags.get(player.id, 0) + 1
+                                break
+
+                        except asyncio.TimeoutError:
+                            break
+
+                    if not countdown_task.done():
+                        countdown_task.cancel()
+
+                    if not single_player and len(active_players) <= 1:
+                        break
+
+                    if not guessed_correctly and player in active_players:
+                        hp[player.id] -= 1
+                        if hp[player.id] <= 0:
+                            await ctx.send(
+                                embed=discord.Embed(description=f"💥 **{player.mention}** t elimina **0 HP**. Ljawab howa **{correct_name}**.",
+                                                    color=0x000000))
+                            active_players.remove(player)
+                        else:
+                            await ctx.send(embed=discord.Embed(description=f"⌛ Sala lwe9t {player.mention}: **-1 HP**. Ljawab howa **{correct_name}**.",
+                                                color=0x000000))
+
+                    await asyncio.sleep(2)
+
+            if single_player:
+                player = players[0]
+                economy_cog = self.bot.get_cog("Economy")
+                p_flags = player_correct_flags.get(player.id, 0)
+                gross = 50 + int(round((p_flags * 15) * diff_mult))
+                eco_msg = ""
+                if economy_cog and p_flags > 0:
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Flags Solo")
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, player.id, "flags", earnings=net)
                 await ctx.send(embed=discord.Embed(
-                    description="🎯 Game Over! Ta wa7d ma jab chy raya s7i7a.",
+                    description=f"🎯 Game Over {player.mention}! L9iti **{p_flags} flags**.{eco_msg}",
                     color=0x000000
                 ))
+            elif not single_player:
+                max_guesses = max(player_correct_flags.values()) if player_correct_flags else 0
+                if max_guesses > 0:
+                    top_players = [p for p in players if player_correct_flags.get(p.id, 0) == max_guesses]
+                    economy_cog = self.bot.get_cog("Economy")
+                    player_earnings = {}
+                    if len(top_players) == 1:
+                        winner = top_players[0]
+                        eco_msg = ""
+                        if economy_cog:
+                            gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
+                            net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Flags Win")
+                            player_earnings[winner.id] = net
+                            eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                            if ctx.guild:
+                                await self.record_minigame_win(ctx.guild.id, winner.id, "flags", earnings=net)
+
+                            for pid, p_flags in player_correct_flags.items():
+                                if pid != winner.id and p_flags > 0:
+                                    p_gross = int(round((p_flags * 15) * diff_mult))
+                                    if p_gross > 0:
+                                        p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Flags Reward")
+                                        player_earnings[pid] = p_net
+
+                        others_msg = ""
+                        other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_flags[pid]} flags)" for pid, net in player_earnings.items() if pid != winner.id]
+                        if other_rewards:
+                            others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
+                        await ctx.send(embed=discord.Embed(
+                            description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} flags** o rbe7 lgame!{eco_msg}{others_msg}",
+                            color=0x000000
+                        ))
+                    else:
+                        winners_mention = " o ".join(p.mention for p in top_players)
+                        if economy_cog:
+                            for pid, p_flags in player_correct_flags.items():
+                                if p_flags > 0:
+                                    p_gross = int(round((p_flags * 15) * diff_mult))
+                                    if p_gross > 0:
+                                        p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Flags Reward (Tie)")
+                                        player_earnings[pid] = p_net
+
+                        others_msg = ""
+                        rewards_list = [f"<@{pid}>: **+{net}** TAD ({player_correct_flags[pid]} flags)" for pid, net in player_earnings.items()]
+                        if rewards_list:
+                            others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+
+                        await ctx.send(embed=discord.Embed(
+                            description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} flags**!{others_msg}",
+                            color=0x000000
+                        ))
+                else:
+                    await ctx.send(embed=discord.Embed(
+                        description="🎯 Game Over! Ta wa7d ma jab chy raya s7i7a.",
+                        color=0x000000
+                    ))
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
     @commands.command(name="craftingtable", aliases=["crafting", "craft", "recipe"], help="N3tik recipe ta3 minecraf o 9dder chno l item li katsawb.")
     async def craftingtable(self, ctx, *args):
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "Crafting Table")
         round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
@@ -5427,196 +5657,52 @@ class Minigames(commands.Cog, name="Minigames"):
         if reaction:
             async for user in reaction.users():
                 if not user.bot:
+                    if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                        continue
                     players.append(user)
 
         if not players:
+            clear_user_game(self.bot, ctx.author.id)
             await signup_msg.edit(embed=discord.Embed(description="💨 7ta wa7d ma dkhel lgame ._.", color=0x000000), view=None)
             return
 
-        single_player = len(players) == 1
-        hp = {player.id: 3 for player in players}
-        active_players = list(players)
+        for p in players:
+            set_user_in_game(self.bot, p.id, "Crafting Table")
 
-        # Apply difficulty filter to recipe pool
-        if difficulty == "easy":
-            pool = [r for r in all_recipes if r.get("difficulty") == "easy"] or all_recipes
-        elif difficulty == "medium":
-            pool = [r for r in all_recipes if r.get("difficulty") in ("easy", "medium")] or all_recipes
-        else:
-            pool = list(all_recipes)
+        try:
+            single_player = len(players) == 1
+            hp = {player.id: 3 for player in players}
+            active_players = list(players)
 
-        match_pool = list(pool)
-        random.shuffle(match_pool)
+            # Apply difficulty filter to recipe pool
+            if difficulty == "easy":
+                pool = [r for r in all_recipes if r.get("difficulty") == "easy"] or all_recipes
+            elif difficulty == "medium":
+                pool = [r for r in all_recipes if r.get("difficulty") in ("easy", "medium")] or all_recipes
+            else:
+                pool = list(all_recipes)
 
-        start_embed = discord.Embed(
-            description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
-            color=0x000000
-        )
-        await signup_msg.edit(embed=start_embed, view=None)
-        await asyncio.sleep(2)
+            match_pool = list(pool)
+            random.shuffle(match_pool)
 
-        player_correct_items = {p.id: 0 for p in players}
-
-        while len(active_players) > 0:
-            if not single_player and len(active_players) == 1:
-                winner = active_players[0]
-                economy_cog = self.bot.get_cog("Economy")
-                eco_msg = ""
-                player_earnings = {}
-                winner_items = player_correct_items.get(winner.id, 0)
-                if economy_cog:
-                    gross = (len(players) * 50) + int(round((winner_items * 15) * diff_mult))
-                    net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Crafting Table Win")
-                    player_earnings[winner.id] = net
-                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
-                    if ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, winner.id, "craftingtable", earnings=net)
-
-                    for pid, p_items in player_correct_items.items():
-                        if pid != winner.id and p_items > 0:
-                            p_gross = int(round((p_items * 15) * diff_mult))
-                            if p_gross > 0:
-                                p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Crafting Table Reward")
-                                player_earnings[pid] = p_net
-
-                others_msg = ""
-                other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_items[pid]} items)" for pid, net in player_earnings.items() if pid != winner.id]
-                if other_rewards:
-                    others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
-
-                win_embed = discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame b **{winner_items} items**!{eco_msg}{others_msg}",
-                    color=0x000000
-                )
-                await ctx.send(embed=win_embed)
-                return
-
-            if not match_pool:
-                await ctx.send(embed=discord.Embed(
-                    description="🏁 **Crafting pool salaw kamlin! Game sala.**",
-                    color=0x000000
-                ))
-                break
-
-            for player in list(active_players):
-                if player not in active_players:
-                    continue
-                if not single_player and len(active_players) <= 1:
-                    break
-
-                if not match_pool:
-                    break
-
-                target = match_pool.pop()
-                correct_name = target["displayName"]
-
-                buf = render_crafting_table(target["grid"])
-                file = discord.File(buf, filename="crafting.png")
-
-                game_embed = discord.Embed(
-                    description=f"🔨 Chno katsawb had recipe?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n📦 Recipes left: **{len(match_pool) + 1}**",
-                    color=0x000000
-                )
-                game_embed.set_image(url="attachment://crafting.png")
-                round_msg = await ctx.send(player.mention, embed=game_embed, file=file)
-
-                def check(m):
-                    if m.channel.id != ctx.channel.id:
-                        return False
-                    if m.author.id == player.id:
-                        return True
-                    if m.content.strip().lower() == "exitgame" and any(p.id == m.author.id for p in active_players):
-                        return True
-                    return False
-
-                start_time = time.time()
-                guessed_correctly = False
-                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
-
-                while time.time() - start_time < round_duration:
-                    time_left = round_duration - (time.time() - start_time)
-                    if time_left <= 0:
-                        break
-
-                    try:
-                        msg = await self.bot.wait_for("message", check=check, timeout=time_left)
-
-                        if msg.content.strip().lower() == "exitgame":
-                            leaver = next((p for p in active_players if p.id == msg.author.id), None)
-                            if leaver:
-                                hp[leaver.id] = 0
-                                active_players.remove(leaver)
-                                await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame.")
-                                if leaver.id == player.id:
-                                    if not countdown_task.done():
-                                        countdown_task.cancel()
-                                    guessed_correctly = True
-                                    break
-                                elif not single_player and len(active_players) <= 1:
-                                    if not countdown_task.done():
-                                        countdown_task.cancel()
-                                    break
-                            continue
-
-                        if msg.author.id == player.id and is_crafting_guess_correct(msg.content, target):
-                            if not countdown_task.done():
-                                countdown_task.cancel()
-                            try:
-                                await msg.add_reaction("✅")
-                            except Exception:
-                                pass
-                            guessed_correctly = True
-                            player_correct_items[player.id] = player_correct_items.get(player.id, 0) + 1
-                            break
-
-                    except asyncio.TimeoutError:
-                        break
-
-                if not countdown_task.done():
-                    countdown_task.cancel()
-
-                if not single_player and len(active_players) <= 1:
-                    break
-
-                if not guessed_correctly and player in active_players:
-                    hp[player.id] -= 1
-                    if hp[player.id] <= 0:
-                        await ctx.send(
-                            embed=discord.Embed(description=f"💥 **{player.mention}** t elimina **0 HP**. Ljawab howa **{correct_name}**.",
-                                                color=0x000000))
-                        active_players.remove(player)
-                    else:
-                        await ctx.send(embed=discord.Embed(description=f"⌛ Sala lwe9t {player.mention}: **-1 HP**. Ljawab howa **{correct_name}**.",
-                                            color=0x000000))
-
-                await asyncio.sleep(2)
-
-        if single_player:
-            player = players[0]
-            economy_cog = self.bot.get_cog("Economy")
-            p_items = player_correct_items.get(player.id, 0)
-            gross = 50 + int(round((p_items * 15) * diff_mult))
-            eco_msg = ""
-            if economy_cog and p_items > 0:
-                net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Crafting Table Solo")
-                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
-                if ctx.guild:
-                    await self.record_minigame_win(ctx.guild.id, player.id, "craftingtable", earnings=net)
-            await ctx.send(embed=discord.Embed(
-                description=f"🎯 Game Over {player.mention}! L9iti **{p_items} items**.{eco_msg}",
+            start_embed = discord.Embed(
+                description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
                 color=0x000000
-            ))
-        elif not single_player:
-            max_guesses = max(player_correct_items.values()) if player_correct_items else 0
-            if max_guesses > 0:
-                top_players = [p for p in players if player_correct_items.get(p.id, 0) == max_guesses]
-                economy_cog = self.bot.get_cog("Economy")
-                player_earnings = {}
-                if len(top_players) == 1:
-                    winner = top_players[0]
+            )
+            await signup_msg.edit(embed=start_embed, view=None)
+            await asyncio.sleep(2)
+
+            player_correct_items = {p.id: 0 for p in players}
+
+            while len(active_players) > 0:
+                if not single_player and len(active_players) == 1:
+                    winner = active_players[0]
+                    economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
+                    player_earnings = {}
+                    winner_items = player_correct_items.get(winner.id, 0)
                     if economy_cog:
-                        gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
+                        gross = (len(players) * 50) + int(round((winner_items * 15) * diff_mult))
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Crafting Table Win")
                         player_earnings[winner.id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
@@ -5635,37 +5721,195 @@ class Minigames(commands.Cog, name="Minigames"):
                     if other_rewards:
                         others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
 
+                    win_embed = discord.Embed(
+                        description=f"🏆 {winner.mention} rbe7 lgame b **{winner_items} items**!{eco_msg}{others_msg}",
+                        color=0x000000
+                    )
+                    await ctx.send(embed=win_embed)
+                    return
+
+                if not match_pool:
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} items** o rbe7 lgame!{eco_msg}{others_msg}",
+                        description="🏁 **Crafting pool salaw kamlin! Game sala.**",
                         color=0x000000
                     ))
-                else:
-                    winners_mention = " o ".join(p.mention for p in top_players)
-                    if economy_cog:
-                        for pid, p_items in player_correct_items.items():
-                            if p_items > 0:
-                                p_gross = int(round((p_items * 15) * diff_mult))
-                                if p_gross > 0:
-                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Crafting Table Reward (Tie)")
-                                    player_earnings[pid] = p_net
+                    break
 
-                    others_msg = ""
-                    rewards_list = [f"<@{pid}>: **+{net}** TAD ({player_correct_items[pid]} items)" for pid, net in player_earnings.items()]
-                    if rewards_list:
-                        others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+                for player in list(active_players):
+                    if player not in active_players:
+                        continue
+                    if not single_player and len(active_players) <= 1:
+                        break
 
-                    await ctx.send(embed=discord.Embed(
-                        description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} items**!{others_msg}",
+                    if not match_pool:
+                        break
+
+                    target = match_pool.pop()
+                    correct_name = target["displayName"]
+
+                    buf = render_crafting_table(target["grid"])
+                    file = discord.File(buf, filename="crafting.png")
+
+                    game_embed = discord.Embed(
+                        description=f"🔨 Chno katsawb had recipe?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n📦 Recipes left: **{len(match_pool) + 1}**",
                         color=0x000000
-                    ))
-            else:
+                    )
+                    game_embed.set_image(url="attachment://crafting.png")
+                    round_msg = await ctx.send(player.mention, embed=game_embed, file=file)
+
+                    def check(m):
+                        if m.channel.id != ctx.channel.id:
+                            return False
+                        if m.author.id == player.id:
+                            return True
+                        if m.content.strip().lower() == "exitgame" and any(p.id == m.author.id for p in active_players):
+                            return True
+                        return False
+
+                    start_time = time.time()
+                    guessed_correctly = False
+                    countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+
+                    while time.time() - start_time < round_duration:
+                        time_left = round_duration - (time.time() - start_time)
+                        if time_left <= 0:
+                            break
+
+                        try:
+                            msg = await self.bot.wait_for("message", check=check, timeout=time_left)
+
+                            if msg.content.strip().lower() == "exitgame":
+                                leaver = next((p for p in active_players if p.id == msg.author.id), None)
+                                if leaver:
+                                    hp[leaver.id] = 0
+                                    active_players.remove(leaver)
+                                    await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame.")
+                                    if leaver.id == player.id:
+                                        if not countdown_task.done():
+                                            countdown_task.cancel()
+                                        guessed_correctly = True
+                                        break
+                                    elif not single_player and len(active_players) <= 1:
+                                        if not countdown_task.done():
+                                            countdown_task.cancel()
+                                        break
+                                continue
+
+                            if msg.author.id == player.id and is_crafting_guess_correct(msg.content, target):
+                                if not countdown_task.done():
+                                    countdown_task.cancel()
+                                try:
+                                    await msg.add_reaction("✅")
+                                except Exception:
+                                    pass
+                                guessed_correctly = True
+                                player_correct_items[player.id] = player_correct_items.get(player.id, 0) + 1
+                                break
+
+                        except asyncio.TimeoutError:
+                            break
+
+                    if not countdown_task.done():
+                        countdown_task.cancel()
+
+                    if not single_player and len(active_players) <= 1:
+                        break
+
+                    if not guessed_correctly and player in active_players:
+                        hp[player.id] -= 1
+                        if hp[player.id] <= 0:
+                            await ctx.send(
+                                embed=discord.Embed(description=f"💥 **{player.mention}** t elimina **0 HP**. Ljawab howa **{correct_name}**.",
+                                                    color=0x000000))
+                            active_players.remove(player)
+                        else:
+                            await ctx.send(embed=discord.Embed(description=f"⌛ Sala lwe9t {player.mention}: **-1 HP**. Ljawab howa **{correct_name}**.",
+                                                color=0x000000))
+
+                    await asyncio.sleep(2)
+
+            if single_player:
+                player = players[0]
+                economy_cog = self.bot.get_cog("Economy")
+                p_items = player_correct_items.get(player.id, 0)
+                gross = 50 + int(round((p_items * 15) * diff_mult))
+                eco_msg = ""
+                if economy_cog and p_items > 0:
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Crafting Table Solo")
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, player.id, "craftingtable", earnings=net)
                 await ctx.send(embed=discord.Embed(
-                    description="🎯 Game Over! Ta wa7d ma jab chy item s7i7.",
+                    description=f"🎯 Game Over {player.mention}! L9iti **{p_items} items**.{eco_msg}",
                     color=0x000000
                 ))
+            elif not single_player:
+                max_guesses = max(player_correct_items.values()) if player_correct_items else 0
+                if max_guesses > 0:
+                    top_players = [p for p in players if player_correct_items.get(p.id, 0) == max_guesses]
+                    economy_cog = self.bot.get_cog("Economy")
+                    player_earnings = {}
+                    if len(top_players) == 1:
+                        winner = top_players[0]
+                        eco_msg = ""
+                        if economy_cog:
+                            gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
+                            net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Crafting Table Win")
+                            player_earnings[winner.id] = net
+                            eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                            if ctx.guild:
+                                await self.record_minigame_win(ctx.guild.id, winner.id, "craftingtable", earnings=net)
+
+                            for pid, p_items in player_correct_items.items():
+                                if pid != winner.id and p_items > 0:
+                                    p_gross = int(round((p_items * 15) * diff_mult))
+                                    if p_gross > 0:
+                                        p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Crafting Table Reward")
+                                        player_earnings[pid] = p_net
+
+                        others_msg = ""
+                        other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_items[pid]} items)" for pid, net in player_earnings.items() if pid != winner.id]
+                        if other_rewards:
+                            others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
+                        await ctx.send(embed=discord.Embed(
+                            description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} items** o rbe7 lgame!{eco_msg}{others_msg}",
+                            color=0x000000
+                        ))
+                    else:
+                        winners_mention = " o ".join(p.mention for p in top_players)
+                        if economy_cog:
+                            for pid, p_items in player_correct_items.items():
+                                if p_items > 0:
+                                    p_gross = int(round((p_items * 15) * diff_mult))
+                                    if p_gross > 0:
+                                        p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Crafting Table Reward (Tie)")
+                                        player_earnings[pid] = p_net
+
+                        others_msg = ""
+                        rewards_list = [f"<@{pid}>: **+{net}** TAD ({player_correct_items[pid]} items)" for pid, net in player_earnings.items()]
+                        if rewards_list:
+                            others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+
+                        await ctx.send(embed=discord.Embed(
+                            description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} items**!{others_msg}",
+                            color=0x000000
+                        ))
+                else:
+                    await ctx.send(embed=discord.Embed(
+                        description="🎯 Game Over! Ta wa7d ma jab chy item s7i7.",
+                        color=0x000000
+                    ))
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
     @commands.command(name="guessthecar", aliases=["guesscar", "cars", "carguess", "carmodels", "models", "tomobil", "tomobila"], help="N3tik tswira ta3 tomobila o 9dder smyt l model.")
     async def guessthecar(self, ctx, *args):
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "Guess The Car")
         round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
@@ -5704,209 +5948,56 @@ class Minigames(commands.Cog, name="Minigames"):
         if reaction:
             async for user in reaction.users():
                 if not user.bot:
+                    if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                        continue
                     players.append(user)
 
         if not players:
+            clear_user_game(self.bot, ctx.author.id)
             await signup_msg.edit(embed=discord.Embed(description="💨 7ta wa7d ma dkhel lgame ._.", color=0x000000), view=None)
             return
 
-        single_player = len(players) == 1
-        hp = {player.id: 3 for player in players}
-        active_players = list(players)
+        for p in players:
+            set_user_in_game(self.bot, p.id, "Guess The Car")
 
-        # Apply difficulty filter
-        if difficulty == "easy":
-            pool = [c for c in all_cars if c.get("difficulty") == "easy"] or all_cars
-        elif difficulty == "medium":
-            pool = [c for c in all_cars if c.get("difficulty") in ("easy", "medium")] or all_cars
-        else:
-            pool = list(all_cars)
+        try:
+            single_player = len(players) == 1
+            hp = {player.id: 3 for player in players}
+            active_players = list(players)
 
-        match_pool = list(pool)
-        random.shuffle(match_pool)
+            # Apply difficulty filter
+            if difficulty == "easy":
+                pool = [c for c in all_cars if c.get("difficulty") == "easy"] or all_cars
+            elif difficulty == "medium":
+                pool = [c for c in all_cars if c.get("difficulty") in ("easy", "medium")] or all_cars
+            else:
+                pool = list(all_cars)
 
-        # Prefetch first car so round 1 starts with 0ms delay
-        if match_pool:
-            asyncio.create_task(_get_compressed_car_image(self.bot.session, _clean_car_image_url(_get_car_image_url(match_pool[-1]))))
+            match_pool = list(pool)
+            random.shuffle(match_pool)
 
-        start_embed = discord.Embed(
-            description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
-            color=0x000000
-        )
-        await signup_msg.edit(embed=start_embed, view=None)
-        await asyncio.sleep(2)
+            # Prefetch first car so round 1 starts with 0ms delay
+            if match_pool:
+                asyncio.create_task(_get_compressed_car_image(self.bot.session, _clean_car_image_url(_get_car_image_url(match_pool[-1]))))
 
-        player_correct_cars = {p.id: 0 for p in players}
-
-        while len(active_players) > 0:
-            if not single_player and len(active_players) == 1:
-                winner = active_players[0]
-                economy_cog = self.bot.get_cog("Economy")
-                eco_msg = ""
-                player_earnings = {}
-                winner_cars = player_correct_cars.get(winner.id, 0)
-                if economy_cog:
-                    gross = (len(players) * 50) + int(round((winner_cars * 15) * diff_mult))
-                    net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Car Model Win")
-                    player_earnings[winner.id] = net
-                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
-                    if ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, winner.id, "guessthecar", earnings=net)
-
-                    for pid, p_cars in player_correct_cars.items():
-                        if pid != winner.id and p_cars > 0:
-                            p_gross = int(round((p_cars * 15) * diff_mult))
-                            if p_gross > 0:
-                                p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Car Model Reward")
-                                player_earnings[pid] = p_net
-
-                others_msg = ""
-                other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_cars[pid]} cars)" for pid, net in player_earnings.items() if pid != winner.id]
-                if other_rewards:
-                    others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
-
-                win_embed = discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame b **{winner_cars} cars**!{eco_msg}{others_msg}",
-                    color=0x000000
-                )
-                await ctx.send(embed=win_embed)
-                return
-
-            if not match_pool:
-                await ctx.send(embed=discord.Embed(
-                    description="🏁 **Cars pool salaw kamlin! Game sala.**",
-                    color=0x000000
-                ))
-                break
-
-            for player in list(active_players):
-                if player not in active_players:
-                    continue
-                if not single_player and len(active_players) <= 1:
-                    break
-
-                if not match_pool:
-                    break
-
-                target = match_pool.pop()
-                correct_name = target.get("displayName", target.get("model", ""))
-
-                game_embed = discord.Embed(
-                    description=f"🚗 Chno smit lmodel ta3 had tomobila?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n📦 Cars left: **{len(match_pool) + 1}**",
-                    color=0x000000
-                )
-                car_img = _clean_car_image_url(_get_car_image_url(target))
-                compressed_buf = await _get_compressed_car_image(self.bot.session, car_img)
-                if compressed_buf:
-                    car_file = discord.File(compressed_buf, filename="car.jpg")
-                    game_embed.set_image(url="attachment://car.jpg")
-                    round_msg = await ctx.send(player.mention, embed=game_embed, file=car_file)
-                else:
-                    game_embed.set_image(url=car_img)
-                    round_msg = await ctx.send(player.mention, embed=game_embed)
-
-                # Prefetch next car in background while player is guessing
-                if match_pool:
-                    next_target_url = _clean_car_image_url(_get_car_image_url(match_pool[-1]))
-                    asyncio.create_task(_get_compressed_car_image(self.bot.session, next_target_url))
-
-                def check(m):
-                    if m.channel.id != ctx.channel.id:
-                        return False
-                    if m.author.id == player.id:
-                        return True
-                    if m.content.strip().lower() == "exitgame" and any(p.id == m.author.id for p in active_players):
-                        return True
-                    return False
-
-                start_time = time.time()
-                guessed_correctly = False
-                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
-
-                while time.time() - start_time < round_duration:
-                    time_left = round_duration - (time.time() - start_time)
-                    if time_left <= 0:
-                        break
-
-                    try:
-                        msg = await self.bot.wait_for("message", check=check, timeout=time_left)
-
-                        if msg.content.strip().lower() == "exitgame":
-                            leaver = next((p for p in active_players if p.id == msg.author.id), None)
-                            if leaver:
-                                hp[leaver.id] = 0
-                                active_players.remove(leaver)
-                                await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame.")
-                                if leaver.id == player.id:
-                                    if not countdown_task.done():
-                                        countdown_task.cancel()
-                                    guessed_correctly = True
-                                    break
-                                elif not single_player and len(active_players) <= 1:
-                                    if not countdown_task.done():
-                                        countdown_task.cancel()
-                                    break
-                            continue
-
-                        if msg.author.id == player.id and is_car_guess_correct(msg.content, target):
-                            if not countdown_task.done():
-                                countdown_task.cancel()
-                            try:
-                                await msg.add_reaction("✅")
-                            except Exception:
-                                pass
-                            guessed_correctly = True
-                            player_correct_cars[player.id] = player_correct_cars.get(player.id, 0) + 1
-                            break
-
-                    except asyncio.TimeoutError:
-                        break
-
-                if not countdown_task.done():
-                    countdown_task.cancel()
-
-                if not single_player and len(active_players) <= 1:
-                    break
-
-                if not guessed_correctly and player in active_players:
-                    hp[player.id] -= 1
-                    if hp[player.id] <= 0:
-                        await ctx.send(
-                            embed=discord.Embed(description=f"💥 **{player.mention}** t elimina **0 HP**. Ljawab howa **{correct_name}**.",
-                                                color=0x000000))
-                        active_players.remove(player)
-                    else:
-                        await ctx.send(embed=discord.Embed(description=f"⌛ Sala lwe9t {player.mention}: **-1 HP**. Ljawab howa **{correct_name}**.",
-                                            color=0x000000))
-
-                await asyncio.sleep(2)
-
-        if single_player:
-            player = players[0]
-            economy_cog = self.bot.get_cog("Economy")
-            p_cars = player_correct_cars.get(player.id, 0)
-            gross = 50 + int(round((p_cars * 15) * diff_mult))
-            eco_msg = ""
-            if economy_cog and p_cars > 0:
-                net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Car Model Solo")
-                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
-                if ctx.guild:
-                    await self.record_minigame_win(ctx.guild.id, player.id, "guessthecar", earnings=net)
-            await ctx.send(embed=discord.Embed(
-                description=f"🎯 Game Over {player.mention}! L9iti **{p_cars} cars**.{eco_msg}",
+            start_embed = discord.Embed(
+                description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
                 color=0x000000
-            ))
-        elif not single_player:
-            max_guesses = max(player_correct_cars.values()) if player_correct_cars else 0
-            if max_guesses > 0:
-                top_players = [p for p in players if player_correct_cars.get(p.id, 0) == max_guesses]
-                economy_cog = self.bot.get_cog("Economy")
-                player_earnings = {}
-                if len(top_players) == 1:
-                    winner = top_players[0]
+            )
+            await signup_msg.edit(embed=start_embed, view=None)
+            await asyncio.sleep(2)
+
+            player_correct_cars = {p.id: 0 for p in players}
+
+            while len(active_players) > 0:
+                if not single_player and len(active_players) == 1:
+                    winner = active_players[0]
+                    economy_cog = self.bot.get_cog("Economy")
                     eco_msg = ""
+                    player_earnings = {}
+                    winner_cars = player_correct_cars.get(winner.id, 0)
                     if economy_cog:
-                        gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
+                        gross = (len(players) * 50) + int(round((winner_cars * 15) * diff_mult))
                         net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Car Model Win")
                         player_earnings[winner.id] = net
                         eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
@@ -5925,40 +6016,208 @@ class Minigames(commands.Cog, name="Minigames"):
                     if other_rewards:
                         others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
 
+                    win_embed = discord.Embed(
+                        description=f"🏆 {winner.mention} rbe7 lgame b **{winner_cars} cars**!{eco_msg}{others_msg}",
+                        color=0x000000
+                    )
+                    await ctx.send(embed=win_embed)
+                    return
+
+                if not match_pool:
                     await ctx.send(embed=discord.Embed(
-                        description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} cars** o rbe7 lgame!{eco_msg}{others_msg}",
+                        description="🏁 **Cars pool salaw kamlin! Game sala.**",
                         color=0x000000
                     ))
-                else:
-                    winners_mention = " o ".join(p.mention for p in top_players)
-                    if economy_cog:
-                        for pid, p_cars in player_correct_cars.items():
-                            if p_cars > 0:
-                                p_gross = int(round((p_cars * 15) * diff_mult))
-                                if p_gross > 0:
-                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Car Model Reward (Tie)")
-                                    player_earnings[pid] = p_net
+                    break
 
-                    others_msg = ""
-                    rewards_list = [f"<@{pid}>: **+{net}** TAD ({player_correct_cars[pid]} cars)" for pid, net in player_earnings.items()]
-                    if rewards_list:
-                        others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+                for player in list(active_players):
+                    if player not in active_players:
+                        continue
+                    if not single_player and len(active_players) <= 1:
+                        break
 
-                    await ctx.send(embed=discord.Embed(
-                        description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} cars**!{others_msg}",
+                    if not match_pool:
+                        break
+
+                    target = match_pool.pop()
+                    correct_name = target.get("displayName", target.get("model", ""))
+
+                    game_embed = discord.Embed(
+                        description=f"🚗 Chno smit lmodel ta3 had tomobila?\n⌛ Time: {round_duration}s\n❤️ HP: {hp[player.id]}\n📦 Cars left: **{len(match_pool) + 1}**",
                         color=0x000000
-                    ))
-            else:
+                    )
+                    car_img = _clean_car_image_url(_get_car_image_url(target))
+                    compressed_buf = await _get_compressed_car_image(self.bot.session, car_img)
+                    if compressed_buf:
+                        car_file = discord.File(compressed_buf, filename="car.jpg")
+                        game_embed.set_image(url="attachment://car.jpg")
+                        round_msg = await ctx.send(player.mention, embed=game_embed, file=car_file)
+                    else:
+                        game_embed.set_image(url=car_img)
+                        round_msg = await ctx.send(player.mention, embed=game_embed)
+
+                    # Prefetch next car in background while player is guessing
+                    if match_pool:
+                        next_target_url = _clean_car_image_url(_get_car_image_url(match_pool[-1]))
+                        asyncio.create_task(_get_compressed_car_image(self.bot.session, next_target_url))
+
+                    def check(m):
+                        if m.channel.id != ctx.channel.id:
+                            return False
+                        if m.author.id == player.id:
+                            return True
+                        if m.content.strip().lower() == "exitgame" and any(p.id == m.author.id for p in active_players):
+                            return True
+                        return False
+
+                    start_time = time.time()
+                    guessed_correctly = False
+                    countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+
+                    while time.time() - start_time < round_duration:
+                        time_left = round_duration - (time.time() - start_time)
+                        if time_left <= 0:
+                            break
+
+                        try:
+                            msg = await self.bot.wait_for("message", check=check, timeout=time_left)
+
+                            if msg.content.strip().lower() == "exitgame":
+                                leaver = next((p for p in active_players if p.id == msg.author.id), None)
+                                if leaver:
+                                    hp[leaver.id] = 0
+                                    active_players.remove(leaver)
+                                    await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame.")
+                                    if leaver.id == player.id:
+                                        if not countdown_task.done():
+                                            countdown_task.cancel()
+                                        guessed_correctly = True
+                                        break
+                                    elif not single_player and len(active_players) <= 1:
+                                        if not countdown_task.done():
+                                            countdown_task.cancel()
+                                        break
+                                continue
+
+                            if msg.author.id == player.id and is_car_guess_correct(msg.content, target):
+                                if not countdown_task.done():
+                                    countdown_task.cancel()
+                                try:
+                                    await msg.add_reaction("✅")
+                                except Exception:
+                                    pass
+                                guessed_correctly = True
+                                player_correct_cars[player.id] = player_correct_cars.get(player.id, 0) + 1
+                                break
+
+                        except asyncio.TimeoutError:
+                            break
+
+                    if not countdown_task.done():
+                        countdown_task.cancel()
+
+                    if not single_player and len(active_players) <= 1:
+                        break
+
+                    if not guessed_correctly and player in active_players:
+                        hp[player.id] -= 1
+                        if hp[player.id] <= 0:
+                            await ctx.send(
+                                embed=discord.Embed(description=f"💥 **{player.mention}** t elimina **0 HP**. Ljawab howa **{correct_name}**.",
+                                                    color=0x000000))
+                            active_players.remove(player)
+                        else:
+                            await ctx.send(embed=discord.Embed(description=f"⌛ Sala lwe9t {player.mention}: **-1 HP**. Ljawab howa **{correct_name}**.",
+                                                color=0x000000))
+
+                    await asyncio.sleep(2)
+
+            if single_player:
+                player = players[0]
+                economy_cog = self.bot.get_cog("Economy")
+                p_cars = player_correct_cars.get(player.id, 0)
+                gross = 50 + int(round((p_cars * 15) * diff_mult))
+                eco_msg = ""
+                if economy_cog and p_cars > 0:
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Car Model Solo")
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, player.id, "guessthecar", earnings=net)
                 await ctx.send(embed=discord.Embed(
-                    description="🎯 Game Over! Ta wa7d ma jab chy car s7i7a.",
+                    description=f"🎯 Game Over {player.mention}! L9iti **{p_cars} cars**.{eco_msg}",
                     color=0x000000
                 ))
+            elif not single_player:
+                max_guesses = max(player_correct_cars.values()) if player_correct_cars else 0
+                if max_guesses > 0:
+                    top_players = [p for p in players if player_correct_cars.get(p.id, 0) == max_guesses]
+                    economy_cog = self.bot.get_cog("Economy")
+                    player_earnings = {}
+                    if len(top_players) == 1:
+                        winner = top_players[0]
+                        eco_msg = ""
+                        if economy_cog:
+                            gross = (len(players) * 50) + int(round((max_guesses * 15) * diff_mult))
+                            net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Car Model Win")
+                            player_earnings[winner.id] = net
+                            eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                            if ctx.guild:
+                                await self.record_minigame_win(ctx.guild.id, winner.id, "guessthecar", earnings=net)
+
+                            for pid, p_cars in player_correct_cars.items():
+                                if pid != winner.id and p_cars > 0:
+                                    p_gross = int(round((p_cars * 15) * diff_mult))
+                                    if p_gross > 0:
+                                        p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Car Model Reward")
+                                        player_earnings[pid] = p_net
+
+                        others_msg = ""
+                        other_rewards = [f"<@{pid}>: **+{net}** TAD ({player_correct_cars[pid]} cars)" for pid, net in player_earnings.items() if pid != winner.id]
+                        if other_rewards:
+                            others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
+
+                        await ctx.send(embed=discord.Embed(
+                            description=f"🏆 {winner.mention} 3ndo a3la score b **{max_guesses} cars** o rbe7 lgame!{eco_msg}{others_msg}",
+                            color=0x000000
+                        ))
+                    else:
+                        winners_mention = " o ".join(p.mention for p in top_players)
+                        if economy_cog:
+                            for pid, p_cars in player_correct_cars.items():
+                                if p_cars > 0:
+                                    p_gross = int(round((p_cars * 15) * diff_mult))
+                                    if p_gross > 0:
+                                        p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Car Model Reward (Tie)")
+                                        player_earnings[pid] = p_net
+
+                        others_msg = ""
+                        rewards_list = [f"<@{pid}>: **+{net}** TAD ({player_correct_cars[pid]} cars)" for pid, net in player_earnings.items()]
+                        if rewards_list:
+                            others_msg = "\n\n💰 **Rewards:**\n" + " • ".join(rewards_list)
+
+                        await ctx.send(embed=discord.Embed(
+                            description=f"🤝 Ta3adol bin {winners_mention} b **{max_guesses} cars**!{others_msg}",
+                            color=0x000000
+                        ))
+                else:
+                    await ctx.send(embed=discord.Embed(
+                        description="🎯 Game Over! Ta wa7d ma jab chy car s7i7a.",
+                        color=0x000000
+                    ))
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
     @commands.command(aliases=["jklm"], help="Kteb kelma fiha l7orof li ghan3tik.")
     async def blacktea(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="easy")
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "BlackTea")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
+        players = []
 
         try:
             join_emoji = "✅"
@@ -5983,14 +6242,20 @@ class Minigames(commands.Cog, name="Minigames"):
             if reaction:
                 async for user in reaction.users():
                     if not user.bot:
+                        if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                            continue
                         players.append(user)
 
             if not players:
+                clear_user_game(self.bot, ctx.author.id)
                 await start.edit(embed=discord.Embed(
                     description="💨 7ta wa7d ma dkhel lgame ._.",
                     color=0x000000
                 ), view=None)
                 return
+
+            for p in players:
+                set_user_in_game(self.bot, p.id, "BlackTea")
 
             single_player = len(players) == 1
             lives = {p.id: 3 for p in players}
@@ -6036,6 +6301,7 @@ class Minigames(commands.Cog, name="Minigames"):
                             countdown_task.cancel()
                         if word_msg:
                             if word_msg.content.strip().lower() == "exitgame":
+                                clear_user_game(self.bot, player.id)
                                 lives[player.id] = 0
                                 await ctx.send(f"🚪 **{player.mention}** khrej mn lgame (**Game Over**).")
                                 break
@@ -6101,6 +6367,7 @@ class Minigames(commands.Cog, name="Minigames"):
                                 if word_msg.content.strip().lower() == "exitgame":
                                     leaver = next((p for p in active_players if p.id == word_msg.author.id), None)
                                     if leaver:
+                                        clear_user_game(self.bot, leaver.id)
                                         lives[leaver.id] = 0
                                         active_players.remove(leaver)
                                         await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame o t elimina.")
@@ -6173,12 +6440,20 @@ class Minigames(commands.Cog, name="Minigames"):
                     ))
         except Exception as e:
             print(f"[blacktea error]: {e}")
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
     @commands.command(aliases=["gt", "green"], help="Kteb kelma fiha l7orof li ghan3tik bzerba.")
     async def greentea(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=15, default_difficulty="easy")
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "GreenTea")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
+        players = []
 
         try:
             join_emoji = "✅"
@@ -6203,14 +6478,22 @@ class Minigames(commands.Cog, name="Minigames"):
             if reaction:
                 async for user in reaction.users():
                     if not user.bot:
+                        if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                            continue
                         players.append(user)
 
             if len(players) < 2:
+                clear_user_game(self.bot, ctx.author.id)
+                for p in players:
+                    clear_user_game(self.bot, p.id)
                 await start.edit(embed=discord.Embed(
                     description="❌ Khass minimum **2 players** bach tl3bo GreenTea.",
                     color=0x000000
                 ), view=None)
                 return
+
+            for p in players:
+                set_user_in_game(self.bot, p.id, "GreenTea")
 
             await start.edit(embed=discord.Embed(
                 description="▶️ **Bdina!** (10 Rounds)\nPlayers: " + ", ".join(p.mention for p in players) + f"\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
@@ -6258,6 +6541,7 @@ class Minigames(commands.Cog, name="Minigames"):
                         word_msg = await self.bot.wait_for('message', check=check, timeout=rem)
                         if word_msg.content.strip().lower() == "exitgame":
                             fast = word_msg.author
+                            clear_user_game(self.bot, fast.id)
                             player_ids.discard(fast.id)
                             players = [p for p in players if p.id != fast.id]
                             await ctx.send(f"🚪 **{fast.mention}** khrej mn lgame.")
@@ -6352,12 +6636,20 @@ class Minigames(commands.Cog, name="Minigames"):
                     ))
         except Exception as e:
             print(f"[greentea error]: {e}")
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
     @commands.command(aliases=["rt", "red"], help="Kteb atwal kelma fiha l7orof li ghan3tik.")
     async def redtea(self, ctx, *args):
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "RedTea")
         round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
         time_display = f"{round_duration}s"
         mult = DIFFICULTY_STAKES[difficulty]
+        players = []
 
         try:
             join_emoji = "✅"
@@ -6382,14 +6674,22 @@ class Minigames(commands.Cog, name="Minigames"):
             if reaction:
                 async for user in reaction.users():
                     if not user.bot:
+                        if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                            continue
                         players.append(user)
 
             if len(players) < 2:
+                clear_user_game(self.bot, ctx.author.id)
+                for p in players:
+                    clear_user_game(self.bot, p.id)
                 await start.edit(embed=discord.Embed(
                     description="❌ Khass minimum **2 players** bach tl3bo RedTea.",
                     color=0x000000
                 ), view=None)
                 return
+
+            for p in players:
+                set_user_in_game(self.bot, p.id, "RedTea")
 
             await start.edit(embed=discord.Embed(
                 description="▶️ **Bdina!** (10 Rounds)\nPlayers: " + ", ".join(p.mention for p in players) + f"\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)\n*Akbar kelma fiha lcombo katrbe7!*",
@@ -6441,6 +6741,7 @@ class Minigames(commands.Cog, name="Minigames"):
 
                     word_clean = word_msg.content.strip().lower()
                     if word_clean == "exitgame":
+                        clear_user_game(self.bot, word_msg.author.id)
                         player_ids.discard(word_msg.author.id)
                         players = [p for p in players if p.id != word_msg.author.id]
                         if longest_player and longest_player.id == word_msg.author.id:
@@ -6534,9 +6835,16 @@ class Minigames(commands.Cog, name="Minigames"):
                     ))
         except Exception as e:
             print(f"[redtea error]: {e}")
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
     @commands.command(name="unscramble", aliases=["scramble", "moliniks", "molinix", "chlada", "shlada"], help="An3tik kelma mkhrb9a o nta 9adha.")
     async def unscramble(self, ctx, *args):
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "Word Unscramble")
         round_duration, difficulty = parse_minigame_args(*args, default_duration=30, default_difficulty="easy")
         if round_duration < 5:
             round_duration = 5
@@ -6545,6 +6853,7 @@ class Minigames(commands.Cog, name="Minigames"):
             time_display = f"{round_duration}s"
 
         mult = DIFFICULTY_STAKES.get(difficulty, 1.0)
+        players = []
 
         try:
             join_emoji = "✅"
@@ -6569,14 +6878,20 @@ class Minigames(commands.Cog, name="Minigames"):
             if reaction:
                 async for user in reaction.users():
                     if not user.bot:
+                        if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                            continue
                         players.append(user)
 
             if not players:
+                clear_user_game(self.bot, ctx.author.id)
                 await signup_msg.edit(embed=discord.Embed(
                     description="💨 7ta wa7d ma dkhel lgame ._.",
                     color=0x000000
                 ), view=None)
                 return
+
+            for p in players:
+                set_user_in_game(self.bot, p.id, "Word Unscramble")
 
             single_player = len(players) == 1
             lives = {p.id: 3 for p in players}
@@ -6626,6 +6941,7 @@ class Minigames(commands.Cog, name="Minigames"):
                             countdown_task.cancel()
                         if word_msg:
                             if word_msg.content.strip().lower() == "exitgame":
+                                clear_user_game(self.bot, player.id)
                                 lives[player.id] = 0
                                 await ctx.send(f"🚪 **{player.mention}** khrej mn lgame (**Game Over**).\n🧩 Lkelma kanet: **{secret.upper()}**")
                                 break
@@ -6698,6 +7014,7 @@ class Minigames(commands.Cog, name="Minigames"):
                                 if word_msg.content.strip().lower() == "exitgame":
                                     leaver = next((p for p in active_players if p.id == word_msg.author.id), None)
                                     if leaver:
+                                        clear_user_game(self.bot, leaver.id)
                                         lives[leaver.id] = 0
                                         active_players.remove(leaver)
                                         await ctx.send(f"🚪 **{leaver.mention}** khrej mn lgame o t elimina.\n🧩 Lkelma kanet: **{secret.upper()}**")
@@ -6770,12 +7087,19 @@ class Minigames(commands.Cog, name="Minigames"):
                     ))
         except Exception as e:
             print(f"[unscramble error]: {e}")
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
     @commands.command(name="tictactoe", aliases=["ttt"], help="X/O las9 3 bach trbe7 (sat ttt @user [bet:500]).")
     @not_fraud()
     async def tictactoe(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        if not await self.ensure_user_free(ctx, member):
+            return
         bet, _ = parse_bet_argument(*args)
         if member is None:
+            set_user_in_game(self.bot, ctx.author.id, "Tic-Tac-Toe")
             view = TicTacToeView(ctx.author, ctx.bot.user, is_bot_game=True, cog=self)
             content = f"❌ **{ctx.author.mention}'s turn (X)**"
             message = await ctx.send(content=content, view=view)
@@ -6831,8 +7155,11 @@ class Minigames(commands.Cog, name="Minigames"):
     @commands.command(name="connectfour", aliases=["c4", "connect4"], help="Las9 4 bach trbe7 (sat c4 @user [bet:500]).")
     @not_fraud()
     async def connectfour(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        if not await self.ensure_user_free(ctx, member):
+            return
         bet, _ = parse_bet_argument(*args)
         if member is None:
+            set_user_in_game(self.bot, ctx.author.id, "Connect 4")
             view = ConnectFourView(ctx.author, ctx.bot.user, is_bot_game=True, cog=self)
             content = view.get_status_content()
             message = await ctx.send(content=content, view=view)
@@ -6880,6 +7207,9 @@ class Minigames(commands.Cog, name="Minigames"):
 
     @commands.command(name="akinator", aliases=["aki"], help="Fekker f chy character o khsni n3erfo.")
     async def akinator_cmd(self, ctx: commands.Context, *args):
+        if not await self.ensure_user_free(ctx):
+            return
+
         if ctx.author.id in self.active_akinator_users:
             await ctx.send("❌ Rak deja katl3eb Akinator! Kamel lgame dialk wla dir 🛑 Stop.")
             return
@@ -6891,6 +7221,7 @@ class Minigames(commands.Cog, name="Minigames"):
 
         self.active_akinator_users.add(ctx.author.id)
         self.active_akinator_channels[ctx.channel.id] = ctx.author
+        set_user_in_game(self.bot, ctx.author.id, "Akinator")
 
         async with ctx.typing():
             view = AkinatorView(ctx.author, timeout=60.0, cog=self, channel_id=ctx.channel.id)
@@ -6907,15 +7238,19 @@ class Minigames(commands.Cog, name="Minigames"):
             except Exception as e:
                 self.active_akinator_users.discard(ctx.author.id)
                 self.active_akinator_channels.pop(ctx.channel.id, None)
+                clear_user_game(self.bot, ctx.author.id)
                 print(f"[Akinator Command Error]: {e}")
                 await ctx.send("❌ Makhdamach Akinator daba, 7awel mn be3d.")
 
     @commands.command(name="playchess", aliases=["shitranj", "chessgame"], help="L3eb chess (sat playchess @user [bet:500]).")
     @not_fraud()
     async def playchess(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        if not await self.ensure_user_free(ctx, member):
+            return
         bet, _ = parse_bet_argument(*args)
         # Single Player vs Bot
         if member is None:
+            set_user_in_game(self.bot, ctx.author.id, "Chess")
             game_view = ChessView(ctx.author, ctx.bot.user, is_bot_game=True, cog=self)
             board_file = await game_view.generate_board_file()
             msg = await ctx.send(embed=game_view.build_embed(), file=board_file, view=game_view)
@@ -6964,6 +7299,8 @@ class Minigames(commands.Cog, name="Minigames"):
     @commands.command(name="rockpaperscissors", aliases=["rps", "zdimbomba7", "zba7"], help="7ajar wara9 mi9as (sat rps [bet] wla sat rps @user [bet]).")
     @not_fraud()
     async def rps(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        if not await self.ensure_user_free(ctx, member):
+            return
         economy_cog = self.bot.get_cog("Economy")
         w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
 
@@ -6988,6 +7325,7 @@ class Minigames(commands.Cog, name="Minigames"):
                     return
                 await economy_cog.deduct_balance(ctx.author.id, bet, context="RPS Bot Bet")
 
+            set_user_in_game(self.bot, ctx.author.id, "Rock Paper Scissors")
             view = RPSBotView(ctx.author, cog=self, bet=bet or 0)
             stake_str = f"\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""
             embed = discord.Embed(
@@ -7041,8 +7379,11 @@ class Minigames(commands.Cog, name="Minigames"):
     @commands.command(name="minesweeper", aliases=["ms", "demineur"], help="Hreb mn l9nabl (solo) wla l9a l9nabl (1v1) (sat ms @user [bet:500]).")
     @not_fraud()
     async def minesweeper(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        if not await self.ensure_user_free(ctx, member):
+            return
         bet, _ = parse_bet_argument(*args)
         if member is None:
+            set_user_in_game(self.bot, ctx.author.id, "Minesweeper")
             view = MinesweeperSoloView(ctx.author, cog=self)
             content = "💣 **Minesweeper (Solo)** — Hreb mn l mines o l9a safe squares kamlin!\nSafe: **0/16**"
             message = await ctx.send(content=content, view=view)
@@ -7091,9 +7432,12 @@ class Minigames(commands.Cog, name="Minigames"):
     @commands.command(name="wordle", aliases=["klma", "kelma"], help="9edder kelmat bach tl9a lkelma fach kanfkr (sat wordle [@user] [easy|medium|hard] [bet:500]).")
     @not_fraud()
     async def wordle(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        if not await self.ensure_user_free(ctx, member):
+            return
         bet, _ = parse_bet_argument(*args)
         _, difficulty = parse_minigame_args(*args, default_duration=0, default_difficulty="easy")
         if member is None:
+            set_user_in_game(self.bot, ctx.author.id, "Wordle")
             secret = self.get_wordle_secret(difficulty)
             view = WordleSoloView(ctx.author, secret, self, difficulty=difficulty)
             message = await ctx.send(content=view.get_content(), view=view)
@@ -7142,9 +7486,12 @@ class Minigames(commands.Cog, name="Minigames"):
     @commands.command(name="hangman", aliases=["hm", "michna9a"], help="l9a lkelma 9bel matchne9 (sat hangman [@user] [easy|medium|hard] [bet:500]).")
     @not_fraud()
     async def hangman(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
+        if not await self.ensure_user_free(ctx, member):
+            return
         bet, _ = parse_bet_argument(*args)
         _, difficulty = parse_minigame_args(*args, default_duration=0, default_difficulty="easy")
         if member is None:
+            set_user_in_game(self.bot, ctx.author.id, "Hangman")
             secret = self.get_hangman_secret(difficulty)
             view = HangmanSoloView(ctx.author, secret, self, difficulty=difficulty)
             message = await ctx.send(content=view.get_content(), view=view)
@@ -7193,7 +7540,10 @@ class Minigames(commands.Cog, name="Minigames"):
     @commands.command(name="trivia", aliases=["quiz", "as2ila"], help="Man sayarba7 2 drahm.")
     @not_fraud()
     async def trivia(self, ctx, *args):
-        round_duration, difficulty = parse_minigame_args(*args, default_duration=20, default_difficulty="easy")
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "Trivia Quiz")
+        round_duration, difficulty = parse_minigame_args(*args, default_duration=30, default_difficulty="easy")
         if round_duration < 5:
             round_duration = 5
             time_display = "5s (Minimum)"
@@ -7223,146 +7573,160 @@ class Minigames(commands.Cog, name="Minigames"):
         if reaction:
             async for user in reaction.users():
                 if not user.bot:
+                    if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                        continue
                     players.append(user)
 
         if not players:
+            clear_user_game(self.bot, ctx.author.id)
             await signup_msg.edit(embed=discord.Embed(
                 description="💨 7ta wa7d ma dkhel lgame ._.",
                 color=0x000000
             ), view=None)
             return
 
-        single_player = len(players) == 1
-        hp = {p.id: 3 for p in players}
-        scores = {p.id: 0 for p in players}
-        active_players = list(players)
+        for p in players:
+            set_user_in_game(self.bot, p.id, "Trivia Quiz")
 
-        if single_player:
-            await signup_msg.edit(embed=discord.Embed(
-                description=f"▶️ Bdina! 3ndek **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
-                color=0x000000
-            ), view=None)
-        else:
-            await signup_msg.edit(embed=discord.Embed(
-                description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
-                color=0x000000
-            ), view=None)
-        await asyncio.sleep(2)
+        try:
+            single_player = len(players) == 1
+            hp = {p.id: 3 for p in players}
+            scores = {p.id: 0 for p in players}
+            active_players = list(players)
 
-        question_pool = await fetch_trivia_batch(self.bot.session, amount=20, difficulty=difficulty)
-
-        while len(active_players) > 0:
-            if not single_player and len(active_players) == 1:
-                winner = active_players[0]
-                economy_cog = self.bot.get_cog("Economy")
-                player_earnings = {}
-                eco_msg = ""
-                if economy_cog:
-                    winner_answers = scores.get(winner.id, 0)
-                    gross = (len(players) * 50) + int(round((winner_answers * 25) * diff_mult))
-                    net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Trivia Win")
-                    player_earnings[winner.id] = net
-                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
-                    if ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, winner.id, "trivia", earnings=net)
-
-                    for pid, p_score in scores.items():
-                        if pid != winner.id and p_score > 0:
-                            p_gross = int(round((p_score * 50) * diff_mult))
-                            if p_gross > 0:
-                                p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Trivia Reward")
-                                player_earnings[pid] = p_net
-
-                others_msg = ""
-                other_rewards = [f"<@{pid}>: **+{net}** TAD ({scores[pid]} answers)" for pid, net in player_earnings.items() if pid != winner.id]
-                if other_rewards:
-                    others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
-
-                await ctx.send(embed=discord.Embed(
-                    description=f"🏆 {winner.mention} rbe7 lgame b **{scores[winner.id]} answers correct**!{eco_msg}{others_msg}",
+            if single_player:
+                await signup_msg.edit(embed=discord.Embed(
+                    description=f"▶️ Bdina! 3ndek **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
                     color=0x000000
-                ))
-                return
+                ), view=None)
+            else:
+                await signup_msg.edit(embed=discord.Embed(
+                    description=f"▶️ Bdina! Kola wa7d 3ndo **3 HP**.\n🎯 Difficulty: **{difficulty.upper()}** (Stake: **{diff_mult}x**)",
+                    color=0x000000
+                ), view=None)
+            await asyncio.sleep(2)
 
-            for player in list(active_players):
+            question_pool = await fetch_trivia_batch(self.bot.session, amount=20, difficulty=difficulty)
+
+            while len(active_players) > 0:
                 if not single_player and len(active_players) == 1:
-                    break
+                    winner = active_players[0]
+                    economy_cog = self.bot.get_cog("Economy")
+                    player_earnings = {}
+                    eco_msg = ""
+                    if economy_cog:
+                        winner_answers = scores.get(winner.id, 0)
+                        gross = (len(players) * 50) + int(round((winner_answers * 25) * diff_mult))
+                        net, tax = await economy_cog.apply_tax_and_add_balance(winner.id, gross, context="Trivia Win")
+                        player_earnings[winner.id] = net
+                        eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                        if ctx.guild:
+                            await self.record_minigame_win(ctx.guild.id, winner.id, "trivia", earnings=net)
 
-                if not question_pool:
-                    question_pool = await fetch_trivia_batch(self.bot.session, amount=20, difficulty=difficulty)
+                        for pid, p_score in scores.items():
+                            if pid != winner.id and p_score > 0:
+                                p_gross = int(round((p_score * 50) * diff_mult))
+                                if p_gross > 0:
+                                    p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="Trivia Reward")
+                                    player_earnings[pid] = p_net
 
-                q_data = question_pool.pop(0) if question_pool else {
-                    "category": "General", "difficulty": difficulty.capitalize(),
-                    "question": "What is the capital of France?",
-                    "correct_answer": "Paris", "incorrect_answers": ["London", "Berlin", "Madrid"]
-                }
+                    others_msg = ""
+                    other_rewards = [f"<@{pid}>: **+{net}** TAD ({scores[pid]} answers)" for pid, net in player_earnings.items() if pid != winner.id]
+                    if other_rewards:
+                        others_msg = "\n\n🎖️ **Other Rewards:**\n" + " • ".join(other_rewards)
 
-                q_embed = discord.Embed(
-                    title=f"❓ Question ({q_data['category']} • {q_data['difficulty']})",
-                    description=f"**{q_data['question']}**\n\nDor dial: {player.mention}\n❤️ HP: **{hp[player.id]}/3**",
-                    color=0x000000
-                )
-                q_embed.set_footer(text=f"Time: {round_duration}s")
-
-                q_view = TriviaQuestionView(player, q_data, timeout_duration=round_duration)
-                q_msg = await ctx.send(content=player.mention, embed=q_embed, view=q_view)
-                q_view.message = q_msg
-
-                await q_view.event.wait()
-                await asyncio.sleep(1)
-
-                if q_view.selected_correct:
-                    scores[player.id] += 1
                     await ctx.send(embed=discord.Embed(
-                        description=f"✅ {player.mention} jawb s7i7! (Score: **{scores[player.id]}**)",
+                        description=f"🏆 {winner.mention} rbe7 lgame b **{scores[winner.id]} answers correct**!{eco_msg}{others_msg}",
                         color=0x000000
                     ))
-                else:
-                    hp[player.id] -= 1
-                    corr_ans = q_data["correct_answer"]
-                    if q_view.selected_label is None:
-                        if hp[player.id] <= 0:
-                            await ctx.send(embed=discord.Embed(
-                                description=f"⌛ Sala lwe9t! 💥 {player.mention} t elimina (**0 HP**). Ljawab howa **{corr_ans}**.",
-                                color=0x000000
-                            ))
-                            active_players.remove(player)
-                        else:
-                            await ctx.send(embed=discord.Embed(
-                                description=f"⌛ Sala lwe9t {player.mention}: **-1 HP** (Ba9i: **{hp[player.id]} HP**). Ljawab howa **{corr_ans}**.",
-                                color=0x000000
-                            ))
+                    return
+
+                for player in list(active_players):
+                    if not single_player and len(active_players) == 1:
+                        break
+
+                    if not question_pool:
+                        question_pool = await fetch_trivia_batch(self.bot.session, amount=20, difficulty=difficulty)
+
+                    q_data = question_pool.pop(0) if question_pool else {
+                        "category": "General", "difficulty": difficulty.capitalize(),
+                        "question": "What is the capital of France?",
+                        "correct_answer": "Paris", "incorrect_answers": ["London", "Berlin", "Madrid"]
+                    }
+
+                    q_embed = discord.Embed(
+                        title=f"❓ Question ({q_data['category']} • {q_data['difficulty']})",
+                        description=f"**{q_data['question']}**\n\nDor dial: {player.mention}\n❤️ HP: **{hp[player.id]}/3**",
+                        color=0x000000
+                    )
+                    q_embed.set_footer(text=f"Time: {round_duration}s")
+
+                    q_view = TriviaQuestionView(player, q_data, timeout_duration=round_duration)
+                    q_msg = await ctx.send(content=player.mention, embed=q_embed, view=q_view)
+                    q_view.message = q_msg
+
+                    await q_view.event.wait()
+                    await asyncio.sleep(1)
+
+                    if q_view.selected_correct:
+                        scores[player.id] += 1
+                        await ctx.send(embed=discord.Embed(
+                            description=f"✅ {player.mention} jawb s7i7! (Score: **{scores[player.id]}**)",
+                            color=0x000000
+                        ))
                     else:
-                        if hp[player.id] <= 0:
-                            await ctx.send(embed=discord.Embed(
-                                description=f"❌ Khata2! 💥 {player.mention} t elimina (**0 HP**). Ljawab howa **{corr_ans}**.",
-                                color=0x000000
-                            ))
-                            active_players.remove(player)
+                        hp[player.id] -= 1
+                        corr_ans = q_data["correct_answer"]
+                        if q_view.selected_label is None:
+                            if hp[player.id] <= 0:
+                                await ctx.send(embed=discord.Embed(
+                                    description=f"⌛ Sala lwe9t! 💥 {player.mention} t elimina (**0 HP**). Ljawab howa **{corr_ans}**.",
+                                    color=0x000000
+                                ))
+                                active_players.remove(player)
+                            else:
+                                await ctx.send(embed=discord.Embed(
+                                    description=f"⌛ Sala lwe9t {player.mention}: **-1 HP** (Ba9i: **{hp[player.id]} HP**). Ljawab howa **{corr_ans}**.",
+                                    color=0x000000
+                                ))
                         else:
-                            await ctx.send(embed=discord.Embed(
-                                description=f"❌ Khata2 {player.mention}: **-1 HP** (Ba9i: **{hp[player.id]} HP**). Ljawab howa **{corr_ans}**.",
-                                color=0x000000
-                            ))
+                            if hp[player.id] <= 0:
+                                await ctx.send(embed=discord.Embed(
+                                    description=f"❌ Khata2! 💥 {player.mention} t elimina (**0 HP**). Ljawab howa **{corr_ans}**.",
+                                    color=0x000000
+                                ))
+                                active_players.remove(player)
+                            else:
+                                await ctx.send(embed=discord.Embed(
+                                    description=f"❌ Khata2 {player.mention}: **-1 HP** (Ba9i: **{hp[player.id]} HP**). Ljawab howa **{corr_ans}**.",
+                                    color=0x000000
+                                ))
 
-                await asyncio.sleep(2)
+                    await asyncio.sleep(2)
 
-        if single_player:
-            player = players[0]
-            economy_cog = self.bot.get_cog("Economy")
-            gross = 50 + int(round((scores.get(player.id, 0) * 25) * diff_mult))
-            eco_msg = ""
-            if economy_cog:
-                net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Trivia Solo")
-                eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
-            await ctx.send(embed=discord.Embed(
-                description=f"🎯 Game Over {player.mention}! Score dialk: **{scores[player.id]} questions correct**.{eco_msg}",
-                color=0x000000
-            ))
+            if single_player:
+                player = players[0]
+                economy_cog = self.bot.get_cog("Economy")
+                gross = 50 + int(round((scores.get(player.id, 0) * 25) * diff_mult))
+                eco_msg = ""
+                if economy_cog:
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="Trivia Solo")
+                    eco_msg = f"\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!"
+                await ctx.send(embed=discord.Embed(
+                    description=f"🎯 Game Over {player.mention}! Score dialk: **{scores[player.id]} questions correct**.{eco_msg}",
+                    color=0x000000
+                ))
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
     @commands.command(name="typeracer", aliases=["tr", "type", "monkeytype"], help="Kteb text li ghan3tik bzerba bach trb7.")
     @not_fraud()
     async def typeracer(self, ctx, rounds: int = 3):
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "TypeRacer")
         rounds = max(1, min(10, rounds))
         join_emoji = "✅"
 
@@ -7382,167 +7746,183 @@ class Minigames(commands.Cog, name="Minigames"):
         if reaction:
             async for user in reaction.users():
                 if not user.bot:
+                    if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                        continue
                     players.append(user)
 
         if len(players) < 2:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
             await signup_msg.edit(embed=discord.Embed(
                 description="❌ Khass minimum **2 players** bach tl3bo TypeRacer.",
                 color=0x000000
             ))
             return
 
-        scores = {p.id: 0 for p in players}
-        wpm_records = {p.id: [] for p in players}
-        active_players = list(players)
+        for p in players:
+            set_user_in_game(self.bot, p.id, "TypeRacer")
 
-        await signup_msg.edit(embed=discord.Embed(
-            description=f"▶️ **TypeRacer bda!** ({rounds} Rounds)\nPlayers: " + ", ".join(p.mention for p in players),
-            color=0x000000
-        ))
-        await asyncio.sleep(2)
+        try:
+            scores = {p.id: 0 for p in players}
+            wpm_records = {p.id: [] for p in players}
+            active_players = list(players)
 
-        for round_idx in range(1, rounds + 1):
-            if len(active_players) < 2:
-                break
-
-            sentence = self.get_typeracer_text()
-
-            # Ready countdown
-            countdown_msg = await ctx.send(embed=discord.Embed(
-                title=f"🏎️ Round {round_idx}/{rounds}",
-                description="3...",
+            await signup_msg.edit(embed=discord.Embed(
+                description=f"▶️ **TypeRacer bda!** ({rounds} Rounds)\nPlayers: " + ", ".join(p.mention for p in players),
                 color=0x000000
             ))
-            await asyncio.sleep(1)
-            await countdown_msg.edit(embed=discord.Embed(
-                title=f"🏎️ Round {round_idx}/{rounds}",
-                description="2...",
-                color=0x000000
-            ))
-            await asyncio.sleep(1)
-            await countdown_msg.edit(embed=discord.Embed(
-                title=f"🏎️ Round {round_idx}/{rounds}",
-                description="1... **GO! 🚀**",
-                color=0x000000
-            ))
+            await asyncio.sleep(2)
 
-            # Send image
-            img_buf = render_typeracer_image(sentence)
-            file = discord.File(img_buf, filename="typeracer.png")
-            await ctx.send(file=file)
+            for round_idx in range(1, rounds + 1):
+                if len(active_players) < 2:
+                    break
 
-            start_time = time.perf_counter()
-            round_winner = None
-            round_elapsed = 0
-            round_wpm = 0
+                sentence = self.get_typeracer_text()
 
-            active_ids = {p.id for p in active_players}
+                # Ready countdown
+                countdown_msg = await ctx.send(embed=discord.Embed(
+                    title=f"🏎️ Round {round_idx}/{rounds}",
+                    description="3...",
+                    color=0x000000
+                ))
+                await asyncio.sleep(1)
+                await countdown_msg.edit(embed=discord.Embed(
+                    title=f"🏎️ Round {round_idx}/{rounds}",
+                    description="2...",
+                    color=0x000000
+                ))
+                await asyncio.sleep(1)
+                await countdown_msg.edit(embed=discord.Embed(
+                    title=f"🏎️ Round {round_idx}/{rounds}",
+                    description="1... **GO! 🚀**",
+                    color=0x000000
+                ))
 
-            def check(m):
-                if m.channel.id != ctx.channel.id or m.author.id not in active_ids:
-                    return False
-                content = m.content.strip()
-                if content.lower() == "exitgame":
-                    return True
-                return content.lower() == sentence.lower()
+                # Send image
+                img_buf = render_typeracer_image(sentence)
+                file = discord.File(img_buf, filename="typeracer.png")
+                await ctx.send(file=file)
 
-            round_active = True
-            while round_active and len(active_players) >= 2:
-                time_left = max(1.0, 45.0 - (time.perf_counter() - start_time))
-                try:
-                    msg = await self.bot.wait_for("message", check=check, timeout=time_left)
-                except asyncio.TimeoutError:
+                start_time = time.perf_counter()
+                round_winner = None
+                round_elapsed = 0
+                round_wpm = 0
+
+                active_ids = {p.id for p in active_players}
+
+                def check(m):
+                    if m.channel.id != ctx.channel.id or m.author.id not in active_ids:
+                        return False
+                    content = m.content.strip()
+                    if content.lower() == "exitgame":
+                        return True
+                    return content.lower() == sentence.lower()
+
+                round_active = True
+                while round_active and len(active_players) >= 2:
+                    time_left = max(1.0, 45.0 - (time.perf_counter() - start_time))
+                    try:
+                        msg = await self.bot.wait_for("message", check=check, timeout=time_left)
+                    except asyncio.TimeoutError:
+                        await ctx.send(embed=discord.Embed(
+                            description="⌛ **Sala lwe9t!** 7ta wa7d ma kteb lkelma s7i7a f had round.",
+                            color=0x000000
+                        ))
+                        round_active = False
+                        break
+
+                    if msg.content.strip().lower() == "exitgame":
+                        quitter = next((p for p in active_players if p.id == msg.author.id), None)
+                        if quitter:
+                            active_players.remove(quitter)
+                            active_ids.discard(quitter.id)
+                            await ctx.send(f"🚪 {quitter.mention} khrej mn lgame.")
+                            if len(active_players) < 2:
+                                round_active = False
+                                break
+                        continue
+
+                    # Correct sentence typed!
+                    round_elapsed = time.perf_counter() - start_time
+                    round_wpm = round(((len(sentence) / 5) / (round_elapsed / 60))) if round_elapsed > 0 else 0
+                    round_winner = msg.author
+                    scores[msg.author.id] += 1
+                    wpm_records[msg.author.id].append(round_wpm)
+
                     await ctx.send(embed=discord.Embed(
-                        description="⌛ **Sala lwe9t!** 7ta wa7d ma kteb lkelma s7i7a f had round.",
+                        description=f"🎉 {round_winner.mention} rbe7 **Round {round_idx}** f **{round_elapsed:.2f}s** (**{round_wpm} WPM**)!",
                         color=0x000000
                     ))
                     round_active = False
                     break
 
-                if msg.content.strip().lower() == "exitgame":
-                    quitter = next((p for p in active_players if p.id == msg.author.id), None)
-                    if quitter:
-                        active_players.remove(quitter)
-                        active_ids.discard(quitter.id)
-                        await ctx.send(f"🚪 {quitter.mention} khrej mn lgame.")
-                        if len(active_players) < 2:
-                            round_active = False
-                            break
-                    continue
+                await asyncio.sleep(3)
 
-                # Correct sentence typed!
-                round_elapsed = time.perf_counter() - start_time
-                round_wpm = round(((len(sentence) / 5) / (round_elapsed / 60))) if round_elapsed > 0 else 0
-                round_winner = msg.author
-                scores[msg.author.id] += 1
-                wpm_records[msg.author.id].append(round_wpm)
+            # Game Over Leaderboard
+            def player_rank_key(p):
+                p_scores = scores.get(p.id, 0)
+                avg_wpm = (sum(wpm_records[p.id]) / len(wpm_records[p.id])) if wpm_records[p.id] else 0
+                return (p_scores, avg_wpm)
 
-                await ctx.send(embed=discord.Embed(
-                    description=f"🎉 {round_winner.mention} rbe7 **Round {round_idx}** f **{round_elapsed:.2f}s** (**{round_wpm} WPM**)!",
-                    color=0x000000
-                ))
-                round_active = False
-                break
+            ranked = sorted(players, key=player_rank_key, reverse=True)
+            medals = ["🥇", "🥈", "🥉"] + [f"**#{i+1}**" for i in range(3, len(ranked))]
 
-            await asyncio.sleep(3)
+            lines = []
+            for i, p in enumerate(ranked):
+                p_scores = scores.get(p.id, 0)
+                avg_wpm = round(sum(wpm_records[p.id]) / len(wpm_records[p.id])) if wpm_records[p.id] else 0
+                lines.append(f"{medals[i]} {p.mention} — **{p_scores} wins** (Avg: **{avg_wpm} WPM**)")
 
-        # Game Over Leaderboard
-        def player_rank_key(p):
-            p_scores = scores.get(p.id, 0)
-            avg_wpm = (sum(wpm_records[p.id]) / len(wpm_records[p.id])) if wpm_records[p.id] else 0
-            return (p_scores, avg_wpm)
+            leaderboard_embed = discord.Embed(
+                title="🏆 TypeRacer — Final Results",
+                description="\n".join(lines),
+                color=0x000000
+            )
+            if ranked:
+                leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 🎉")
+                economy_cog = self.bot.get_cog("Economy")
+                if economy_cog:
+                    top_player = ranked[0]
+                    if scores.get(top_player.id, 0) > 0:
+                        gross = (len(players) * 50) + (scores[top_player.id] * 50)
+                        net, tax = await economy_cog.apply_tax_and_add_balance(top_player.id, gross, context="TypeRacer Win")
+                        leaderboard_embed.add_field(
+                            name="🏆 Winner Reward",
+                            value=f"**{top_player.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!",
+                            inline=False
+                        )
+                        if ctx.guild:
+                            await self.record_minigame_win(ctx.guild.id, top_player.id, "typeracer", earnings=net)
 
-        ranked = sorted(players, key=player_rank_key, reverse=True)
-        medals = ["🥇", "🥈", "🥉"] + [f"**#{i+1}**" for i in range(3, len(ranked))]
+                    other_rewards = []
+                    for p in ranked[1:]:
+                        p_score = scores.get(p.id, 0)
+                        if p_score > 0:
+                            p_gross = p_score * 50
+                            p_net, _ = await economy_cog.apply_tax_and_add_balance(p.id, p_gross, context="TypeRacer Rounds Reward")
+                            other_rewards.append(f"**{p.mention}**: **+{p_net}** TAD ({p_score} wins)")
 
-        lines = []
-        for i, p in enumerate(ranked):
-            p_scores = scores.get(p.id, 0)
-            avg_wpm = round(sum(wpm_records[p.id]) / len(wpm_records[p.id])) if wpm_records[p.id] else 0
-            lines.append(f"{medals[i]} {p.mention} — **{p_scores} wins** (Avg: **{avg_wpm} WPM**)")
-
-        leaderboard_embed = discord.Embed(
-            title="🏆 TypeRacer — Final Results",
-            description="\n".join(lines),
-            color=0x000000
-        )
-        if ranked:
-            leaderboard_embed.set_footer(text=f"Winner: {ranked[0].display_name} 🎉")
-            economy_cog = self.bot.get_cog("Economy")
-            if economy_cog:
-                top_player = ranked[0]
-                if scores.get(top_player.id, 0) > 0:
-                    gross = (len(players) * 50) + (scores[top_player.id] * 50)
-                    net, tax = await economy_cog.apply_tax_and_add_balance(top_player.id, gross, context="TypeRacer Win")
-                    leaderboard_embed.add_field(
-                        name="🏆 Winner Reward",
-                        value=f"**{top_player.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (Gross: {gross} TAD • 🔥 `{tax}` TAD 2% tax burned)!",
-                        inline=False
-                    )
-                    if ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, top_player.id, "typeracer", earnings=net)
-
-                other_rewards = []
-                for p in ranked[1:]:
-                    p_score = scores.get(p.id, 0)
-                    if p_score > 0:
-                        p_gross = p_score * 50
-                        p_net, _ = await economy_cog.apply_tax_and_add_balance(p.id, p_gross, context="TypeRacer Rounds Reward")
-                        other_rewards.append(f"**{p.mention}**: **+{p_net}** TAD ({p_score} wins)")
-
-                if other_rewards:
-                    leaderboard_embed.add_field(
-                        name="🎖️ Other Rewards",
-                        value="\n".join(other_rewards),
-                        inline=False
-                    )
-        await ctx.send(embed=leaderboard_embed)
+                    if other_rewards:
+                        leaderboard_embed.add_field(
+                            name="🎖️ Other Rewards",
+                            value="\n".join(other_rewards),
+                            inline=False
+                        )
+            await ctx.send(embed=leaderboard_embed)
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
 
 
 
     @commands.command(name="geoguessr", aliases=["geo", "geoguesser", "geoguess"], help="Khssk t3rf dawla mn tswira.")
     async def geoguessr(self, ctx: commands.Context, *args):
+        if not await self.ensure_user_free(ctx):
+            return
+        set_user_in_game(self.bot, ctx.author.id, "GeoGuessr")
         round_duration, difficulty = parse_minigame_args(*args, default_duration=40, default_difficulty="easy")
         diff_mult = DIFFICULTY_STAKES.get(difficulty, 1.5)
 
@@ -7591,308 +7971,322 @@ class Minigames(commands.Cog, name="Minigames"):
         if reaction:
             async for user in reaction.users():
                 if not user.bot:
+                    if user.id != ctx.author.id and is_user_in_game(self.bot, user.id):
+                        continue
                     players.append(user)
 
         if not players:
+            clear_user_game(self.bot, ctx.author.id)
             await ctx.send("❌ 7ed madkhel l GeoGuessr. Game t'annula.")
             return
 
-        total_rounds = min(5, len(pool))
-        is_solo = (len(players) == 1)
+        for p in players:
+            set_user_in_game(self.bot, p.id, "GeoGuessr")
 
-        if is_solo:
-            player = players[0]
-            await ctx.send(f"🎮 **Solo GeoGuessr:** {player.mention} 3ndek **{total_rounds} rounds**! Kteb smit **dawla** f chat!.")
-            total_round_stakes = 0.0
-            round_history = []
+        try:
+            total_rounds = min(5, len(pool))
+            is_solo = (len(players) == 1)
 
-            for r in range(1, total_rounds + 1):
-                loc = await get_geoguessr_round_location(pool, difficulty)
-                if not loc:
-                    break
-                target_code = loc.get("code", "")
-                target_country = loc["country"]
-                target_lat = loc["lat"]
-                target_lon = loc["lon"]
-                target_flag = get_country_flag_emoji(target_code)
+            if is_solo:
+                player = players[0]
+                await ctx.send(f"🎮 **Solo GeoGuessr:** {player.mention} 3ndek **{total_rounds} rounds**! Kteb smit **dawla** f chat!.")
+                total_round_stakes = 0.0
+                round_history = []
 
-                round_embed = discord.Embed(
-                    title=f"🌍 Round {r}/{total_rounds} — Guess the country!",
-                    description=(
-                        f"Kteb smit **dawla** f chat!\n"
-                        f"⌛ Time: **{round_duration}s**"
-                    ),
-                    color=0x000000
-                )
-                round_embed.set_image(url=loc["image_url"])
-                round_embed.set_footer(text=f"GeoGuessr Solo • Round {r}/{total_rounds} • Difficulty: {difficulty.upper()}")
-                round_msg = await ctx.send(embed=round_embed)
-
-                def check(m):
-                    return m.author.id == player.id and m.channel.id == ctx.channel.id
-
-                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
-                start_time = time.time()
-                guessed = False
-                guess_data = None
-
-                while time.time() - start_time < round_duration:
-                    time_left = round_duration - (time.time() - start_time)
-                    if time_left <= 0:
+                for r in range(1, total_rounds + 1):
+                    loc = await get_geoguessr_round_location(pool, difficulty)
+                    if not loc:
                         break
-                    try:
-                        m = await self.bot.wait_for("message", check=check, timeout=time_left)
-                        if m.content.strip().lower() == "exitgame":
-                            if not countdown_task.done():
-                                countdown_task.cancel()
-                            await ctx.send(f"🚪 {player.mention} khrej mn lgame.")
-                            return
+                    target_code = loc.get("code", "")
+                    target_country = loc["country"]
+                    target_lat = loc["lat"]
+                    target_lon = loc["lon"]
+                    target_flag = get_country_flag_emoji(target_code)
 
-                        cguess = resolve_country_guess(m.content)
-                        if cguess:
-                            proximity, dist = calculate_geoguessr_proximity(
-                                target_code, target_lat, target_lon,
-                                cguess["code"], cguess["lat"], cguess["lon"]
-                            )
-                            round_stake = proximity * 50
-                            guess_data = (cguess, proximity, dist, round_stake)
-                            guessed = True
-                            if not countdown_task.done():
-                                countdown_task.cancel()
-                            try:
-                                await m.add_reaction("📍")
-                            except Exception:
-                                pass
+                    round_embed = discord.Embed(
+                        title=f"🌍 Round {r}/{total_rounds} — Guess the country!",
+                        description=(
+                            f"Kteb smit **dawla** f chat!\n"
+                            f"⌛ Time: **{round_duration}s**"
+                        ),
+                        color=0x000000
+                    )
+                    round_embed.set_image(url=loc["image_url"])
+                    round_embed.set_footer(text=f"GeoGuessr Solo • Round {r}/{total_rounds} • Difficulty: {difficulty.upper()}")
+                    round_msg = await ctx.send(embed=round_embed)
+
+                    def check(m):
+                        return m.author.id == player.id and m.channel.id == ctx.channel.id
+
+                    countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+                    start_time = time.time()
+                    guessed = False
+                    guess_data = None
+
+                    while time.time() - start_time < round_duration:
+                        time_left = round_duration - (time.time() - start_time)
+                        if time_left <= 0:
                             break
-                    except asyncio.TimeoutError:
-                        break
+                        try:
+                            m = await self.bot.wait_for("message", check=check, timeout=time_left)
+                            if m.content.strip().lower() == "exitgame":
+                                if not countdown_task.done():
+                                    countdown_task.cancel()
+                                await ctx.send(f"🚪 {player.mention} khrej mn lgame.")
+                                return
 
-                if not countdown_task.done():
-                    countdown_task.cancel()
+                            cguess = resolve_country_guess(m.content)
+                            if cguess:
+                                proximity, dist = calculate_geoguessr_proximity(
+                                    target_code, target_lat, target_lon,
+                                    cguess["code"], cguess["lat"], cguess["lon"]
+                                )
+                                round_stake = proximity * 50
+                                guess_data = (cguess, proximity, dist, round_stake)
+                                guessed = True
+                                if not countdown_task.done():
+                                    countdown_task.cancel()
+                                try:
+                                    await m.add_reaction("📍")
+                                except Exception:
+                                    pass
+                                break
+                        except asyncio.TimeoutError:
+                            break
 
-                maps_link = f"https://www.google.com/maps/@{target_lat},{target_lon},6z"
-                if guessed and guess_data:
-                    cguess, proximity, dist, round_stake = guess_data
-                    total_round_stakes += round_stake
-                    round_history.append((loc, cguess["name"], proximity, dist, round_stake))
+                    if not countdown_task.done():
+                        countdown_task.cancel()
 
-                    if proximity >= 1.0:
-                        header = "🎯 **EXACT COUNTRY! Nta Naadi!**"
-                        prox_str = "**100%** (Dawla s7i7a!)"
+                    maps_link = f"https://www.google.com/maps/@{target_lat},{target_lon},6z"
+                    if guessed and guess_data:
+                        cguess, proximity, dist, round_stake = guess_data
+                        total_round_stakes += round_stake
+                        round_history.append((loc, cguess["name"], proximity, dist, round_stake))
+
+                        if proximity >= 1.0:
+                            header = "🎯 **EXACT COUNTRY! Nta Naadi!**"
+                            prox_str = "**100%** (Dawla s7i7a!)"
+                        else:
+                            header = f"📍 **Target: {target_flag} {target_country}**"
+                            prox_str = f"**{proximity*100:.1f}%** (b3id b {dist:,.0f} km)"
+
+                        res_embed = discord.Embed(
+                            title=f"{target_flag} Round {r} Result — {target_country}",
+                            description=(
+                                f"{header}\n\n"
+                                f"🎮 Lkhtiyar dialek: **{cguess['name']}**\n"
+                                f"📏 Proximity: {prox_str}\n\n"
+                                f"🗺️ **[Choufha f Google Maps]({maps_link})**"
+                            ),
+                            color=0x000000
+                        )
                     else:
-                        header = f"📍 **Target: {target_flag} {target_country}**"
-                        prox_str = f"**{proximity*100:.1f}%** (b3id b {dist:,.0f} km)"
+                        round_history.append((loc, "None", 0.0, 20000, 0.0))
+                        res_embed = discord.Embed(
+                            title=f"⏰ Time Out! Real Country: {target_flag} {target_country}",
+                            description=(
+                                f"Majawbtich f lwe9t! Proximity: **0%**\n\n"
+                                f"🗺️ **[Choufha f Google Maps]({maps_link})**"
+                            ),
+                            color=0x000000
+                        )
+                    res_embed.set_thumbnail(url=loc["image_url"])
+                    await ctx.send(embed=res_embed)
+                    await asyncio.sleep(4)
 
-                    res_embed = discord.Embed(
-                        title=f"{target_flag} Round {r} Result — {target_country}",
-                        description=(
-                            f"{header}\n\n"
-                            f"🎮 Lkhtiyar dialek: **{cguess['name']}**\n"
-                            f"📏 Proximity: {prox_str}\n\n"
-                            f"🗺️ **[Choufha f Google Maps]({maps_link})**"
-                        ),
-                        color=0x000000
-                    )
-                else:
-                    round_history.append((loc, "None", 0.0, 20000, 0.0))
-                    res_embed = discord.Embed(
-                        title=f"⏰ Time Out! Real Country: {target_flag} {target_country}",
-                        description=(
-                            f"Majawbtich f lwe9t! Proximity: **0%**\n\n"
-                            f"🗺️ **[Choufha f Google Maps]({maps_link})**"
-                        ),
-                        color=0x000000
-                    )
-                res_embed.set_thumbnail(url=loc["image_url"])
-                await ctx.send(embed=res_embed)
-                await asyncio.sleep(4)
+                economy_cog = self.bot.get_cog("Economy")
+                eco_msg = ""
+                gross = int(round(50 * 1 + total_round_stakes * diff_mult))
+                if economy_cog and total_round_stakes > 0:
+                    net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="GeoGuessr Solo")
+                    eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (Gross: {gross:,} TAD • 🔥 `{tax:,}` TAD tax burned)!"
+                    if ctx.guild:
+                        await self.record_minigame_win(ctx.guild.id, player.id, "geoguessr", earnings=net)
 
-            economy_cog = self.bot.get_cog("Economy")
-            eco_msg = ""
-            gross = int(round(50 * 1 + total_round_stakes * diff_mult))
-            if economy_cog and total_round_stakes > 0:
-                net, tax = await economy_cog.apply_tax_and_add_balance(player.id, gross, context="GeoGuessr Solo")
-                eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (Gross: {gross:,} TAD • 🔥 `{tax:,}` TAD tax burned)!"
-                if ctx.guild:
-                    await self.record_minigame_win(ctx.guild.id, player.id, "geoguessr", earnings=net)
-
-            summary_embed = discord.Embed(
-                title="🏆 GeoGuessr Solo Results!",
-                description=(
-                    f"Bravo {player.mention}! Difficulty: **{difficulty.upper()} ({diff_mult}x)**!{eco_msg}\n\n"
-                    f"**Round Breakdown:**\n"
-                    + "\n".join([
-                        f"• Round {idx+1}: **{h[0]['country']}** — {h[1]} (`{h[3]:,.0f} km` • `{h[2]*100:.0f}%`)"
-                        if h[1] != "None" else
-                        f"• Round {idx+1}: **{h[0]['country']}** — Time Out (`0%`)"
-                        for idx, h in enumerate(round_history)
-                    ])
-                ),
-                color=0x000000
-            )
-            await ctx.send(embed=summary_embed)
-
-        else:
-            player_stakes = {p.id: 0.0 for p in players}
-
-            for r in range(1, total_rounds + 1):
-                loc = await get_geoguessr_round_location(pool, difficulty)
-                if not loc:
-                    break
-                target_code = loc.get("code", "")
-                target_country = loc["country"]
-                target_lat = loc["lat"]
-                target_lon = loc["lon"]
-                target_flag = get_country_flag_emoji(target_code)
-
-                round_embed = discord.Embed(
-                    title=f"🌍 Round {r}/{total_rounds} — Guess the country!",
+                summary_embed = discord.Embed(
+                    title="🏆 GeoGuessr Solo Results!",
                     description=(
-                        f"Kul wa7ed 3ndo **1 guess**! Kteb smit **dawla** f chat.\n"
-                        f"⚠️ Dawla li tgalat makat3awdch!\n"
-                        f"⌛ Time: **{round_duration}s**"
+                        f"Bravo {player.mention}! Difficulty: **{difficulty.upper()} ({diff_mult}x)**!{eco_msg}\n\n"
+                        f"**Round Breakdown:**\n"
+                        + "\n".join([
+                            f"• Round {idx+1}: **{h[0]['country']}** — {h[1]} (`{h[3]:,.0f} km` • `{h[2]*100:.0f}%`)"
+                            if h[1] != "None" else
+                            f"• Round {idx+1}: **{h[0]['country']}** — Time Out (`0%`)"
+                            for idx, h in enumerate(round_history)
+                        ])
                     ),
                     color=0x000000
                 )
-                round_embed.set_image(url=loc["image_url"])
-                round_embed.set_footer(text=f"GeoGuessr Multi • Round {r}/{total_rounds} • Difficulty: {difficulty.upper()}")
-                round_msg = await ctx.send(embed=round_embed)
+                await ctx.send(embed=summary_embed)
 
-                guesses = {}
-                taken_codes = set()
-                countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
-                start_time = time.time()
+            else:
+                player_stakes = {p.id: 0.0 for p in players}
 
-                while time.time() - start_time < round_duration:
-                    time_left = round_duration - (time.time() - start_time)
-                    if time_left <= 0:
+                for r in range(1, total_rounds + 1):
+                    loc = await get_geoguessr_round_location(pool, difficulty)
+                    if not loc:
                         break
-                    try:
-                        def check_m(msg):
-                            return (
-                                any(msg.author.id == p.id for p in players)
-                                and (msg.author.id not in guesses or msg.content.strip().lower() == "exitgame")
-                                and msg.channel.id == ctx.channel.id
-                            )
-                        m = await self.bot.wait_for("message", check=check_m, timeout=time_left)
-                        if m.content.strip().lower() == "exitgame":
-                            quitter = next((p for p in players if p.id == m.author.id), None)
-                            if quitter:
-                                players.remove(quitter)
-                                await ctx.send(f"🚪 **{quitter.mention}** khrej mn lgame.")
-                                if len(players) <= 1:
+                    target_code = loc.get("code", "")
+                    target_country = loc["country"]
+                    target_lat = loc["lat"]
+                    target_lon = loc["lon"]
+                    target_flag = get_country_flag_emoji(target_code)
+
+                    round_embed = discord.Embed(
+                        title=f"🌍 Round {r}/{total_rounds} — Guess the country!",
+                        description=(
+                            f"Kul wa7ed 3ndo **1 guess**! Kteb smit **dawla** f chat.\n"
+                            f"⚠️ Dawla li tgalt makat3awdch!\n"
+                            f"⌛ Time: **{round_duration}s**"
+                        ),
+                        color=0x000000
+                    )
+                    round_embed.set_image(url=loc["image_url"])
+                    round_embed.set_footer(text=f"GeoGuessr Multi • Round {r}/{total_rounds} • Difficulty: {difficulty.upper()}")
+                    round_msg = await ctx.send(embed=round_embed)
+
+                    guesses = {}
+                    taken_codes = set()
+                    countdown_task = asyncio.create_task(countdown_reactions(round_msg, round_duration))
+                    start_time = time.time()
+
+                    while time.time() - start_time < round_duration:
+                        time_left = round_duration - (time.time() - start_time)
+                        if time_left <= 0:
+                            break
+                        try:
+                            def check_m(msg):
+                                return (
+                                    any(msg.author.id == p.id for p in players)
+                                    and (msg.author.id not in guesses or msg.content.strip().lower() == "exitgame")
+                                    and msg.channel.id == ctx.channel.id
+                                )
+                            m = await self.bot.wait_for("message", check=check_m, timeout=time_left)
+                            if m.content.strip().lower() == "exitgame":
+                                quitter = next((p for p in players if p.id == m.author.id), None)
+                                if quitter:
+                                    players.remove(quitter)
+                                    await ctx.send(f"🚪 **{quitter.mention}** khrej mn lgame.")
+                                    if len(players) <= 1:
+                                        if not countdown_task.done():
+                                            countdown_task.cancel()
+                                        break
+                                continue
+
+                            cguess = resolve_country_guess(m.content)
+                            if cguess:
+                                if cguess["code"] in taken_codes:
+                                    continue
+                                taken_codes.add(cguess["code"])
+                                proximity, dist = calculate_geoguessr_proximity(
+                                    target_code, target_lat, target_lon,
+                                    cguess["code"], cguess["lat"], cguess["lon"]
+                                )
+                                round_stake = proximity * 50
+                                guesses[m.author.id] = (cguess, proximity, dist, round_stake)
+                                player_stakes[m.author.id] += round_stake
+                                try:
+                                    await m.add_reaction("📍")
+                                except Exception:
+                                    pass
+                                if len(guesses) >= len(players):
                                     if not countdown_task.done():
                                         countdown_task.cancel()
                                     break
-                            continue
+                        except asyncio.TimeoutError:
+                            break
 
-                        cguess = resolve_country_guess(m.content)
-                        if cguess:
-                            if cguess["code"] in taken_codes:
-                                continue
-                            taken_codes.add(cguess["code"])
-                            proximity, dist = calculate_geoguessr_proximity(
-                                target_code, target_lat, target_lon,
-                                cguess["code"], cguess["lat"], cguess["lon"]
-                            )
-                            round_stake = proximity * 50
-                            guesses[m.author.id] = (cguess, proximity, dist, round_stake)
-                            player_stakes[m.author.id] += round_stake
-                            try:
-                                await m.add_reaction("📍")
-                            except Exception:
-                                pass
-                            if len(guesses) >= len(players):
-                                if not countdown_task.done():
-                                    countdown_task.cancel()
-                                break
-                    except asyncio.TimeoutError:
-                        break
+                    if not countdown_task.done():
+                        countdown_task.cancel()
 
-                if not countdown_task.done():
-                    countdown_task.cancel()
+                    maps_link = f"https://www.google.com/maps/@{target_lat},{target_lon},6z"
 
-                maps_link = f"https://www.google.com/maps/@{target_lat},{target_lon},6z"
+                    if guesses:
+                        sorted_guesses = sorted(guesses.items(), key=lambda item: item[1][1], reverse=True)
+                        round_winner_id, round_winner_data = sorted_guesses[0]
+                        round_winner_user = discord.utils.get(players, id=round_winner_id)
 
-                if guesses:
-                    sorted_guesses = sorted(guesses.items(), key=lambda item: item[1][1], reverse=True)
-                    round_winner_id, round_winner_data = sorted_guesses[0]
-                    round_winner_user = discord.utils.get(players, id=round_winner_id)
+                        guess_lines = []
+                        for rank_num, (pid, pdata) in enumerate(sorted_guesses, 1):
+                            puser = discord.utils.get(players, id=pid)
+                            pname = puser.display_name if puser else f"Player {pid}"
+                            cguess, prox, dist, stake = pdata
+                            if prox >= 1.0:
+                                guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (🎯 Exact • `100%`)")
+                            else:
+                                guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (`{dist:,.0f} km` • `{prox*100:.1f}%`)")
 
-                    guess_lines = []
-                    for rank_num, (pid, pdata) in enumerate(sorted_guesses, 1):
-                        puser = discord.utils.get(players, id=pid)
-                        pname = puser.display_name if puser else f"Player {pid}"
-                        cguess, prox, dist, stake = pdata
-                        if prox >= 1.0:
-                            guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (🎯 Exact • `100%`)")
-                        else:
-                            guess_lines.append(f"**#{rank_num}** {pname}: **{cguess['name']}** (`{dist:,.0f} km` • `{prox*100:.1f}%`)")
+                        res_embed = discord.Embed(
+                            title=f"{target_flag} Round {r} Target: {target_country}",
+                            description=(
+                                f"🏆 **Top Guess f had round:** {round_winner_user.mention if round_winner_user else 'Unknown'}!\n\n"
+                                f"📊 **All Guesses:**\n" + "\n".join(guess_lines) + f"\n\n🗺️ **[Google Maps]({maps_link})**"
+                            ),
+                            color=0x000000
+                        )
+                    else:
+                        res_embed = discord.Embed(
+                            title=f"⏰ Round {r} Real Country: {target_flag} {target_country}",
+                            description=f"7ed majawb f had round!\n\n🗺️ **[Google Maps]({maps_link})**",
+                            color=0x000000
+                        )
+                    res_embed.set_thumbnail(url=loc["image_url"])
+                    await ctx.send(embed=res_embed)
+                    await asyncio.sleep(4)
 
-                    res_embed = discord.Embed(
-                        title=f"{target_flag} Round {r} Target: {target_country}",
-                        description=(
-                            f"🏆 **Top Guess f had round:** {round_winner_user.mention if round_winner_user else 'Unknown'}!\n\n"
-                            f"📊 **All Guesses:**\n" + "\n".join(guess_lines) + f"\n\n🗺️ **[Google Maps]({maps_link})**"
-                        ),
-                        color=0x000000
-                    )
-                else:
-                    res_embed = discord.Embed(
-                        title=f"⏰ Round {r} Real Country: {target_flag} {target_country}",
-                        description=f"7ed majawb f had round!\n\n🗺️ **[Google Maps]({maps_link})**",
-                        color=0x000000
-                    )
-                res_embed.set_thumbnail(url=loc["image_url"])
-                await ctx.send(embed=res_embed)
-                await asyncio.sleep(4)
+                sorted_stakes = sorted(player_stakes.items(), key=lambda x: x[1], reverse=True)
+                top_winner_id, top_stake = sorted_stakes[0]
+                top_winner = discord.utils.get(players, id=top_winner_id)
 
-            sorted_stakes = sorted(player_stakes.items(), key=lambda x: x[1], reverse=True)
-            top_winner_id, top_stake = sorted_stakes[0]
-            top_winner = discord.utils.get(players, id=top_winner_id)
+                economy_cog = self.bot.get_cog("Economy")
+                eco_msg = ""
+                player_earnings = {}
 
-            economy_cog = self.bot.get_cog("Economy")
-            eco_msg = ""
-            player_earnings = {}
+                if economy_cog:
+                    # 1st place: 50 * len(players) + top_stake * diff_mult
+                    if top_stake > 0 and top_winner:
+                        gross = int(round(50 * len(players) + top_stake * diff_mult))
+                        net, tax = await economy_cog.apply_tax_and_add_balance(top_winner.id, gross, context="GeoGuessr Multiplayer Win")
+                        player_earnings[top_winner.id] = net
+                        eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (Gross: {gross:,} TAD • 🔥 `{tax:,}` TAD tax burned)!"
+                        if ctx.guild:
+                            await self.record_minigame_win(ctx.guild.id, top_winner.id, "geoguessr", earnings=net)
 
-            if economy_cog:
-                # 1st place: 50 * len(players) + top_stake * diff_mult
-                if top_stake > 0 and top_winner:
-                    gross = int(round(50 * len(players) + top_stake * diff_mult))
-                    net, tax = await economy_cog.apply_tax_and_add_balance(top_winner.id, gross, context="GeoGuessr Multiplayer Win")
-                    player_earnings[top_winner.id] = net
-                    eco_msg = f"\n💰 Rbe7ti **+{format_tad(net)}** (Gross: {gross:,} TAD • 🔥 `{tax:,}` TAD tax burned)!"
-                    if ctx.guild:
-                        await self.record_minigame_win(ctx.guild.id, top_winner.id, "geoguessr", earnings=net)
+                    # Other places: pstake * diff_mult (without the 50 * len(players) bonus)
+                    for pid, pstake in sorted_stakes[1:]:
+                        if pstake > 0:
+                            p_gross = int(round(pstake * diff_mult))
+                            if p_gross > 0:
+                                p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="GeoGuessr Points Reward")
+                                player_earnings[pid] = p_net
 
-                # Other places: pstake * diff_mult (without the 50 * len(players) bonus)
-                for pid, pstake in sorted_stakes[1:]:
-                    if pstake > 0:
-                        p_gross = int(round(pstake * diff_mult))
-                        if p_gross > 0:
-                            p_net, _ = await economy_cog.apply_tax_and_add_balance(pid, p_gross, context="GeoGuessr Points Reward")
-                            player_earnings[pid] = p_net
+                leaderboard_lines = []
+                for rank_pos, (pid, pstake) in enumerate(sorted_stakes, 1):
+                    puser = discord.utils.get(players, id=pid)
+                    pname = puser.display_name if puser else f"Player {pid}"
+                    earn_str = f" (+{format_tad(player_earnings[pid])})" if pid in player_earnings else ""
+                    leaderboard_lines.append(f"**#{rank_pos}** {pname}{earn_str}")
 
-            leaderboard_lines = []
-            for rank_pos, (pid, pstake) in enumerate(sorted_stakes, 1):
-                puser = discord.utils.get(players, id=pid)
-                pname = puser.display_name if puser else f"Player {pid}"
-                earn_str = f" (+{format_tad(player_earnings[pid])})" if pid in player_earnings else ""
-                leaderboard_lines.append(f"**#{rank_pos}** {pname}{earn_str}")
-
-            final_embed = discord.Embed(
-                title="🏆 GeoGuessr Match Ended!",
-                description=(
-                    f"🥇 **Winner:** {top_winner.mention if top_winner else 'Unknown'}!{eco_msg}\n\n"
-                    f"📈 **Final Scoreboard:**\n" + "\n".join(leaderboard_lines)
-                ),
-                color=0x000000
-            )
-            await ctx.send(embed=final_embed)
+                final_embed = discord.Embed(
+                    title="🏆 GeoGuessr Match Ended!",
+                    description=(
+                        f"🥇 **Winner:** {top_winner.mention if top_winner else 'Unknown'}!{eco_msg}\n\n"
+                        f"📈 **Final Scoreboard:**\n" + "\n".join(leaderboard_lines)
+                    ),
+                    color=0x000000
+                )
+                await ctx.send(embed=final_embed)
+        finally:
+            clear_user_game(self.bot, ctx.author.id)
+            for p in players:
+                clear_user_game(self.bot, p.id)
 
 
     @commands.command(name="guesstherank", aliases=["gtr", "guessrank"], help="9edder rank dial clip f games bhal Rocket League, Valorant, CS2, etc.")
     async def guesstherank(self, ctx: commands.Context, *, game: str = None):
+        if not await self.ensure_user_free(ctx):
+            return
+
         if not game:
             embed = discord.Embed(
                 title="🎖️ Guess The Rank — Khtar Game",
@@ -7935,6 +8329,7 @@ class Minigames(commands.Cog, name="Minigames"):
             await wait_msg.edit(content="❌ Mal9itch clip f had lwe9t. 3awed jereb mn b3d.")
             return
 
+        set_user_in_game(self.bot, ctx.author.id, "Guess The Rank")
         view = GuessTheRankView(ctx.author, self, target_game, opener, clip)
         content = (
             f"**{target_game['emoji']} Guess The Rank — {target_game['name']}**\n"
@@ -7946,11 +8341,14 @@ class Minigames(commands.Cog, name="Minigames"):
 
     @commands.command(name="chesspuzzle", aliases=["puzzle", "chessquiz", "lichess"], help="7ell puzzle dial chess.")
     async def chesspuzzle(self, ctx: commands.Context):
+        if not await self.ensure_user_free(ctx):
+            return
         pool = _load_chess_puzzles()
         if not pool:
             await ctx.send("❌ Mal9itch puzzles f had lwe9t, 7awel mn be3d.")
             return
 
+        set_user_in_game(self.bot, ctx.author.id, "Chess Puzzle")
         view = ChessPuzzleView(ctx.author, self)
         board_file = await view.generate_board_file()
         embed = view.build_puzzle_embed()

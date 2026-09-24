@@ -5,17 +5,34 @@ import discord
 from discord.ext import commands
 
 
+import unicodedata
+from typing import Union, List
+
+
+def normalize_name(text: str) -> str:
+    """Strips unicode decorators, symbols, brackets (clan tags), and trims whitespace."""
+    if not text:
+        return ""
+    text = unicodedata.normalize('NFKD', text)
+    # Remove clan/team tags like [TAG] or (TAG)
+    text = re.sub(r'^[\[\(].*?[\]\)]\s*', '', text)
+    text = re.sub(r'\s*[\[\(].*?[\]\)]$', '', text)
+    # Remove emojis and non-alphanumeric/non-space/non-common punctuation
+    text = re.sub(r'[^\w\s\.\-_]', '', text)
+    return text.strip().lower()
+
+
 class FuzzyMember(commands.Converter[Union[discord.Member, discord.User]]):
     async def convert(self, ctx: commands.Context, argument: str) -> Union[discord.Member, discord.User]:
         arg_clean_str = argument.strip()
 
-        # 1. Exact resolution within current guild or shared guilds (IDs, @mentions, exact usernames/nicknames)
+        # 1. Standard MemberConverter (exact mentions, user#0000, exact ID, or exact name in guild)
         try:
             return await commands.MemberConverter().convert(ctx, arg_clean_str)
         except commands.MemberNotFound:
             pass
 
-        # 2. If argument is an ID or mention, resolve globally as discord.User (even across other servers or outside guilds)
+        # 2. If argument looks like an ID or mention, resolve globally as discord.User
         match = re.match(r'^<@!?([0-9]{15,20})>$|^([0-9]{15,20})$', arg_clean_str)
         if match or arg_clean_str.isdigit():
             user_id_str = match.group(1) or match.group(2) if match else arg_clean_str
@@ -30,45 +47,100 @@ class FuzzyMember(commands.Converter[Union[discord.Member, discord.User]]):
                 pass
 
         if not ctx.guild:
-            # If in DMs and not an ID, try UserConverter for cached users
             try:
                 return await commands.UserConverter().convert(ctx, arg_clean_str)
             except commands.UserNotFound:
                 raise commands.MemberNotFound(argument)
 
-        arg_clean = arg_clean_str.lower()
-        matches = []
-
-        # 3. Compare input against server members (dynamically query gateway or fallback to cache)
+        # 3. Build candidate pool: query gateway first, fallback to cached guild members
+        members: List[discord.Member] = []
         try:
-            members = await ctx.guild.query_members(query=argument, limit=50)
+            members = await ctx.guild.query_members(query=arg_clean_str, limit=50)
         except Exception:
-            members = ctx.guild.members
+            pass
+        if not members:
+            members = list(ctx.guild.members)
+
+        arg_lower = arg_clean_str.lower()
+        arg_norm = normalize_name(arg_clean_str)
+
+        exact_matches = []
+        prefix_matches = []
+        word_boundary_matches = []
+        substring_matches = []
+        fuzzy_matches = []
 
         for member in members:
-            names = {
-                member.name.lower(),
-                member.display_name.lower(),
-            }
+            raw_names = [member.name, member.display_name]
             if member.global_name:
-                names.add(member.global_name.lower())
+                raw_names.append(member.global_name)
             if member.nick:
-                names.add(member.nick.lower())
+                raw_names.append(member.nick)
 
-            highest_score_for_member = max(
-                difflib.SequenceMatcher(None, arg_clean, name).ratio()
-                for name in names
-            )
+            lower_names = [n.lower() for n in raw_names]
+            norm_names = [normalize_name(n) for n in raw_names if normalize_name(n)]
 
-            if highest_score_for_member >= 0.50:
-                matches.append((highest_score_for_member, member))
+            # Tier 2: Exact case-insensitive match
+            if any(n == arg_lower for n in lower_names) or (arg_norm and any(n == arg_norm for n in norm_names)):
+                exact_matches.append(member)
+                continue
 
-        # 4. Select maximum similarity score
-        if matches:
-            best_match = max(matches, key=lambda x: x[0])[1]
-            return best_match
+            # Tier 3: Prefix match
+            if any(n.startswith(arg_lower) for n in lower_names) or (arg_norm and any(n.startswith(arg_norm) for n in norm_names)):
+                prefix_matches.append(member)
+                continue
+
+            # Tier 4: Word-boundary match (e.g. searching "anlouf" for "Ayoub Anlouf")
+            has_word_match = False
+            for name in lower_names:
+                words = re.split(r'[\s\.\-_]+', name)
+                if any(w.startswith(arg_lower) for w in words if w):
+                    word_boundary_matches.append(member)
+                    has_word_match = True
+                    break
+            if has_word_match:
+                continue
+
+            # Tier 5: Substring match
+            if any(arg_lower in n for n in lower_names) or (arg_norm and any(arg_norm in n for n in norm_names)):
+                substring_matches.append(member)
+                continue
+
+            # Tier 6: Normalized Fuzzy Similarity
+            best_score = 0.0
+            for n in norm_names:
+                score = difflib.SequenceMatcher(None, arg_norm, n).ratio()
+                if score > best_score:
+                    best_score = score
+
+            if best_score >= 0.65:
+                fuzzy_matches.append((best_score, member))
+
+        if exact_matches:
+            return exact_matches[0]
+        if prefix_matches:
+            prefix_matches.sort(key=lambda m: len(m.display_name))
+            return prefix_matches[0]
+        if word_boundary_matches:
+            word_boundary_matches.sort(key=lambda m: len(m.display_name))
+            return word_boundary_matches[0]
+        if substring_matches:
+            substring_matches.sort(key=lambda m: len(m.display_name))
+            return substring_matches[0]
+        if fuzzy_matches:
+            fuzzy_matches.sort(key=lambda x: x[0], reverse=True)
+            return fuzzy_matches[0][1]
+
+        # 4. Final fallback: search global bot users cache
+        for user in ctx.bot.users:
+            u_names = [user.name.lower()]
+            if user.global_name:
+                u_names.append(user.global_name.lower())
+            if any(n == arg_lower or n.startswith(arg_lower) for n in u_names):
+                return user
 
         raise commands.MemberNotFound(argument)
+
 
 
 class AmountConverter(commands.Converter[int]):

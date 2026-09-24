@@ -393,13 +393,15 @@ bot = commands.Bot(
     max_messages=15
 )
 bot.Paginator = Paginator
+bot.active_game_users = {}
+
 
 
 @bot.check
 async def check_maintenance_mode(ctx):
     if getattr(ctx.bot, "maintenance_mode", False):
         if not await ctx.bot.is_owner(ctx.author):
-            await ctx.send("🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK! 🤨")
+            await ctx.send("🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK")
             return False
     return True
 
@@ -670,7 +672,7 @@ async def setup_hook():
                     try:
                         if not interaction.response.is_done():
                             await interaction.response.send_message(
-                                "🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK! 🤨",
+                                "🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK",
                                 ephemeral=True
                             )
                     except Exception:
@@ -688,7 +690,7 @@ async def setup_hook():
                     try:
                         if not interaction.response.is_done():
                             await interaction.response.send_message(
-                                "🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK! 🤨",
+                                "🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK",
                                 ephemeral=True
                             )
                     except Exception:

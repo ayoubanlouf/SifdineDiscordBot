@@ -13,6 +13,39 @@ DIFFICULTY_STAKES = {
     "hard": 2.0
 }
 
+
+def is_user_in_game(bot, user_id: int) -> Optional[str]:
+    """Returns the game name if the user currently has an active game session, else None.
+    Automatically expires stale locks older than 10 minutes (600s).
+    """
+    if not hasattr(bot, "active_game_users"):
+        bot.active_game_users = {}
+    entry = bot.active_game_users.get(user_id)
+    if not entry:
+        return None
+    if isinstance(entry, tuple):
+        game_name, started_at = entry
+        if time.time() - started_at > 600:
+            bot.active_game_users.pop(user_id, None)
+            return None
+        return game_name
+    return entry
+
+
+def set_user_in_game(bot, user_id: int, game_name: str) -> None:
+    """Locks a user into an active game session with current timestamp."""
+    if not hasattr(bot, "active_game_users"):
+        bot.active_game_users = {}
+    bot.active_game_users[user_id] = (game_name, time.time())
+
+
+def clear_user_game(bot, user_id: int) -> None:
+    """Releases a user's active game session lock."""
+    if hasattr(bot, "active_game_users"):
+        bot.active_game_users.pop(user_id, None)
+
+
+
 def get_dictionary_cursor():
     global _dict_conn
     if _dict_conn is None:

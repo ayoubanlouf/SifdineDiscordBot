@@ -110,7 +110,7 @@ async def _force_drain_all_games(bot) -> int:
     if hasattr(bot, "db") and bot.db:
         try:
             async with bot.db.execute(
-                "SELECT session_id, user_id, game_name, bet_amount FROM active_game_sessions WHERE status IN ('in_progress', 'sticky')"
+                "SELECT session_id, user_id, game_name, bet_amount FROM active_game_sessions WHERE status = 'in_progress'"
             ) as cur:
                 rows = await cur.fetchall()
             for r in rows:
@@ -131,12 +131,10 @@ async def _force_drain_all_games(bot) -> int:
             await bot.db.commit()
         except Exception as e:
             print(f"[force_drain_all_games error]: {e}")
-    if gambling_cog:
-        if hasattr(gambling_cog, "active_sessions"):
-            gambling_cog.active_sessions.clear()
-        if hasattr(gambling_cog, "hl_sticky_sessions"):
-            gambling_cog.hl_sticky_sessions.clear()
+    if gambling_cog and hasattr(gambling_cog, "active_sessions"):
+        gambling_cog.active_sessions.clear()
     return count
+
 
 
 
@@ -229,8 +227,7 @@ class MaintenanceDrainView(discord.ui.View):
             title="🛠️ Maintenance Mode — Drained",
             description=(
                 f"✅ **Force drained & refunded {drained} session(s)!**\n\n"
-                f"Ga3 flous rj3at l as7abaha o ga3 interactions rahom mblockyin daba.\n"
-                f"Safe to restart or deploy."
+                f"Flous rj3al l maliha!."
             ),
             color=0x000000
         )
@@ -1655,7 +1652,7 @@ class Bot(commands.Cog, name="Bot"):
 
         embed = discord.Embed(
             title=f"{self.bot.user.name}",
-            description=f"Seftni lkhwadri AyouBot nkhdem blasto.\nIla khastk chy 7aja goul `{ctx.prefix}3te9`.",
+            description=f"Seftni lkhwadri AyouBot nkhdem blasto.\nIla khsatk chy 7aja goul `{ctx.prefix}3te9`.",
             color=0x000000,
             timestamp=ctx.message.created_at
         )

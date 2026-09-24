@@ -20,7 +20,11 @@ from cogs.economy import (
     parse_bet_argument, format_tad, TAD_EMOJI, calculate_pvp_payout,
     not_fraud, TAX_RATE, get_current_week_start_ts, get_next_week_start_ts
 )
-from cogs.games.helpers import record_minigame_win, record_minigame_loss
+from cogs.games.helpers import (
+    record_minigame_win, record_minigame_loss,
+    is_user_in_game, set_user_in_game, clear_user_game
+)
+
 
 # ============ PLAYING CARDS & TABLE RENDERING ============
 
@@ -198,11 +202,13 @@ class BlackjackView(discord.ui.View):
             await interaction.response.edit_message(embed=embed, view=self, attachments=[file])
         elif self.message:
             await self.message.edit(embed=embed, view=self, attachments=[file])
+        clear_user_game(self.cog.bot, self.author.id)
         self.stop()
 
     async def on_timeout(self):
         if not self.game_over and self.message:
             self.game_over = True
+            clear_user_game(self.cog.bot, self.author.id)
             self.stop()
             for item in self.children:
                 item.disabled = True
@@ -410,11 +416,13 @@ class MinesGambleView(discord.ui.View):
             await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines")
 
         await interaction.response.edit_message(embed=embed, view=self)
+        clear_user_game(self.cog.bot, self.author.id)
         self.stop()
 
     async def on_timeout(self):
         if not self.game_over and self.message:
             self.game_over = True
+            clear_user_game(self.cog.bot, self.author.id)
             self.stop()
             self._reveal_all_bombs()
             for item in self.children:
@@ -488,8 +496,10 @@ class MinesGambleView(discord.ui.View):
                 color=0x000000
             )
             await interaction.response.edit_message(embed=embed, view=self)
+            clear_user_game(self.cog.bot, self.author.id)
             self.stop()
             return
+
 
         button.emoji = "💎"
         button.label = None
@@ -528,6 +538,7 @@ class MinesGambleView(discord.ui.View):
                 await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "mines")
             
             await interaction.response.edit_message(embed=embed, view=self)
+            clear_user_game(self.cog.bot, self.author.id)
             self.stop()
             return
 
@@ -827,6 +838,9 @@ class TowerGameView(discord.ui.View):
                 embed.set_image(url="attachment://tower.jpg")
                 embed.set_footer(text="Sifdine Casino • Max Payout Achieved!")
                 await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
+                clear_user_game(self.cog.bot, self.author.id)
+                self.stop()
+
 
                 # Execute database payout asynchronously in background so Discord never times out
                 if self.bet > 0 and economy_cog:
@@ -897,8 +911,10 @@ class TowerGameView(discord.ui.View):
             )
             embed.set_image(url="attachment://tower.jpg")
             await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
+            clear_user_game(self.cog.bot, self.author.id)
 
             if self.bet > 0 and economy_cog:
+
                 asyncio.create_task(economy_cog.process_gamble_loss(self.bet, context=f"Tower Loss (Story {self.current_floor})"))
 
     async def handle_cashout(self, interaction: discord.Interaction):
@@ -949,6 +965,8 @@ class TowerGameView(discord.ui.View):
         embed.set_image(url="attachment://tower.jpg")
         embed.set_footer(text="Sifdine Casino • Winnings deposited to your wallet")
         await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
+        clear_user_game(self.cog.bot, self.author.id)
+
 
         # Execute database payout asynchronously in background so Discord never times out
         if self.bet > 0 and economy_cog:
@@ -1018,6 +1036,8 @@ class TowerGameView(discord.ui.View):
                 await self.message.edit(embed=embed, view=self)
             except Exception:
                 pass
+            clear_user_game(self.cog.bot, self.author.id)
+
 
 
 # ============ HIGHER LOWER VIEW ============
@@ -1130,6 +1150,7 @@ class HigherLowerView(discord.ui.View):
             if file:
                 embed.set_thumbnail(url="attachment://card.png")
             await interaction.response.edit_message(embed=embed, view=self, attachments=[file] if file else [])
+            clear_user_game(self.cog.bot, self.author.id)
             self.stop()
 
     @discord.ui.button(label="Higher", style=discord.ButtonStyle.success, emoji="⬆️")
@@ -1177,11 +1198,13 @@ class HigherLowerView(discord.ui.View):
         if file:
             embed.set_thumbnail(url="attachment://card.png")
         await interaction.response.edit_message(embed=embed, view=self, attachments=[file] if file else [])
+        clear_user_game(self.cog.bot, self.author.id)
         self.stop()
 
     async def on_timeout(self):
         if not self.game_over and self.message:
             self.game_over = True
+            clear_user_game(self.cog.bot, self.author.id)
             self.stop()
             for item in self.children:
                 item.disabled = True
@@ -1647,12 +1670,13 @@ class Gambling(commands.Cog, name="Gambling"):
         try:
             if hasattr(self.bot, 'db') and self.bot.db:
                 await self.bot.db.execute(
-                    "UPDATE active_game_sessions SET status = 'sticky' WHERE session_id = ?",
+                    "UPDATE active_game_sessions SET status = 'timed_out' WHERE session_id = ?",
                     (session_id,)
                 )
                 await self.bot.db.commit()
         except Exception as e:
             print(f"[pause_active_session error]: {e}")
+
 
 
     @tasks.loop(seconds=60)
@@ -2052,6 +2076,11 @@ class Gambling(commands.Cog, name="Gambling"):
     @commands.command(aliases=["bj", "21"], help="Fout dealer blama tfout 21 (sat blackjack [bet:500]).")
     @not_fraud()
     async def blackjack(self, ctx: commands.Context, *args):
+        busy = is_user_in_game(self.bot, ctx.author.id)
+        if busy:
+            await ctx.send(f"❌ 3ndek deja game khddama (**{busy}**)! Kemmelha wla tsennaha tsali 9bel matbda w7da khra.")
+            return
+
         economy_cog = self.bot.get_cog("Economy")
         w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
         bet, _ = parse_bet_argument(*args, user_balance=w.get("balance", 0))
@@ -2065,6 +2094,7 @@ class Gambling(commands.Cog, name="Gambling"):
             session_id = f"bj_{uuid.uuid4().hex[:12]}"
             await self.register_active_session(session_id, ctx.author.id, "Blackjack", bet)
 
+        set_user_in_game(self.bot, ctx.author.id, "Blackjack")
         view = BlackjackView(ctx.author, self, bet=bet or 0)
         view.session_id = session_id
         initial_embed = view.get_embed()
@@ -2072,8 +2102,10 @@ class Gambling(commands.Cog, name="Gambling"):
 
         p_score = calculate_bj_score(view.player_hand)
         if p_score == 21:
+            clear_user_game(self.bot, ctx.author.id)
             if session_id:
                 await self.complete_active_session(session_id)
+
             d_score = calculate_bj_score(view.dealer_hand)
             if d_score == 21:
                 initial_embed = view.get_embed(dealer_reveal=True, outcome_text="🤝 **Double Blackjack!** Ta3adol (Push)!")
@@ -2187,6 +2219,11 @@ class Gambling(commands.Cog, name="Gambling"):
     @commands.command(aliases=["gems"], help="L9a gems o hreb 9bl matfrge3 (sat mines [bet:500]).")
     @not_fraud()
     async def mines(self, ctx: commands.Context, *args):
+        busy = is_user_in_game(self.bot, ctx.author.id)
+        if busy:
+            await ctx.send(f"❌ 3ndek deja game khddama (**{busy}**)! Kemmelha wla tsennaha tsali 9bel matbda w7da khra.")
+            return
+
         economy_cog = self.bot.get_cog("Economy")
         w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
         bet, _ = parse_bet_argument(*args, user_balance=w.get("balance", 0))
@@ -2207,7 +2244,9 @@ class Gambling(commands.Cog, name="Gambling"):
             session_id = f"mines_{uuid.uuid4().hex[:12]}"
             await self.register_active_session(session_id, ctx.author.id, "Mines", bet)
 
+        set_user_in_game(self.bot, ctx.author.id, "Mines")
         view = MinesGambleView(ctx.author, self, bomb_count=bombs, bet=bet)
+
         view.session_id = session_id
         total_gems = (view.width * view.height) - bombs
         embed = discord.Embed(
@@ -2227,6 +2266,11 @@ class Gambling(commands.Cog, name="Gambling"):
     @commands.command(name="tower", aliases=["doors", "lborj", "lbiban"], help="L9a lbab rrab7 f kola etage.")
     @not_fraud()
     async def tower(self, ctx: commands.Context, *args):
+        busy = is_user_in_game(self.bot, ctx.author.id)
+        if busy:
+            await ctx.send(f"❌ 3ndek deja game khddama (**{busy}**)! Kemmelha wla tsennaha tsali 9bel matbda w7da khra.")
+            return
+
         economy_cog = self.bot.get_cog("Economy")
         if not economy_cog:
             await ctx.send("❌ Economy system ma khdamch daba.")
@@ -2253,7 +2297,9 @@ class Gambling(commands.Cog, name="Gambling"):
             session_id = f"tower_{uuid.uuid4().hex[:12]}"
             await self.register_active_session(session_id, ctx.author.id, "Tower", bet)
 
+        set_user_in_game(self.bot, ctx.author.id, "Tower")
         view = TowerGameView(ctx.author, bet, self)
+
         view.session_id = session_id
         board_bytes = await asyncio.to_thread(render_tower_board, 1, view.story_doors, "active")
         file = discord.File(board_bytes, filename="tower.jpg")
@@ -2458,6 +2504,11 @@ class Gambling(commands.Cog, name="Gambling"):
     @commands.command(aliases=["hl"], help="9emmer wach lwr9a jaya Higher wla Lower (sat higherlower [bet:500]).")
     @not_fraud()
     async def higherlower(self, ctx: commands.Context, *args):
+        busy = is_user_in_game(self.bot, ctx.author.id)
+        if busy:
+            await ctx.send(f"❌ 3ndek deja game khddama (**{busy}**)! Kemmelha wla tsennaha tsali 9bel matbda w7da khra.")
+            return
+
         economy_cog = self.bot.get_cog("Economy")
         sticky = self.hl_sticky_sessions.pop(ctx.author.id, None)
 
@@ -2467,6 +2518,7 @@ class Gambling(commands.Cog, name="Gambling"):
             session_id = f"hl_{uuid.uuid4().hex[:12]}"
             if bet > 0:
                 await self.register_active_session(session_id, ctx.author.id, "HigherLower", bet)
+            set_user_in_game(self.bot, ctx.author.id, "HigherLower")
             view = HigherLowerView(ctx.author, self, bet=bet or 0, initial_card=initial_card)
             view.session_id = session_id
 
@@ -2491,7 +2543,9 @@ class Gambling(commands.Cog, name="Gambling"):
             session_id = f"hl_{uuid.uuid4().hex[:12]}"
             await self.register_active_session(session_id, ctx.author.id, "HigherLower", bet)
 
+        set_user_in_game(self.bot, ctx.author.id, "HigherLower")
         view = HigherLowerView(ctx.author, self, bet=bet or 0)
+
         view.session_id = session_id
         embed = view.get_embed("9emmer lwr9a jaya wach **Higher ⬆️** wla **Lower ⬇️**!")
         file = get_hl_card_file(view.current_card)

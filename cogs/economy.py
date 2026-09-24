@@ -887,7 +887,9 @@ class CustomizationConfirmView(discord.ui.View):
             child.disabled = True
         self.stop()
         embed = discord.Embed(title=title, description=desc, color=0x000000)
+        embed.set_image(url=f"attachment://preview_{self.item_type}.png")
         await interaction.response.edit_message(embed=embed, view=self)
+
 
     @discord.ui.button(label="🔄 Retry", style=discord.ButtonStyle.secondary)
     async def retry_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1087,15 +1089,20 @@ class Economy(commands.Cog, name="Economy"):
         )
         await self.bot.db.commit()
 
-        # Announce level-ups with rewards
+        # Announce level-ups with rewards and custom rank card
         if rewards_awarded and (channel or message):
             try:
-                user_name = None
+                user_obj = None
                 if message and hasattr(message, "author") and message.author.id == user_id:
-                    user_name = message.author.display_name
+                    user_obj = message.author
                 else:
-                    u = self.bot.get_user(user_id)
-                    user_name = u.display_name if u else "Player"
+                    user_obj = self.bot.get_user(user_id)
+                    if not user_obj and hasattr(self.bot, "fetch_user"):
+                        try:
+                            user_obj = await self.bot.fetch_user(user_id)
+                        except Exception:
+                            pass
+                user_name = user_obj.display_name if user_obj else "Player"
 
                 if len(rewards_awarded) == 1:
                     a_lvl, a_rew = rewards_awarded[0]
@@ -1110,10 +1117,55 @@ class Economy(commands.Cog, name="Economy"):
                     color=0x000000
                 )
 
+                card_file = None
+                try:
+                    rank = 1
+                    async with self.bot.db.execute(
+                        "SELECT COUNT(*) + 1 FROM user_levels WHERE total_xp > ?",
+                        (new_total_xp,)
+                    ) as cur:
+                        r_row = await cur.fetchone()
+                        if r_row:
+                            rank = r_row[0]
+
+                    next_lvl_m, next_rew_m = get_next_milestone_info(new_lvl)
+                    cosmetics = await self.get_user_cosmetics(user_id)
+                    avatar_bytes = None
+                    if user_obj and getattr(user_obj, "display_avatar", None):
+                        try:
+                            avatar_bytes = await user_obj.display_avatar.with_format("png").with_size(128).read()
+                        except Exception:
+                            avatar_bytes = None
+                    bg_bytes = await self.get_valid_cosmetic_bytes(user_id, "rank")
+
+                    from cogs.leveling_render import render_level_card
+                    buf = await asyncio.to_thread(
+                        render_level_card,
+                        username=user_name,
+                        level=new_lvl,
+                        current_xp=new_curr,
+                        xp_needed=new_needed,
+                        total_xp=new_total_xp,
+                        rank=rank,
+                        avatar_bytes=avatar_bytes,
+                        next_milestone_level=next_lvl_m,
+                        next_milestone_reward=next_rew_m,
+                        bg_bytes=bg_bytes,
+                        main_color_str=cosmetics.get("rank_main_color"),
+                        accent_color_str=cosmetics.get("rank_accent_color")
+                    )
+                    card_file = discord.File(buf, filename="rank.png")
+                    embed.set_image(url="attachment://rank.png")
+                except Exception as e:
+                    print(f"[add_xp rank card render error]: {e}")
+
                 sent = False
                 if message:
                     try:
-                        await message.reply(embed=embed, mention_author=True)
+                        if card_file:
+                            await message.reply(embed=embed, file=card_file, mention_author=True)
+                        else:
+                            await message.reply(embed=embed, mention_author=True)
                         sent = True
                     except Exception:
                         sent = False
@@ -1121,9 +1173,13 @@ class Economy(commands.Cog, name="Economy"):
                 if not sent:
                     target_channel = channel or (message.channel if message else None)
                     if target_channel:
-                        await target_channel.send(embed=embed)
-            except Exception:
-                pass
+                        if card_file:
+                            await target_channel.send(embed=embed, file=card_file)
+                        else:
+                            await target_channel.send(embed=embed)
+            except Exception as e:
+                print(f"[add_xp announcement error]: {e}")
+
 
         user_data["level"] = new_lvl
         user_data["current_xp"] = new_curr
