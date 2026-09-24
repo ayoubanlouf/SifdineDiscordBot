@@ -406,12 +406,29 @@ class Bot(commands.Cog, name="Bot"):
         except Exception as e:
             print(f"[RESTART] Failed to edit confirmation message: {e}")
 
+    async def update_presence(self):
+        try:
+            n_guilds = len(self.bot.guilds)
+            status_text = f"M9abel {n_guilds} server"
+            await self.bot.change_presence(activity=discord.CustomActivity(name=status_text))
+        except Exception as e:
+            print(f"[STATUS ERROR]: {e}")
+
     @commands.Cog.listener()
     async def on_ready(self):
+        await self.update_presence()
         if self._reboot_checked:
             return
         self._reboot_checked = True
         await self._check_pending_restart()
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild):
+        await self.update_presence()
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild: discord.Guild):
+        await self.update_presence()
 
 
     def _get_dir_size_sync(self, path="."):
