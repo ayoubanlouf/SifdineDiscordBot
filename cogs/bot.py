@@ -7,9 +7,11 @@ import psutil
 import time
 import asyncio
 from datetime import datetime, timezone
+from typing import Union, Optional, List, Dict, Tuple
 import discord
 from discord.ext import commands
 from converters import FuzzyMember
+
 
 RESTART_STATE_FILE = ".pending_restart.json"
 
@@ -85,6 +87,197 @@ class HostLogsView(discord.ui.View):
             await interaction.edit_original_response(embed=self.get_page(), view=self)
         else:
             await interaction.followup.send("⚠️ Mal9itch logs jdad.", ephemeral=True)
+
+# ============ MAINTENANCE MODE VIEWS ============
+
+async def _get_active_games_count(bot) -> int:
+    gambling_cog = bot.get_cog("Gambling")
+    mem_sessions = set(gambling_cog.active_sessions.keys()) if (gambling_cog and hasattr(gambling_cog, "active_sessions")) else set()
+    db_sessions = set()
+    if hasattr(bot, "db") and bot.db:
+        try:
+            async with bot.db.execute("SELECT session_id FROM active_game_sessions WHERE status = 'in_progress'") as cur:
+                rows = await cur.fetchall()
+                db_sessions = {r[0] for r in rows}
+        except Exception:
+            pass
+    return len(mem_sessions.union(db_sessions))
+
+
+async def _force_drain_all_games(bot) -> int:
+    gambling_cog = bot.get_cog("Gambling")
+    count = 0
+    if hasattr(bot, "db") and bot.db:
+        try:
+            async with bot.db.execute(
+                "SELECT session_id, user_id, game_name, bet_amount FROM active_game_sessions WHERE status IN ('in_progress', 'sticky')"
+            ) as cur:
+                rows = await cur.fetchall()
+            for r in rows:
+                s_id, u_id, g_name, bet = r
+                if gambling_cog and hasattr(gambling_cog, "active_sessions"):
+                    gambling_cog.active_sessions.pop(s_id, None)
+                economy_cog = bot.get_cog("Economy")
+                if economy_cog and bet > 0:
+                    await economy_cog.add_balance(u_id, bet, context=f"Maintenance Force Refund ({g_name})")
+                await bot.db.execute("UPDATE active_game_sessions SET status = 'refunded' WHERE session_id = ?", (s_id,))
+                try:
+                    user = bot.get_user(u_id) or await bot.fetch_user(u_id)
+                    if user:
+                        await user.send(f"⚠️ Tra chy mouchkil f **{g_name}**. {bet:,} TAD ta3k rah rj3at lik!")
+                except Exception:
+                    pass
+                count += 1
+            await bot.db.commit()
+        except Exception as e:
+            print(f"[force_drain_all_games error]: {e}")
+    if gambling_cog:
+        if hasattr(gambling_cog, "active_sessions"):
+            gambling_cog.active_sessions.clear()
+        if hasattr(gambling_cog, "hl_sticky_sessions"):
+            gambling_cog.hl_sticky_sessions.clear()
+    return count
+
+
+
+class MaintenanceView(discord.ui.View):
+    """View shown when maintenance mode is currently OFF."""
+    def __init__(self, bot, author: Union[discord.Member, discord.User]):
+        super().__init__(timeout=120)
+        self.bot = bot
+        self.author = author
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l-control panel machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Turn On Maintenance", style=discord.ButtonStyle.danger, emoji="🔴")
+    async def turn_on(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.bot.maintenance_mode = True
+        active_count = await _get_active_games_count(self.bot)
+
+        if active_count > 0:
+            embed = discord.Embed(
+                title="🛠️ Maintenance Mode Activated",
+                description=(
+                    f"⚠️ **Waiting for {active_count} active game(s) to finish.**\n\n"
+                    f"• All new games are now **blocked**.\n"
+                ),
+                color=0x000000
+            )
+            view = MaintenanceDrainView(self.bot, self.author)
+        else:
+            embed = discord.Embed(
+                title="🛠️ Maintenance Mode Activated",
+                description=(
+                    "✅ **All games have finished!**\n\n"
+                    "• Bot interactions and commands are completely blocked for non-owners.\n"
+                    "• Daba ymkn lik tdir restart wla deploy b aman bla ma ydi3o flous l users."
+                ),
+                color=0x000000
+            )
+            view = MaintenanceActiveView(self.bot, self.author)
+
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class MaintenanceDrainView(discord.ui.View):
+    """View shown when maintenance mode is ON and games are still finishing."""
+    def __init__(self, bot, author: Union[discord.Member, discord.User]):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.author = author
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l-control panel machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Refresh", style=discord.ButtonStyle.primary, emoji="🔄")
+    async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
+        active_count = await _get_active_games_count(self.bot)
+        if active_count > 0:
+            embed = discord.Embed(
+                title="🛠️ Maintenance Mode Activated",
+                description=(
+                    f"⚠️ **Waiting for {active_count} active game(s) to finish.**\n\n"
+                    f"• All new games are now **blocked**.\n"
+                ),
+                color=0x000000
+            )
+            await interaction.response.edit_message(embed=embed, view=self)
+        else:
+            embed = discord.Embed(
+                title="🛠️ Maintenance Mode Activated",
+                description=(
+                    "✅ **All games have finished!**\n\n"
+                    "• Bot interactions and commands are completely blocked for non-owners.\n"
+                    "• Daba ymkn lik tdir restart wla deploy b aman bla ma ydi3o flous l users."
+                ),
+                color=0x000000
+            )
+            view = MaintenanceActiveView(self.bot, self.author)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label="Force Drain (Refund All)", style=discord.ButtonStyle.danger, emoji="🛑")
+    async def force_drain(self, interaction: discord.Interaction, button: discord.ui.Button):
+        drained = await _force_drain_all_games(self.bot)
+        embed = discord.Embed(
+            title="🛠️ Maintenance Mode — Drained",
+            description=(
+                f"✅ **Force drained & refunded {drained} session(s)!**\n\n"
+                f"Ga3 flous rj3at l as7abaha o ga3 interactions rahom mblockyin daba.\n"
+                f"Safe to restart or deploy."
+            ),
+            color=0x000000
+        )
+        view = MaintenanceActiveView(self.bot, self.author)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label="Turn Off Maintenance", style=discord.ButtonStyle.success, emoji="🟢")
+    async def turn_off(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.bot.maintenance_mode = False
+        embed = discord.Embed(
+            title="🛠️ Bot Maintenance Control",
+            description=(
+                "🟢 **Maintenance mode is currently OFF.**\n\n"
+                "All commands and games are open to all users."
+            ),
+            color=0x000000
+        )
+        view = MaintenanceView(self.bot, self.author)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class MaintenanceActiveView(discord.ui.View):
+    """View shown when maintenance is ON and 0 games are running."""
+    def __init__(self, bot, author: Union[discord.Member, discord.User]):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.author = author
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("❌ Had l-control panel machi ta3k!", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Turn Off Maintenance", style=discord.ButtonStyle.success, emoji="🟢")
+    async def turn_off(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.bot.maintenance_mode = False
+        embed = discord.Embed(
+            title="🛠️ Bot Maintenance Control",
+            description=(
+                "🟢 **Maintenance mode is currently OFF.**\n\n"
+                "All commands and games are open to all users."
+            ),
+            color=0x000000
+        )
+        view = MaintenanceView(self.bot, self.author)
+        await interaction.response.edit_message(embed=embed, view=view)
 
 
 class Bot(commands.Cog, name="Bot"):
@@ -1756,6 +1949,46 @@ class Bot(commands.Cog, name="Bot"):
         else:
             embed.set_footer(text="Global")
             await ctx.send(embed=embed)
+
+
+    @commands.command(name="maintenance", aliases=["maint"], help="Control bot maintenance mode.")
+    @commands.is_owner()
+    async def maintenance_cmd(self, ctx: commands.Context):
+        if getattr(self.bot, "maintenance_mode", False):
+            active_count = await _get_active_games_count(self.bot)
+            if active_count > 0:
+                embed = discord.Embed(
+                    title="🛠️ Maintenance Mode Activated",
+                    description=(
+                        f"⚠️ **Waiting for {active_count} active game(s) to finish.**\n\n"
+                        f"• All new games are now **blocked**.\n"
+                    ),
+                    color=0x000000
+                )
+                view = MaintenanceDrainView(self.bot, ctx.author)
+            else:
+                embed = discord.Embed(
+                    title="🛠️ Maintenance Mode Activated",
+                    description=(
+                        "✅ **All games have finished!**\n\n"
+                        "• Bot interactions and commands are completely blocked for non-owners.\n"
+                        "• Daba ymkn lik tdir restart wla deploy b aman bla ma ydi3o flous l users."
+                    ),
+                    color=0x000000
+                )
+                view = MaintenanceActiveView(self.bot, ctx.author)
+        else:
+            embed = discord.Embed(
+                title="🛠️ Bot Maintenance Control",
+                description=(
+                    "🟢 **Maintenance mode is currently OFF.**\n\n"
+                    "All commands and games are open to all users."
+                ),
+                color=0x000000
+            )
+            view = MaintenanceView(self.bot, ctx.author)
+
+        await ctx.send(embed=embed, view=view)
 
 
 async def setup(bot):

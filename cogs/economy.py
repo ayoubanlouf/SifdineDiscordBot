@@ -6,7 +6,7 @@ import os
 import io
 import asyncio
 import aiohttp
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Optional, Tuple, Union
 from PIL import Image, ImageOps
@@ -32,7 +32,7 @@ from cogs.leveling_render import (
 TAD_EMOJI = "<:TAD:1543808845728710686>"
 TAX_RATE = 0.02  # 2% anti-inflation transaction burn
 GLOBAL_BET_LIMIT = 50000  # Global limit for any gamble/wager
-CASA_TZ = ZoneInfo("Africa/Casablanca")
+CASA_TZ = timezone.utc  # Reset timezone: 00:00 GMT+0
 
 
 def format_tad(amount: int) -> str:
@@ -61,10 +61,14 @@ def get_next_milestone_info(level: int) -> Tuple[int, int]:
 
 
 def get_current_week_start_ts() -> int:
-    """Returns the Unix timestamp for the start of the current week (Monday 00:00 Casablanca time)."""
-    now_casa = datetime.now(CASA_TZ)
-    current_week_start = (now_casa - timedelta(days=now_casa.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    return int(current_week_start.timestamp())
+    """Returns the Unix timestamp for the start of the current week (Monday 00:00 GMT+0).
+    Includes a 3600s (1-hour) grace window (Sunday 23:00 UTC) so that any claims made at
+    Moroccan midnight (Africa/Casablanca GMT+1) are recognized as claimed for this week.
+    """
+    now_utc = datetime.now(CASA_TZ)
+    current_week_start = (now_utc - timedelta(days=now_utc.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(current_week_start.timestamp()) - 3600
+
 
 
 def get_next_week_start_ts() -> int:
@@ -699,16 +703,8 @@ class CustomizationColorsModal(discord.ui.Modal):
             required=False,
             max_length=30
         )
-        self.hex_input = discord.ui.TextInput(
-            label="Hexcodes",
-            default="https://share.google/BfHGfcbhTi1r6Yt89",
-            placeholder="Hexcodes: https://share.google/BfHGfcbhTi1r6Yt89",
-            required=False,
-            max_length=100
-        )
         self.add_item(self.main_input)
         self.add_item(self.accent_input)
-        self.add_item(self.hex_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         m_val = self.main_input.value.strip()
@@ -730,7 +726,7 @@ class CustomizationColorsModal(discord.ui.Modal):
                         f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
                         f"❌ **Erreur:** Main Color `{m_val}` mal9itach.\n"
                         f"• Kteb colorname (e.g. `black`, `navy`, `purple`, `cyan`, `crimson`) wla Hex code (`#111827`).\n\n"
-                        f"Hexcodes: https://share.google/BfHGfcbhTi1r6Yt89"
+                        f"🎨 [Browse Hexcodes & Color Palette](https://share.google/BfHGfcbhTi1r6Yt89)"
                     ),
                     color=0x000000
                 )
@@ -754,7 +750,7 @@ class CustomizationColorsModal(discord.ui.Modal):
                         f"🎨 **Step 2/2: Colors (Main & Accent)**\n\n"
                         f"❌ **Erreur:** Accent Color `{a_val}` mal9itach.\n"
                         f"• Kteb colorname (e.g. `black`, `navy`, `purple`, `cyan`, `crimson`) wla Hex code (`#111827`).\n\n"
-                        f"Hexcodes: https://share.google/BfHGfcbhTi1r6Yt89"
+                        f"🎨 [Browse Hexcodes & Color Palette](https://share.google/BfHGfcbhTi1r6Yt89)"
                     ),
                     color=0x000000
                 )
@@ -827,7 +823,7 @@ class CustomizationColorsView(discord.ui.View):
 
 
 class CustomizationConfirmView(discord.ui.View):
-    def __init__(self, ctx: commands.Context, cog, item_type: str, new_bg_url: Optional[str], new_main_color: str, new_accent_color: str):
+    def __init__(self, ctx: commands.Context, cog, item_type: str, new_bg_url: Optional[str], new_main_color: str, new_accent_color: str, new_bg_bytes: Optional[bytes] = None, new_bg_mode: str = "unchanged"):
         super().__init__(timeout=120)
         self.ctx = ctx
         self.author = ctx.author
@@ -836,6 +832,8 @@ class CustomizationConfirmView(discord.ui.View):
         self.new_bg_url = new_bg_url
         self.new_main_color = new_main_color
         self.new_accent_color = new_accent_color
+        self.new_bg_bytes = new_bg_bytes
+        self.new_bg_mode = new_bg_mode
         self.message: Optional[discord.Message] = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -847,10 +845,26 @@ class CustomizationConfirmView(discord.ui.View):
     @discord.ui.button(label="✅ Save", style=discord.ButtonStyle.success)
     async def confirm_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         now_ts = int(time.time())
+        final_bg_url = self.new_bg_url
+        final_msg_id = None
+
+        if self.new_bg_mode == "custom" and self.new_bg_bytes:
+            res = await self.cog.rehost_asset(self.new_bg_bytes, "wallpaper.jpg", self.author)
+            if res:
+                final_bg_url, final_msg_id = res
+        elif self.new_bg_mode == "reset":
+            final_bg_url = None
+            final_msg_id = None
+        else: # unchanged
+            cosmetics = await self.cog.get_user_cosmetics(self.author.id)
+            final_bg_url = cosmetics.get(f"{self.item_type}_bg_url")
+            final_msg_id = cosmetics.get(f"{self.item_type}_bg_msg_id")
+
         if self.item_type == "wallet":
             await self.cog.update_user_cosmetics(
                 self.author.id,
-                wallet_bg_url=self.new_bg_url,
+                wallet_bg_url=final_bg_url,
+                wallet_bg_msg_id=final_msg_id,
                 wallet_main_color=self.new_main_color,
                 wallet_accent_color=self.new_accent_color,
                 wallet_last_updated=now_ts
@@ -860,7 +874,8 @@ class CustomizationConfirmView(discord.ui.View):
         else:
             await self.cog.update_user_cosmetics(
                 self.author.id,
-                rank_bg_url=self.new_bg_url,
+                rank_bg_url=final_bg_url,
+                rank_bg_msg_id=final_msg_id,
                 rank_main_color=self.new_main_color,
                 rank_accent_color=self.new_accent_color,
                 rank_last_updated=now_ts
@@ -1417,8 +1432,8 @@ class Economy(commands.Cog, name="Economy"):
 
     async def get_user_cosmetics(self, user_id: int) -> dict:
         async with self.bot.db.execute(
-            "SELECT wallet_private, wallet_bg_url, wallet_main_color, wallet_accent_color, wallet_last_updated, "
-            "rank_bg_url, rank_main_color, rank_accent_color, rank_last_updated FROM user_cosmetics WHERE user_id = ?",
+            "SELECT wallet_private, wallet_bg_url, wallet_bg_msg_id, wallet_main_color, wallet_accent_color, wallet_last_updated, "
+            "rank_bg_url, rank_bg_msg_id, rank_main_color, rank_accent_color, rank_last_updated FROM user_cosmetics WHERE user_id = ?",
             (user_id,)
         ) as cursor:
             row = await cursor.fetchone()
@@ -1426,10 +1441,12 @@ class Economy(commands.Cog, name="Economy"):
             return {
                 "wallet_private": 0,
                 "wallet_bg_url": None,
+                "wallet_bg_msg_id": None,
                 "wallet_main_color": "#000000",
                 "wallet_accent_color": "#ffffff",
                 "wallet_last_updated": 0,
                 "rank_bg_url": None,
+                "rank_bg_msg_id": None,
                 "rank_main_color": "#000000",
                 "rank_accent_color": "#ffffff",
                 "rank_last_updated": 0,
@@ -1437,13 +1454,15 @@ class Economy(commands.Cog, name="Economy"):
         return {
             "wallet_private": row[0] or 0,
             "wallet_bg_url": row[1],
-            "wallet_main_color": row[2] or "#000000",
-            "wallet_accent_color": row[3] or "#ffffff",
-            "wallet_last_updated": row[4] or 0,
-            "rank_bg_url": row[5],
-            "rank_main_color": row[6] or "#000000",
-            "rank_accent_color": row[7] or "#ffffff",
-            "rank_last_updated": row[8] or 0,
+            "wallet_bg_msg_id": row[2],
+            "wallet_main_color": row[3] or "#000000",
+            "wallet_accent_color": row[4] or "#ffffff",
+            "wallet_last_updated": row[5] or 0,
+            "rank_bg_url": row[6],
+            "rank_bg_msg_id": row[7],
+            "rank_main_color": row[8] or "#000000",
+            "rank_accent_color": row[9] or "#ffffff",
+            "rank_last_updated": row[10] or 0,
         }
 
     async def update_user_cosmetics(self, user_id: int, **kwargs) -> None:
@@ -1452,8 +1471,8 @@ class Economy(commands.Cog, name="Economy"):
             (user_id,)
         )
         valid_cols = {
-            "wallet_private", "wallet_bg_url", "wallet_main_color", "wallet_accent_color", "wallet_last_updated",
-            "rank_bg_url", "rank_main_color", "rank_accent_color", "rank_last_updated"
+            "wallet_private", "wallet_bg_url", "wallet_bg_msg_id", "wallet_main_color", "wallet_accent_color", "wallet_last_updated",
+            "rank_bg_url", "rank_bg_msg_id", "rank_main_color", "rank_accent_color", "rank_last_updated"
         }
         filtered = {k: v for k, v in kwargs.items() if k in valid_cols}
         if filtered:
@@ -1478,7 +1497,70 @@ class Economy(commands.Cog, name="Economy"):
             pass
         return None
 
-    async def rehost_asset(self, img_bytes: bytes, filename: str, user: Union[discord.Member, discord.User]) -> Optional[str]:
+    def is_cdn_url_expired(self, url: str) -> bool:
+        if not url or "cdn.discordapp.com" not in url or "ex=" not in url:
+            return False
+        try:
+            ex_hex = re.search(r'ex=([0-9a-fA-F]+)', url).group(1)
+            exp_ts = int(ex_hex, 16)
+            return time.time() > (exp_ts - 600)
+        except Exception:
+            return True
+
+    async def refresh_attachment_url(self, expired_url: str, msg_id: Optional[int] = None) -> Optional[str]:
+        token = getattr(self.bot.http, "token", None) or os.getenv("DISCORD_TOKEN", "").strip()
+        if token and expired_url:
+            try:
+                endpoint = "https://discord.com/api/v10/attachments/refresh-urls"
+                headers = {"Authorization": f"Bot {token}", "Content-Type": "application/json"}
+                timeout = aiohttp.ClientTimeout(total=5)
+                async with aiohttp.ClientSession(timeout=timeout) as s:
+                    async with s.post(endpoint, headers=headers, json={"attachment_urls": [expired_url]}) as r:
+                        if r.status == 200:
+                            res = await r.json()
+                            ref_list = res.get("refreshed_urls", [])
+                            if ref_list:
+                                return ref_list[0].get("refreshed")
+            except Exception as e:
+                print(f"[refresh_attachment_url API error]: {e}")
+
+        if msg_id:
+            try:
+                assets_channel_id_str = os.getenv("ASSETS_CHANNEL_ID")
+                if assets_channel_id_str:
+                    channel_id = int(assets_channel_id_str)
+                    channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
+                    if channel:
+                        msg = await channel.fetch_message(msg_id)
+                        if msg.attachments:
+                            return msg.attachments[0].url
+            except Exception as e:
+                print(f"[refresh_attachment_url msg_id fetch error]: {e}")
+        return None
+
+    async def get_valid_cosmetic_bytes(self, user_id: int, card_type: str = "wallet") -> Optional[bytes]:
+        cosmetics = await self.get_user_cosmetics(user_id)
+        url = cosmetics.get(f"{card_type}_bg_url")
+        msg_id = cosmetics.get(f"{card_type}_bg_msg_id")
+        if not url:
+            return None
+
+        if self.is_cdn_url_expired(url):
+            fresh_url = await self.refresh_attachment_url(url, msg_id)
+            if fresh_url:
+                url = fresh_url
+                await self.update_user_cosmetics(user_id, **{f"{card_type}_bg_url": fresh_url})
+
+        data = await self.fetch_image_bytes(url)
+        if not data:
+            fresh_url = await self.refresh_attachment_url(url, msg_id)
+            if fresh_url and fresh_url != url:
+                await self.update_user_cosmetics(user_id, **{f"{card_type}_bg_url": fresh_url})
+                data = await self.fetch_image_bytes(fresh_url)
+
+        return data
+
+    async def rehost_asset(self, img_bytes: bytes, filename: str, user: Union[discord.Member, discord.User]) -> Optional[tuple[str, int]]:
         assets_channel_id_str = os.getenv("ASSETS_CHANNEL_ID")
         if not assets_channel_id_str:
             return None
@@ -1488,7 +1570,7 @@ class Economy(commands.Cog, name="Economy"):
             if not channel:
                 channel = await self.bot.fetch_channel(channel_id)
             if channel:
-                clean_ext = "png"
+                clean_ext = "jpg"
                 if filename and "." in filename:
                     ext = filename.split(".")[-1].lower()
                     if ext in ["jpg", "jpeg", "webp", "png"]:
@@ -1496,7 +1578,7 @@ class Economy(commands.Cog, name="Economy"):
                 file = discord.File(io.BytesIO(img_bytes), filename=f"asset_{user.id}_{int(time.time())}.{clean_ext}")
                 msg = await channel.send(f"Asset upload by {user.name} (`{user.id}`):", file=file)
                 if msg.attachments:
-                    return msg.attachments[0].url
+                    return msg.attachments[0].url, msg.id
         except Exception:
             pass
         return None
@@ -1515,6 +1597,8 @@ class Economy(commands.Cog, name="Economy"):
 
         current_step = 1
         new_bg_url = curr_bg
+        new_bg_bytes = None
+        new_bg_mode = "unchanged"
         new_main_color = curr_main
         new_accent_color = curr_accent
         step_msg = None
@@ -1565,6 +1649,8 @@ class Economy(commands.Cog, name="Economy"):
                     if btn_task in done:
                         # User clicked the Skip button!
                         new_bg_url = curr_bg
+                        new_bg_bytes = None
+                        new_bg_mode = "unchanged"
                         bg_view.stop()
                         current_step = 2
                         step1_done = True
@@ -1587,17 +1673,22 @@ class Economy(commands.Cog, name="Economy"):
                                 Image.open(io.BytesIO(att_bytes)).verify()
                                 target_size = (1640, 640) if item_type == "wallet" else (1640, 540)
                                 processed_bytes = await asyncio.to_thread(optimize_card_background, att_bytes, target_size)
-                                rehosted_url = await self.rehost_asset(processed_bytes, "wallpaper.jpg", ctx.author)
-                                new_bg_url = rehosted_url or att.url
+                                new_bg_bytes = processed_bytes
+                                new_bg_mode = "custom"
+                                new_bg_url = att.url
                                 is_valid = True
                             except Exception:
                                 error_reason = "⚠️ Had lfile machi tsouira valid. 3awd jereb b tsouira khra."
 
                     elif content.lower() in ["reset", "none", "remove", "default"]:
+                        new_bg_bytes = None
+                        new_bg_mode = "reset"
                         new_bg_url = None
                         is_valid = True
 
                     elif content.lower() == "skip":
+                        new_bg_bytes = None
+                        new_bg_mode = "unchanged"
                         new_bg_url = curr_bg
                         is_valid = True
 
@@ -1608,8 +1699,9 @@ class Economy(commands.Cog, name="Economy"):
                                 Image.open(io.BytesIO(url_bytes)).verify()
                                 target_size = (1640, 640) if item_type == "wallet" else (1640, 540)
                                 processed_bytes = await asyncio.to_thread(optimize_card_background, url_bytes, target_size)
-                                rehosted_url = await self.rehost_asset(processed_bytes, "wallpaper.jpg", ctx.author)
-                                new_bg_url = rehosted_url or content
+                                new_bg_bytes = processed_bytes
+                                new_bg_mode = "custom"
+                                new_bg_url = content
                                 is_valid = True
                             except Exception:
                                 error_reason = "⚠️ Had link machi tsouira valid. 3tini direct link wla upload-iha."
@@ -1655,7 +1747,7 @@ class Economy(commands.Cog, name="Economy"):
                         f"• Wrek 3la **Skip** bach tkhlli l alwan l9dam.\n"
                         f"• Wla wrek 3la **Back** bach trje3 l Step 1 (Background).\n"
                         f"• Dekhel colorname (e.g. `black`, `navy`, `purple`, `cyan`, `pink`, `orange`, `gold`) wla Hexcode (`#111827`, `#ff2a85`).\n\n"
-                        f"Hexcodes: https://share.google/BfHGfcbhTi1r6Yt89"
+                        f"🎨 [Browse Hexcodes & Color Palette](https://share.google/BfHGfcbhTi1r6Yt89)"
                     ),
                     color=0x000000
                 )
@@ -1688,7 +1780,7 @@ class Economy(commands.Cog, name="Economy"):
             pass
 
         # If user didn't change anything, cancel without rendering preview or cooldown
-        bg_unchanged = (new_bg_url == curr_bg)
+        bg_unchanged = (new_bg_mode == "unchanged")
         main_unchanged = (new_main_color.lower() == curr_main.lower())
         accent_unchanged = (new_accent_color.lower() == curr_accent.lower())
         if bg_unchanged and main_unchanged and accent_unchanged:
@@ -1705,8 +1797,12 @@ class Economy(commands.Cog, name="Economy"):
                 avatar_bytes = None
 
         bg_bytes = None
-        if new_bg_url:
-            bg_bytes = await self.fetch_image_bytes(new_bg_url)
+        if new_bg_mode == "custom" and new_bg_bytes:
+            bg_bytes = new_bg_bytes
+        elif new_bg_mode == "unchanged" and curr_bg:
+            bg_bytes = await self.get_valid_cosmetic_bytes(user_id, item_type)
+        elif new_bg_mode == "reset":
+            bg_bytes = None
 
         if item_type == "wallet":
             w = await self.get_wallet(user_id)
@@ -1787,13 +1883,16 @@ class Economy(commands.Cog, name="Economy"):
                 f"Haka ghadi tban lcard ta3k!\n"
                 f"• **Main Color:** `{new_main_color}`\n"
                 f"• **Accent Color:** `{new_accent_color}`\n"
-                f"• **Background:** {'`Custom Image`' if new_bg_url else '`Default Solid`'}"
+                f"• **Background:** {'`Custom Image`' if (new_bg_mode == 'custom' or (new_bg_mode == 'unchanged' and curr_bg)) else '`Default Solid`'}"
             ),
             color=0x000000
         )
         preview_embed.set_image(url=f"attachment://{preview_filename}")
 
-        confirm_view = CustomizationConfirmView(ctx, self, item_type, new_bg_url, new_main_color, new_accent_color)
+        confirm_view = CustomizationConfirmView(
+            ctx, self, item_type, new_bg_url, new_main_color, new_accent_color,
+            new_bg_bytes=new_bg_bytes, new_bg_mode=new_bg_mode
+        )
         try:
             await loading_msg.delete()
         except Exception:
@@ -2079,9 +2178,7 @@ class Economy(commands.Cog, name="Economy"):
                 except Exception:
                     avatar_bytes = None
 
-            bg_bytes = None
-            if cosmetics.get("wallet_bg_url"):
-                bg_bytes = await self.fetch_image_bytes(cosmetics["wallet_bg_url"])
+            bg_bytes = await self.get_valid_cosmetic_bytes(target.id, "wallet")
 
             w = await self.get_wallet(target.id)
 
@@ -2504,9 +2601,7 @@ class Economy(commands.Cog, name="Economy"):
             except Exception:
                 avatar_bytes = None
 
-        bg_bytes = None
-        if cosmetics.get("rank_bg_url"):
-            bg_bytes = await self.fetch_image_bytes(cosmetics["rank_bg_url"])
+        bg_bytes = await self.get_valid_cosmetic_bytes(user.id, "rank")
 
         from cogs.leveling_render import render_level_card
         buf = await asyncio.to_thread(

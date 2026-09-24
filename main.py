@@ -396,6 +396,15 @@ bot.Paginator = Paginator
 
 
 @bot.check
+async def check_maintenance_mode(ctx):
+    if getattr(ctx.bot, "maintenance_mode", False):
+        if not await ctx.bot.is_owner(ctx.author):
+            await ctx.send("🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK! 🤨")
+            return False
+    return True
+
+
+@bot.check
 async def is_not_blacklisted(ctx):
     if hasattr(ctx.bot, "blacklist_cache"):
         return ctx.author.id not in ctx.bot.blacklist_cache
@@ -611,17 +620,85 @@ async def setup_hook():
             user_id INTEGER PRIMARY KEY,
             wallet_private INTEGER DEFAULT 0,
             wallet_bg_url TEXT DEFAULT NULL,
+            wallet_bg_msg_id INTEGER DEFAULT NULL,
             wallet_main_color TEXT DEFAULT '#000000',
             wallet_accent_color TEXT DEFAULT '#ffffff',
             wallet_last_updated INTEGER DEFAULT 0,
             rank_bg_url TEXT DEFAULT NULL,
+            rank_bg_msg_id INTEGER DEFAULT NULL,
             rank_main_color TEXT DEFAULT '#000000',
             rank_accent_color TEXT DEFAULT '#ffffff',
             rank_last_updated INTEGER DEFAULT 0
         )
     """)
+    for col in ["wallet_bg_msg_id", "rank_bg_msg_id"]:
+        try:
+            await bot.db.execute(f"ALTER TABLE user_cosmetics ADD COLUMN {col} INTEGER DEFAULT NULL")
+        except Exception:
+            pass
+
+    # Active Game Sessions Table (Crash & Error Recovery WAL)
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS active_game_sessions (
+            session_id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            guild_id INTEGER DEFAULT NULL,
+            channel_id INTEGER DEFAULT NULL,
+            game_name TEXT NOT NULL,
+            bet_amount INTEGER NOT NULL,
+            started_at REAL NOT NULL,
+            status TEXT DEFAULT 'in_progress'
+        )
+    """)
+    await bot.db.execute("CREATE INDEX IF NOT EXISTS idx_active_sessions_status ON active_game_sessions (status, started_at)")
 
     await bot.db.commit()
+
+    # Bot Maintenance Mode
+    bot.maintenance_mode = False
+
+    # Intercept view/modal interactions when maintenance_mode is True
+    original_dispatch_view = bot._connection._view_store.dispatch_view
+    original_dispatch_modal = bot._connection._view_store.dispatch_modal
+
+    def gated_dispatch_view(component_type: int, custom_id: str, interaction: discord.Interaction) -> None:
+        if getattr(bot, "maintenance_mode", False):
+            user_id = interaction.user.id
+            is_owner = (user_id in bot.owner_ids) if bot.owner_ids else (user_id == bot.owner_id)
+            if not is_owner:
+                async def _send_maint():
+                    try:
+                        if not interaction.response.is_done():
+                            await interaction.response.send_message(
+                                "🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK! 🤨",
+                                ephemeral=True
+                            )
+                    except Exception:
+                        pass
+                asyncio.create_task(_send_maint())
+                return
+        return original_dispatch_view(component_type, custom_id, interaction)
+
+    def gated_dispatch_modal(custom_id: str, interaction: discord.Interaction, components, resolved) -> None:
+        if getattr(bot, "maintenance_mode", False):
+            user_id = interaction.user.id
+            is_owner = (user_id in bot.owner_ids) if bot.owner_ids else (user_id == bot.owner_id)
+            if not is_owner:
+                async def _send_maint():
+                    try:
+                        if not interaction.response.is_done():
+                            await interaction.response.send_message(
+                                "🛠️ Sifdine rah f **Maintenance Mode** daba bach ndiro updates. Sber 3lina chwya LA7MALDIK! 🤨",
+                                ephemeral=True
+                            )
+                    except Exception:
+                        pass
+                asyncio.create_task(_send_maint())
+                return
+        return original_dispatch_modal(custom_id, interaction, components, resolved)
+
+    bot._connection._view_store.dispatch_view = gated_dispatch_view
+    bot._connection._view_store.dispatch_modal = gated_dispatch_modal
 
     # Initialize and pre-populate in-memory performance caches (<100 KB RAM)
     bot.prefix_cache = {}

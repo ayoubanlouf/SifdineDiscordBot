@@ -26,56 +26,7 @@ from converters import FuzzyMember
 from assets.wordle_words import WORDLE_TARGETS
 from cogs.economy import parse_bet_argument, format_tad, TAD_EMOJI, calculate_pvp_payout, not_fraud, TAX_RATE, get_current_week_start_ts, get_next_week_start_ts
 
-# Compatibility shim for newer akinator API variations
-import akinator
-import akinator.exceptions
-if not hasattr(akinator.exceptions, 'CantGoBackAnyFurther'):
-    class _CantGoBackAnyFurther(Exception):
-        pass
-    akinator.exceptions.CantGoBackAnyFurther = _CantGoBackAnyFurther
-
-from akinator import AsyncAkinator
-from akinator.async_client import AsyncClient
-
-# Patch the AsyncClient.__handler to handle missing 'akitude' in API response
-_original_handler = AsyncClient._AsyncClient__handler
-
-async def _patched_handler(self, response):
-    response.raise_for_status()
-    try:
-        data = response.json()
-    except Exception as e:
-        if "A technical problem has ocurred." in response.text:
-            raise RuntimeError("A technical problem has occurred. Please try again later.") from e
-        raise RuntimeError("Failed to parse the response as JSON.") from e
-
-    if "completion" not in data:
-        data["completion"] = self.completion
-    if data["completion"] == "KO - TIMEOUT":
-        raise RuntimeError("The session has timed out. Please start a new game.")
-    if data["completion"] == "SOUNDLIKE":
-        self.finished = True
-        self.win = True
-        if not self.id_proposition:
-            await self.defeat()
-    elif "id_proposition" in data:
-        self.win = True
-        self.id_proposition = data["id_proposition"]
-        self.name_proposition = data["name_proposition"]
-        self.description_proposition = data["description_proposition"]
-        self.step_last_proposition = self.step
-        self.pseudo = data["pseudo"]
-        self.flag_photo = data["flag_photo"]
-        self.photo = data["photo"]
-    else:
-        # Handle missing 'akitude' key gracefully
-        self.akitude = data.get("akitude", "defi.png")
-        self.step = int(data.get("step", self.step or 0))
-        self.progression = float(data.get("progression", self.progression or 0))
-        self.question = data.get("question", self.question)
-    self.completion = data.get("completion", self.completion)
-
-AsyncClient._AsyncClient__handler = _patched_handler
+from cogs.games.akinator_client import ModernAsyncAkinator as AsyncAkinator
 
 
 
@@ -1798,6 +1749,8 @@ class AkinatorView(View):
             self.cog.active_akinator_users.discard(self.player.id)
             if self.channel_id:
                 self.cog.active_akinator_channels.pop(self.channel_id, None)
+        if hasattr(self.aki, "close"):
+            asyncio.create_task(self.aki.close())
 
     async def start_game(self) -> discord.Embed:
         """Starts the Akinator session asynchronously with automatic retries."""

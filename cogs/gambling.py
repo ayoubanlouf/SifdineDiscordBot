@@ -6,11 +6,12 @@ import aiohttp
 import time
 import json
 import math
+import uuid
 import urllib.parse
 from typing import Optional, Union
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.ui import Button, View
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
@@ -119,6 +120,8 @@ class BlackjackView(discord.ui.View):
         self.player_hand = [self.deck.pop(), self.deck.pop()]
         self.dealer_hand = [self.deck.pop(), self.deck.pop()]
         self.game_over = False
+        self.session_id: Optional[str] = None
+        self._doubling = False
         self.message: Optional[discord.Message] = None
 
     def get_render_file(self, dealer_reveal=False):
@@ -154,6 +157,9 @@ class BlackjackView(discord.ui.View):
         self.game_over = True
         for item in self.children:
             item.disabled = True
+
+        if self.session_id and self.cog:
+            await self.cog.complete_active_session(self.session_id)
 
         economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
 
@@ -200,6 +206,10 @@ class BlackjackView(discord.ui.View):
             self.stop()
             for item in self.children:
                 item.disabled = True
+
+            if self.session_id and self.cog:
+                await self.cog.complete_active_session(self.session_id)
+
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             if self.bet > 0 and economy_cog:
                 await economy_cog.add_balance(self.author.id, self.bet, context="Blackjack Timeout Refund")
@@ -214,6 +224,12 @@ class BlackjackView(discord.ui.View):
     async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.game_over:
             return
+
+        # Disable double down once the player hits
+        for item in self.children:
+            if isinstance(item, discord.ui.Button) and item.label == "Double Down":
+                item.disabled = True
+
         self.player_hand.append(self.deck.pop())
         p_score = calculate_bj_score(self.player_hand)
 
@@ -237,17 +253,33 @@ class BlackjackView(discord.ui.View):
         if self.game_over:
             return
 
+        # Double down is only legal on the initial 2-card hand!
+        if len(self.player_hand) != 2:
+            await interaction.response.send_message("❌ Mat9dch t-double down mn be3d ma drti Hit!", ephemeral=True)
+            return
+
+        if self._doubling:
+            return
+        self._doubling = True
+        button.disabled = True
+
         economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
         if self.bet > 0 and economy_cog:
             w = await economy_cog.get_wallet(self.author.id)
             if w["balance"] < self.bet:
-                await interaction.response.send_message(f"❌ Ma 3ndekch flous kafyin bach t double bet! (Khassek {format_tad(self.bet)})", ephemeral=True)
+                self._doubling = False
+                button.disabled = False
+                await interaction.response.send_message(f"❌ Ma 3ndekch flous kafyin bach t-double bet! (Khassek {format_tad(self.bet)})", ephemeral=True)
                 return
             success = await economy_cog.deduct_balance(self.author.id, self.bet, context="Blackjack Double Down Stake")
             if not success:
-                await interaction.response.send_message("❌ Flousk makafyinch bach t double!", ephemeral=True)
+                self._doubling = False
+                button.disabled = False
+                await interaction.response.send_message("❌ Flousk makafyinch bach t-double!", ephemeral=True)
                 return
             self.bet *= 2
+            if self.session_id and self.cog:
+                await self.cog.update_session_bet(self.session_id, self.bet)
 
         self.player_hand.append(self.deck.pop())
         p_score = calculate_bj_score(self.player_hand)
@@ -309,6 +341,7 @@ class MinesGambleView(discord.ui.View):
         self.bomb_count = bomb_count
         self.revealed_count = 0
         self.game_over = False
+        self.session_id: Optional[str] = None
         self.message: Optional[discord.Message] = None
 
         all_cells = [(x, y) for y in range(self.height) for x in range(self.width)]
@@ -356,6 +389,9 @@ class MinesGambleView(discord.ui.View):
         for item in self.children:
             item.disabled = True
 
+        if self.session_id and self.cog:
+            await self.cog.complete_active_session(self.session_id)
+
         economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
         embed = discord.Embed(
             title="💰 CASHED OUT!",
@@ -383,6 +419,9 @@ class MinesGambleView(discord.ui.View):
             self._reveal_all_bombs()
             for item in self.children:
                 item.disabled = True
+
+            if self.session_id and self.cog:
+                await self.cog.complete_active_session(self.session_id)
 
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             if self.bet > 0 and economy_cog:
@@ -430,6 +469,9 @@ class MinesGambleView(discord.ui.View):
             for item in self.children:
                 item.disabled = True
 
+            if self.session_id and self.cog:
+                await self.cog.complete_active_session(self.session_id)
+
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             tax = 0
             if self.bet > 0 and economy_cog:
@@ -465,6 +507,9 @@ class MinesGambleView(discord.ui.View):
             self._reveal_all_bombs()
             for item in self.children:
                 item.disabled = True
+
+            if self.session_id and self.cog:
+                await self.cog.complete_active_session(self.session_id)
             
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             embed = discord.Embed(
@@ -684,6 +729,7 @@ class TowerGameView(discord.ui.View):
         self.cog = cog
         self.current_floor = 1
         self.game_over = False
+        self.session_id: Optional[str] = None
         self.message: Optional[discord.Message] = None
 
         self.winning_doors = {
@@ -746,6 +792,9 @@ class TowerGameView(discord.ui.View):
                 self.stop()
                 for item in self.children:
                     item.disabled = True
+
+                if self.session_id and self.cog:
+                    await self.cog.complete_active_session(self.session_id)
 
                 gross_payout = int(round(self.bet * current_mult))
                 tax = round(gross_payout * 0.02)
@@ -831,6 +880,9 @@ class TowerGameView(discord.ui.View):
             for item in self.children:
                 item.disabled = True
 
+            if self.session_id and self.cog:
+                await self.cog.complete_active_session(self.session_id)
+
             board_bytes = await asyncio.to_thread(render_tower_board, self.current_floor, self.story_doors, "lost")
             file = discord.File(board_bytes, filename="tower.jpg")
 
@@ -860,6 +912,9 @@ class TowerGameView(discord.ui.View):
         self.stop()
         for item in self.children:
             item.disabled = True
+
+        if self.session_id and self.cog:
+            await self.cog.complete_active_session(self.session_id)
 
         mult = self.multipliers[self.current_floor - 1]
         gross_payout = int(round(self.bet * mult))
@@ -916,6 +971,9 @@ class TowerGameView(discord.ui.View):
             self.stop()
             for item in self.children:
                 item.disabled = True
+
+            if self.session_id and self.cog:
+                await self.cog.complete_active_session(self.session_id)
 
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
 
@@ -979,14 +1037,15 @@ def get_hl_card_file(card) -> Optional[discord.File]:
 
 
 class HigherLowerView(discord.ui.View):
-    def __init__(self, author: discord.Member, cog, bet: int = 0):
+    def __init__(self, author: discord.Member, cog, bet: int = 0, initial_card: Optional[dict] = None):
         super().__init__(timeout=60)
         self.author = author
         self.cog = cog
         self.bet = bet
-        self.current_card = draw_hl_card()
+        self.current_card = initial_card or draw_hl_card()
         self.streak = 0
         self.game_over = False
+        self.session_id: Optional[str] = None
         self.message: Optional[discord.Message] = None
 
     def get_multiplier(self) -> float:
@@ -1048,6 +1107,10 @@ class HigherLowerView(discord.ui.View):
             self.game_over = True
             for item in self.children:
                 item.disabled = True
+
+            if self.session_id and self.cog:
+                await self.cog.complete_active_session(self.session_id)
+
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             tax = 0
             if self.bet > 0 and economy_cog:
@@ -1088,6 +1151,10 @@ class HigherLowerView(discord.ui.View):
         self.game_over = True
         for item in self.children:
             item.disabled = True
+
+        if self.session_id and self.cog:
+            await self.cog.complete_active_session(self.session_id)
+
         mult = self.get_multiplier()
         economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
 
@@ -1122,9 +1189,23 @@ class HigherLowerView(discord.ui.View):
             economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
             if self.bet > 0 and economy_cog:
                 if self.streak == 0:
-                    await economy_cog.add_balance(self.author.id, self.bet, context="HigherLower Timeout Refund")
-                    desc = f"⏰ **Game Timed Out!**\nRje3 lik l bet: {format_tad(self.bet)}."
+                    # OPTION B: Sticky card state. Do NOT refund bet!
+                    if self.cog:
+                        self.cog.hl_sticky_sessions[self.author.id] = {
+                            "card": self.current_card,
+                            "bet": self.bet,
+                            "session_id": self.session_id
+                        }
+                        if self.session_id:
+                            await self.cog.pause_active_session(self.session_id)
+                    desc = (
+                        f"⏰ **Game Timed Out!**\n\n"
+                        f"3awd dir `sat hl` bach tkemmel had ter7.\nBet: {format_tad(self.bet)}\nCard: `{self.current_card['rank']}{self.current_card['suit']}`"
+                    )
+
                 else:
+                    if self.session_id and self.cog:
+                        await self.cog.complete_active_session(self.session_id)
                     mult = self.get_multiplier()
                     gross_payout = int(round(self.bet * mult))
                     net_payout, tax = await economy_cog.apply_tax_and_add_balance(self.author.id, gross_payout, context=f"HigherLower Auto-Cashout ({mult:.2f}x)", vault="casino")
@@ -1133,6 +1214,8 @@ class HigherLowerView(discord.ui.View):
                         await self.cog.record_minigame_win(self.message.guild.id, self.author.id, "higherlower", earnings=max(0, net_profit))
                     desc = f"⏰ **Game Timed Out (Auto-Cashed Out)!**\nStreak: **{self.streak}** (Multiplier: **{mult:.2f}x**) • Net Payout: **+{format_tad(net_profit)}** (Gross: {gross_payout:,} TAD • `{tax:,}` TAD tax)."
             else:
+                if self.session_id and self.cog:
+                    await self.cog.complete_active_session(self.session_id)
                 desc = "⏰ **Game Timed Out!**"
 
             embed = discord.Embed(title="🃏 Higher or Lower — Timed Out", description=desc, color=0x000000)
@@ -1509,6 +1592,112 @@ class LeaderboardInteractiveView(discord.ui.View):
 class Gambling(commands.Cog, name="Gambling"):
     def __init__(self, bot):
         self.bot = bot
+        self.hl_sticky_sessions: dict[int, dict] = {}
+        self.active_sessions: dict[str, dict] = {}
+        self.recover_orphaned_sessions.start()
+
+    def cog_unload(self):
+        self.recover_orphaned_sessions.cancel()
+
+    async def register_active_session(self, session_id: str, user_id: int, game_name: str, bet_amount: int):
+        now_ts = int(time.time())
+        self.active_sessions[session_id] = {
+            "user_id": user_id,
+            "game_name": game_name,
+            "bet_amount": bet_amount,
+            "started_at": now_ts
+        }
+        try:
+            if hasattr(self.bot, 'db') and self.bot.db:
+                await self.bot.db.execute(
+                    "INSERT OR REPLACE INTO active_game_sessions (session_id, user_id, game_name, bet_amount, started_at, status) VALUES (?, ?, ?, ?, ?, ?)",
+                    (session_id, user_id, game_name, bet_amount, now_ts, "in_progress")
+                )
+                await self.bot.db.commit()
+        except Exception as e:
+            print(f"[register_active_session error]: {e}")
+
+    async def update_session_bet(self, session_id: str, new_bet: int):
+        if session_id in self.active_sessions:
+            self.active_sessions[session_id]["bet_amount"] = new_bet
+        try:
+            if hasattr(self.bot, 'db') and self.bot.db:
+                await self.bot.db.execute(
+                    "UPDATE active_game_sessions SET bet_amount = ? WHERE session_id = ?",
+                    (new_bet, session_id)
+                )
+                await self.bot.db.commit()
+        except Exception as e:
+            print(f"[update_session_bet error]: {e}")
+
+    async def complete_active_session(self, session_id: str):
+        self.active_sessions.pop(session_id, None)
+        try:
+            if hasattr(self.bot, 'db') and self.bot.db:
+                await self.bot.db.execute(
+                    "UPDATE active_game_sessions SET status = 'completed' WHERE session_id = ?",
+                    (session_id,)
+                )
+                await self.bot.db.commit()
+        except Exception as e:
+            print(f"[complete_active_session error]: {e}")
+
+    async def pause_active_session(self, session_id: str):
+        self.active_sessions.pop(session_id, None)
+        try:
+            if hasattr(self.bot, 'db') and self.bot.db:
+                await self.bot.db.execute(
+                    "UPDATE active_game_sessions SET status = 'sticky' WHERE session_id = ?",
+                    (session_id,)
+                )
+                await self.bot.db.commit()
+        except Exception as e:
+            print(f"[pause_active_session error]: {e}")
+
+
+    @tasks.loop(seconds=60)
+    async def recover_orphaned_sessions(self):
+        if not hasattr(self.bot, 'db') or not self.bot.db:
+            return
+        now_ts = int(time.time())
+        try:
+            async with self.bot.db.execute(
+                "SELECT session_id, user_id, game_name, bet_amount, started_at FROM active_game_sessions WHERE status = 'in_progress' AND started_at < ?",
+                (now_ts - 180,)
+            ) as cursor:
+                orphaned = await cursor.fetchall()
+
+            for row in orphaned:
+                s_id, u_id, g_name, bet, started_at = row
+                if s_id in self.active_sessions:
+                    continue
+                is_sticky = any(st.get("session_id") == s_id for st in self.hl_sticky_sessions.values())
+                if is_sticky:
+                    continue
+
+                economy_cog = self.bot.get_cog("Economy")
+                if economy_cog and bet > 0:
+                    await economy_cog.add_balance(u_id, bet, context=f"Crash Recovery ({g_name})")
+
+                await self.bot.db.execute(
+                    "UPDATE active_game_sessions SET status = 'refunded' WHERE session_id = ?",
+                    (s_id,)
+                )
+                await self.bot.db.commit()
+
+                try:
+                    user = self.bot.get_user(u_id) or await self.bot.fetch_user(u_id)
+                    if user:
+                        formatted_amount = f"{bet:,} TAD"
+                        await user.send(f"⚠️ Tra chy mouchkil f **{g_name}**. {formatted_amount} ta3k rah rj3at lik!")
+                except Exception as e:
+                    print(f"[recover_orphaned_sessions DM error for {u_id}]: {e}")
+        except Exception as e:
+            print(f"[recover_orphaned_sessions loop error]: {e}")
+
+    @recover_orphaned_sessions.before_loop
+    async def before_recover_orphaned_sessions(self):
+        await self.bot.wait_until_ready()
 
     async def record_minigame_win(self, guild_id: Optional[int], user_id: int, game: str, earnings: int = 0):
         await record_minigame_win(self.bot, guild_id, user_id, game, earnings)
@@ -1867,18 +2056,24 @@ class Gambling(commands.Cog, name="Gambling"):
         w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
         bet, _ = parse_bet_argument(*args, user_balance=w.get("balance", 0))
 
+        session_id = None
         if bet and bet > 0 and economy_cog:
             if w["balance"] < bet:
                 await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
                 return
             await economy_cog.deduct_balance(ctx.author.id, bet, context="Blackjack Bet")
+            session_id = f"bj_{uuid.uuid4().hex[:12]}"
+            await self.register_active_session(session_id, ctx.author.id, "Blackjack", bet)
 
         view = BlackjackView(ctx.author, self, bet=bet or 0)
+        view.session_id = session_id
         initial_embed = view.get_embed()
         initial_file = view.get_render_file()
 
         p_score = calculate_bj_score(view.player_hand)
         if p_score == 21:
+            if session_id:
+                await self.complete_active_session(session_id)
             d_score = calculate_bj_score(view.dealer_hand)
             if d_score == 21:
                 initial_embed = view.get_embed(dealer_reveal=True, outcome_text="🤝 **Double Blackjack!** Ta3adol (Push)!")
@@ -2000,6 +2195,7 @@ class Gambling(commands.Cog, name="Gambling"):
 
         bombs = 3
 
+        session_id = None
         if economy_cog:
             if w["balance"] < bet:
                 await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])} (Min: 50 TAD).")
@@ -2008,8 +2204,11 @@ class Gambling(commands.Cog, name="Gambling"):
             if not success:
                 await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w['balance'])}.")
                 return
+            session_id = f"mines_{uuid.uuid4().hex[:12]}"
+            await self.register_active_session(session_id, ctx.author.id, "Mines", bet)
 
         view = MinesGambleView(ctx.author, self, bomb_count=bombs, bet=bet)
+        view.session_id = session_id
         total_gems = (view.width * view.height) - bombs
         embed = discord.Embed(
             title="💣 Mines Table",
@@ -2042,6 +2241,7 @@ class Gambling(commands.Cog, name="Gambling"):
 
         bet = bet or 0
 
+        session_id = None
         if bet > 0 and economy_cog:
             if w["balance"] < bet:
                 await ctx.send(f"❌ Flousk makafyinch! Balance dyalk: {format_tad(w['balance'])}.")
@@ -2050,8 +2250,11 @@ class Gambling(commands.Cog, name="Gambling"):
             if not success:
                 await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w['balance'])}.")
                 return
+            session_id = f"tower_{uuid.uuid4().hex[:12]}"
+            await self.register_active_session(session_id, ctx.author.id, "Tower", bet)
 
         view = TowerGameView(ctx.author, bet, self)
+        view.session_id = session_id
         board_bytes = await asyncio.to_thread(render_tower_board, 1, view.story_doors, "active")
         file = discord.File(board_bytes, filename="tower.jpg")
 
@@ -2157,11 +2360,14 @@ class Gambling(commands.Cog, name="Gambling"):
 
         choice_type, choice_val, choice_display = choice_tuple
 
+        session_id = None
         if bet and bet > 0 and economy_cog:
             if w["balance"] < bet:
                 await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
                 return
             await economy_cog.deduct_balance(ctx.author.id, bet, context="Roulette Bet")
+            session_id = f"roulette_{uuid.uuid4().hex[:12]}"
+            await self.register_active_session(session_id, ctx.author.id, "Roulette", bet)
 
         spin_embed = discord.Embed(
             description=f"🔄 *Roulette kaddor...* (Lkhtiyar: **{choice_display}**)" + (f"\n\n💰 Stake: {format_tad(bet)}" if bet and bet > 0 else ""),
@@ -2246,21 +2452,47 @@ class Gambling(commands.Cog, name="Gambling"):
             await self.record_minigame_loss(ctx.guild.id, ctx.author.id, "roulette", loss_amount=0)
 
         await spin_msg.edit(embed=embed)
+        if session_id:
+            await self.complete_active_session(session_id)
 
     @commands.command(aliases=["hl"], help="9emmer wach lwr9a jaya Higher wla Lower (sat higherlower [bet:500]).")
     @not_fraud()
     async def higherlower(self, ctx: commands.Context, *args):
         economy_cog = self.bot.get_cog("Economy")
+        sticky = self.hl_sticky_sessions.pop(ctx.author.id, None)
+
+        if sticky:
+            bet = sticky["bet"]
+            initial_card = sticky["card"]
+            session_id = f"hl_{uuid.uuid4().hex[:12]}"
+            if bet > 0:
+                await self.register_active_session(session_id, ctx.author.id, "HigherLower", bet)
+            view = HigherLowerView(ctx.author, self, bet=bet or 0, initial_card=initial_card)
+            view.session_id = session_id
+
+            embed = view.get_embed("❗ **Resuming Timed-Out Session!**\n9emmer lwr9a l7alia wach **Higher ⬆️** wla **Lower ⬇️**!")
+            file = get_hl_card_file(view.current_card)
+            if file:
+                msg = await ctx.send(embed=embed, view=view, file=file)
+            else:
+                msg = await ctx.send(embed=embed, view=view)
+            view.message = msg
+            return
+
         w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}
         bet, _ = parse_bet_argument(*args, user_balance=w.get("balance", 0))
 
+        session_id = None
         if bet and bet > 0 and economy_cog:
             if w["balance"] < bet:
                 await ctx.send(f"❌ Flousk makafyinch! Balance dialek: {format_tad(w['balance'])}.")
                 return
             await economy_cog.deduct_balance(ctx.author.id, bet, context="HigherLower Bet")
+            session_id = f"hl_{uuid.uuid4().hex[:12]}"
+            await self.register_active_session(session_id, ctx.author.id, "HigherLower", bet)
 
         view = HigherLowerView(ctx.author, self, bet=bet or 0)
+        view.session_id = session_id
         embed = view.get_embed("9emmer lwr9a jaya wach **Higher ⬆️** wla **Lower ⬇️**!")
         file = get_hl_card_file(view.current_card)
         if file:
