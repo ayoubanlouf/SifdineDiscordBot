@@ -409,7 +409,7 @@ class Bot(commands.Cog, name="Bot"):
     async def update_presence(self):
         try:
             n_guilds = len(self.bot.guilds)
-            status_text = f"M9abel {n_guilds} server"
+            status_text = f"M9abel {n_guilds} servers."
             await self.bot.change_presence(activity=discord.CustomActivity(name=status_text))
         except Exception as e:
             print(f"[STATUS ERROR]: {e}")
