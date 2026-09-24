@@ -4932,6 +4932,64 @@ async def get_geoguessr_round_location(pool: list, difficulty: str = None) -> di
         filtered = GEOGUESSR_LOCATIONS
     return random.choice(filtered) if filtered else None
 
+_geoguessr_image_cache: dict[str, bytes] = {}
+
+async def _get_geoguessr_image(session: Optional[aiohttp.ClientSession], image_url: str) -> Optional[io.BytesIO]:
+    if not image_url:
+        return None
+
+    cached = _geoguessr_image_cache.get(image_url)
+    if cached:
+        buf = io.BytesIO(cached)
+        buf.seek(0)
+        return buf
+
+    headers = {
+        "User-Agent": "SifdineDiscordBot/1.0 (https://github.com/ayoubanlouf/SifdineDiscordBot; contact@sifdine.bot) aiohttp/3.9"
+    }
+
+    raw_data = None
+    close_session = False
+    if session is None or session.closed:
+        session = aiohttp.ClientSession()
+        close_session = True
+
+    try:
+        async with session.get(image_url, headers=headers, timeout=aiohttp.ClientTimeout(total=6), allow_redirects=True) as resp:
+            if resp.status == 200:
+                raw_data = await resp.read()
+    except Exception as e:
+        print(f"[_get_geoguessr_image fetch error]: {e}")
+    finally:
+        if close_session:
+            await session.close()
+
+    if not raw_data:
+        return None
+
+    try:
+        def _compress():
+            with Image.open(io.BytesIO(raw_data)) as img:
+                img = img.convert("RGB")
+                img.thumbnail((1280, 800), Image.Resampling.BILINEAR)
+                out = io.BytesIO()
+                img.save(out, format="JPEG", quality=85, optimize=True)
+                return out.getvalue()
+
+        compressed_bytes = await asyncio.to_thread(_compress)
+    except Exception as e:
+        print(f"[_get_geoguessr_image compress error]: {e}")
+        compressed_bytes = raw_data
+
+    if len(_geoguessr_image_cache) > 25:
+        _geoguessr_image_cache.pop(next(iter(_geoguessr_image_cache)))
+    _geoguessr_image_cache[image_url] = compressed_bytes
+
+    buf = io.BytesIO(compressed_bytes)
+    buf.seek(0)
+    return buf
+
+
 GTR_GET_CLIP_ACTION = "65e6f3218d954bd1d692d0aeb3d80af7eb610f50"
 GTR_SUBMIT_ACTION = "a73bc4de975f06219fea583ec2d272901533bd75"
 
@@ -7935,6 +7993,8 @@ class Minigames(commands.Cog, name="Minigames"):
         if not pool:
             pool = list(GEOGUESSR_LOCATIONS)
         random.shuffle(pool)
+        if pool:
+            asyncio.create_task(_get_geoguessr_image(self.bot.session, pool[-1].get("image_url")))
 
         join_emoji = "✅"
         start_ts = int(time.time() + 21)
@@ -7963,6 +8023,8 @@ class Minigames(commands.Cog, name="Minigames"):
         if not pool:
             pool = list(GEOGUESSR_LOCATIONS)
         random.shuffle(pool)
+        if pool:
+            asyncio.create_task(_get_geoguessr_image(self.bot.session, pool[-1].get("image_url")))
 
         signup_msg = await ctx.channel.fetch_message(signup_msg.id)
         reaction = discord.utils.get(signup_msg.reactions, emoji=join_emoji)
@@ -8011,9 +8073,19 @@ class Minigames(commands.Cog, name="Minigames"):
                         ),
                         color=0x000000
                     )
-                    round_embed.set_image(url=loc["image_url"])
                     round_embed.set_footer(text=f"GeoGuessr Solo • Round {r}/{total_rounds} • Difficulty: {difficulty.upper()}")
-                    round_msg = await ctx.send(embed=round_embed)
+                    img_buf = await _get_geoguessr_image(self.bot.session, loc.get("image_url"))
+                    if img_buf:
+                        geo_file = discord.File(img_buf, filename="geoguessr.jpg")
+                        round_embed.set_image(url="attachment://geoguessr.jpg")
+                        round_msg = await ctx.send(embed=round_embed, file=geo_file)
+                    else:
+                        round_embed.set_image(url=loc["image_url"])
+                        round_msg = await ctx.send(embed=round_embed)
+
+                    # Prefetch next location's image in background while player is guessing
+                    if pool:
+                        asyncio.create_task(_get_geoguessr_image(self.bot.session, pool[-1].get("image_url")))
 
                     def check(m):
                         return m.author.id == player.id and m.channel.id == ctx.channel.id
@@ -8090,8 +8162,14 @@ class Minigames(commands.Cog, name="Minigames"):
                             ),
                             color=0x000000
                         )
-                    res_embed.set_thumbnail(url=loc["image_url"])
-                    await ctx.send(embed=res_embed)
+                    reveal_buf = await _get_geoguessr_image(self.bot.session, loc.get("image_url"))
+                    if reveal_buf:
+                        rev_file = discord.File(reveal_buf, filename="reveal.jpg")
+                        res_embed.set_thumbnail(url="attachment://reveal.jpg")
+                        await ctx.send(embed=res_embed, file=rev_file)
+                    else:
+                        res_embed.set_thumbnail(url=loc["image_url"])
+                        await ctx.send(embed=res_embed)
                     await asyncio.sleep(4)
 
                 economy_cog = self.bot.get_cog("Economy")
@@ -8141,9 +8219,19 @@ class Minigames(commands.Cog, name="Minigames"):
                         ),
                         color=0x000000
                     )
-                    round_embed.set_image(url=loc["image_url"])
                     round_embed.set_footer(text=f"GeoGuessr Multi • Round {r}/{total_rounds} • Difficulty: {difficulty.upper()}")
-                    round_msg = await ctx.send(embed=round_embed)
+                    img_buf = await _get_geoguessr_image(self.bot.session, loc.get("image_url"))
+                    if img_buf:
+                        geo_file = discord.File(img_buf, filename="geoguessr.jpg")
+                        round_embed.set_image(url="attachment://geoguessr.jpg")
+                        round_msg = await ctx.send(embed=round_embed, file=geo_file)
+                    else:
+                        round_embed.set_image(url=loc["image_url"])
+                        round_msg = await ctx.send(embed=round_embed)
+
+                    # Prefetch next location's image in background while players are guessing
+                    if pool:
+                        asyncio.create_task(_get_geoguessr_image(self.bot.session, pool[-1].get("image_url")))
 
                     guesses = {}
                     taken_codes = set()
@@ -8165,6 +8253,7 @@ class Minigames(commands.Cog, name="Minigames"):
                             if m.content.strip().lower() == "exitgame":
                                 quitter = next((p for p in players if p.id == m.author.id), None)
                                 if quitter:
+                                    clear_user_game(self.bot, quitter.id)
                                     players.remove(quitter)
                                     await ctx.send(f"🚪 **{quitter.mention}** khrej mn lgame.")
                                     if len(players) <= 1:
@@ -8230,8 +8319,14 @@ class Minigames(commands.Cog, name="Minigames"):
                             description=f"7ed majawb f had round!\n\n🗺️ **[Google Maps]({maps_link})**",
                             color=0x000000
                         )
-                    res_embed.set_thumbnail(url=loc["image_url"])
-                    await ctx.send(embed=res_embed)
+                    reveal_buf = await _get_geoguessr_image(self.bot.session, loc.get("image_url"))
+                    if reveal_buf:
+                        rev_file = discord.File(reveal_buf, filename="reveal.jpg")
+                        res_embed.set_thumbnail(url="attachment://reveal.jpg")
+                        await ctx.send(embed=res_embed, file=rev_file)
+                    else:
+                        res_embed.set_thumbnail(url=loc["image_url"])
+                        await ctx.send(embed=res_embed)
                     await asyncio.sleep(4)
 
                 sorted_stakes = sorted(player_stakes.items(), key=lambda x: x[1], reverse=True)
