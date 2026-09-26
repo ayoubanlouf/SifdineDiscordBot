@@ -1052,8 +1052,12 @@ class Economy(commands.Cog, name="Economy"):
             "claimed_milestones": claimed
         }
 
-    async def add_xp(self, user_id: int, xp_amount: int, channel: Optional[discord.TextChannel] = None, message: Optional[discord.Message] = None) -> dict:
+    async def add_xp(self, user_id: int, xp_amount: int, channel: Optional[discord.TextChannel] = None, message: Optional[discord.Message] = None, force: bool = False) -> dict:
         if xp_amount <= 0 or self.is_bot_user(user_id):
+            return await self.get_user_level(user_id)
+
+        env = os.environ.get("ENVIRONMENT", "prod").strip().strip("\"'").lower()
+        if env in ("dev", "development") and not force:
             return await self.get_user_level(user_id)
 
         user_data = await self.get_user_level(user_id)
@@ -2621,7 +2625,7 @@ class Economy(commands.Cog, name="Economy"):
         if amount <= 0:
             await ctx.send("❌ Amount khas ykoun kber mn 0.")
             return
-        data = await self.add_xp(target.id, amount, channel=ctx.channel, message=ctx.message)
+        data = await self.add_xp(target.id, amount, channel=ctx.channel, message=ctx.message, force=True)
         await ctx.send(
             f"✅ Zdna **{amount:,} XP** l **{target.mention}**!\n"
             f"⭐ **New Level:** {data['level']} (`{data['current_xp']:,}/{data['xp_needed']:,} XP` • Total: `{data['total_xp']:,} XP`)"

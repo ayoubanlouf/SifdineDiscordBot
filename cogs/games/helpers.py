@@ -2,6 +2,7 @@ import os
 import sqlite3
 import time
 import random
+import asyncio
 from typing import Optional
 
 WORDS_DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "words.db"))
@@ -24,7 +25,8 @@ def is_user_in_game(bot, user_id: int) -> Optional[str]:
     if not entry:
         return None
     if isinstance(entry, tuple):
-        game_name, started_at = entry
+        game_name = entry[0]
+        started_at = entry[1]
         if time.time() - started_at > 600:
             bot.active_game_users.pop(user_id, None)
             return None
@@ -32,11 +34,80 @@ def is_user_in_game(bot, user_id: int) -> Optional[str]:
     return entry
 
 
-def set_user_in_game(bot, user_id: int, game_name: str) -> None:
-    """Locks a user into an active game session with current timestamp."""
+class MultiplayerGameSession:
+    """Session tracker for multiplayer lobby games to support seamless quitting without interrupting others."""
+    def __init__(self, game_name: str, active_players: list, channel=None, on_quit=None):
+        self.game_name = game_name
+        self.active_players = active_players
+        self.channel = channel
+        self.on_quit = on_quit
+        self.stopped = False
+
+    async def handle_user_quit(self, user) -> str:
+        found = False
+        for p in list(self.active_players):
+            if getattr(p, "id", None) == user.id:
+                try:
+                    self.active_players.remove(p)
+                except ValueError:
+                    pass
+                found = True
+                break
+
+        if self.on_quit:
+            try:
+                res = self.on_quit(user)
+                if asyncio.iscoroutine(res):
+                    await res
+            except Exception:
+                pass
+
+        remaining_count = len(self.active_players)
+        if remaining_count > 0:
+            if self.channel:
+                try:
+                    await self.channel.send(
+                        f"🚪 **{user.mention}** kherj mn lgame dial **{self.game_name}**! "
+                        f"Lgame ghadi tkml m3a **{remaining_count}** li b9aw."
+                    )
+                except Exception:
+                    pass
+            return f"🚪 Kherjti mn lgame dial **{self.game_name}**! B9aw **{remaining_count}** la3bin."
+        else:
+            self.stopped = True
+            if self.channel:
+                try:
+                    await self.channel.send(f"🚪 **{user.mention}** kherj mn lgame. 7ta wa7d mab9a, game salat!")
+                except Exception:
+                    pass
+            return f"🚪 Kherjti mn lgame dial **{self.game_name}** o salat lgame 7it mab9a 7ed."
+
+
+def set_user_in_game(bot, user_id: int, game_name: str, session=None) -> None:
+    """Locks a user into an active game session with current timestamp and optional session handler."""
     if not hasattr(bot, "active_game_users"):
         bot.active_game_users = {}
-    bot.active_game_users[user_id] = (game_name, time.time())
+    bot.active_game_users[user_id] = (game_name, time.time(), session)
+
+
+def attach_game_session(bot, user_id: int, session) -> None:
+    """Attaches a session object or View to an active user lock."""
+    if not hasattr(bot, "active_game_users"):
+        return
+    entry = bot.active_game_users.get(user_id)
+    if entry and isinstance(entry, tuple):
+        bot.active_game_users[user_id] = (entry[0], entry[1], session)
+
+
+def get_user_game_session(bot, user_id: int):
+    """Retrieves the active session object or View for a user if active and not expired."""
+    if not hasattr(bot, "active_game_users"):
+        return None
+    entry = bot.active_game_users.get(user_id)
+    if entry and isinstance(entry, tuple) and len(entry) >= 3:
+        if time.time() - entry[1] <= 600:
+            return entry[2]
+    return None
 
 
 def clear_user_game(bot, user_id: int) -> None:

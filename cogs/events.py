@@ -39,8 +39,8 @@ class Events(commands.Cog, name="Events"):
     async def send_log(self, guild: Optional[discord.Guild], embed: discord.Embed, files: Optional[list[discord.File]] = None):
         if not guild:
             return
-        env = os.environ.get("ENVIRONMENT", "development").lower()
-        if env == "dev":
+        env = os.environ.get("ENVIRONMENT", "prod").strip().strip("\"'").lower()
+        if env in ("dev", "development"):
             return
         channel_id = self.log_channels.get(guild.id)
         if not channel_id:
@@ -217,8 +217,9 @@ class Events(commands.Cog, name="Events"):
                 await ctx.send("we")
                 return
 
-        # Passive Chat Activity Mining (Silent)
-        if not message.author.bot and message.guild and len(message.content.strip()) >= 5:
+        # Passive Chat Activity Mining (Silent) - disabled in dev to prevent double rewards
+        env = os.environ.get("ENVIRONMENT", "prod").strip().strip("\"'").lower()
+        if env not in ("dev", "development") and not message.author.bot and message.guild and len(message.content.strip()) >= 5:
             if not ctx.valid:
                 now_t = time.time()
                 last_t = self.chat_cooldowns.get(message.author.id, 0.0)
@@ -400,6 +401,10 @@ class Events(commands.Cog, name="Events"):
 
     @tasks.loop(minutes=1.0)
     async def vc_activity_tracker(self):
+        env = os.environ.get("ENVIRONMENT", "prod").strip().strip("\"'").lower()
+        if env in ("dev", "development"):
+            return
+
         economy_cog = self.bot.get_cog("Economy")
         if not economy_cog:
             return
