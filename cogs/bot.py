@@ -16,6 +16,23 @@ from converters import FuzzyMember
 RESTART_STATE_FILE = ".pending_restart.json"
 
 
+def _find_matching_category(bot, name: str, is_owner: bool = False) -> Optional[Tuple[str, List[str]]]:
+    get_cats = getattr(bot, "get_bot_categories", None)
+    if not get_cats:
+        return None
+    cats = get_cats(bot, is_owner=is_owner)
+    clean = name.strip().lower()
+    if clean.startswith("category "):
+        clean = clean[len("category "):].strip()
+    clean_no_spaces = clean.replace(" ", "").replace("_", "").replace("-", "")
+
+    for cat_name, cmd_list in cats.items():
+        if clean == cat_name.lower() or clean_no_spaces == cat_name.lower().replace(" ", ""):
+            return cat_name, cmd_list
+    return None
+
+
+
 class HostLogsView(discord.ui.View):
     def __init__(self, cog, ctx, provider: str, pages: list, title: str, lines: int = 100):
         super().__init__(timeout=180)
@@ -1753,22 +1770,6 @@ class Bot(commands.Cog, name="Bot"):
             await wait_msg.edit(content="✅ Sifet lik database backup snapshot f DMs!")
         except Exception as e:
             await wait_msg.edit(content=f"❌ Tra mochkil f backup: `{e}`")
-
-def _find_matching_category(bot, name: str, is_owner: bool = False) -> Optional[Tuple[str, List[str]]]:
-    get_cats = getattr(bot, "get_bot_categories", None)
-    if not get_cats:
-        return None
-    cats = get_cats(bot, is_owner=is_owner)
-    clean = name.strip().lower()
-    if clean.startswith("category "):
-        clean = clean[len("category "):].strip()
-    clean_no_spaces = clean.replace(" ", "").replace("_", "").replace("-", "")
-
-    for cat_name, cmd_list in cats.items():
-        if clean == cat_name.lower() or clean_no_spaces == cat_name.lower().replace(" ", ""):
-            return cat_name, cmd_list
-    return None
-
 
     @commands.command(name="disable", aliases=["disablecmd", "disablecategory"], help="Desactivi command wla category kamla f had server (e.g. sat disable minigames).")
     @commands.guild_only()
