@@ -6,12 +6,10 @@ psutil
 moviepy
 requests
 google-search-results
-akinator
 chess
 pillow
 pytz
 deep-translator
-langdetect
 yt-dlp
-pynacl
 curl_cffi
+beautifulsoup4

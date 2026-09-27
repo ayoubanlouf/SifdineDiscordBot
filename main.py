@@ -261,11 +261,15 @@ class ModernHelpCommand(commands.HelpCommand):
 
     async def command_callback(self, ctx, *, command=None):
         if command is not None:
+            clean_cmd = command.strip().lower()
+            if clean_cmd in ("all", "*", "commands", "kolchi"):
+                return await self.send_bot_help(self.get_bot_mapping())
+
             is_owner = await ctx.bot.is_owner(ctx.author)
             categories = get_bot_categories(ctx.bot, is_owner=is_owner)
             matched_category = None
             for category in categories.keys():
-                if category.lower() == command.lower():
+                if category.lower() == clean_cmd:
                     matched_category = category
                     break
             
@@ -421,6 +425,10 @@ async def is_not_blacklisted(ctx):
 @bot.check
 async def is_command_enabled(ctx):
     if not ctx.command:
+        return True
+
+    # Bot owner can always run all commands (even if disabled)
+    if await ctx.bot.is_owner(ctx.author):
         return True
 
     cmd_name = ctx.command.qualified_name.lower()
