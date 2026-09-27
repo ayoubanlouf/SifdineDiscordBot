@@ -1,10 +1,11 @@
 from __future__ import annotations
 import asyncio
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import discord
 from discord.ui import Button, View
 
+from cogs.economy import format_tad, TAD_EMOJI
 from cogs.games.akinator_client import ModernAsyncAkinator as AsyncAkinator
 from cogs.games.helpers import clear_user_game
 
@@ -14,7 +15,7 @@ class AkinatorButton(Button):
 
 
 class AkinatorView(View):
-    def __init__(self, player: Union[discord.Member, discord.User], timeout: float = 60.0, cog: Optional["Minigames"] = None, channel_id: Optional[int] = None):
+    def __init__(self, player: Union[discord.Member, discord.User], timeout: float = 60.0, cog: Optional[Any] = None, channel_id: Optional[int] = None):
         super().__init__(timeout=timeout)
         self.player = player
         self.cog = cog

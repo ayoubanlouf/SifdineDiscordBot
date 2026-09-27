@@ -1,7 +1,8 @@
 from __future__ import annotations
 import time
 import random
-from typing import Optional, Union
+import asyncio
+from typing import Optional, Union, Any
 
 import discord
 from discord.ui import Button, View
@@ -39,7 +40,7 @@ class TicTacToeView(View):
         [(2, 0), (1, 1), (0, 2)],
     ]
 
-    def __init__(self, player_x: Union[discord.Member, discord.User], player_o: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Minigames"] = None, bet: int = 0):
+    def __init__(self, player_x: Union[discord.Member, discord.User], player_o: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional[Any] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_x = player_x
         self.player_o = player_o
@@ -49,6 +50,7 @@ class TicTacToeView(View):
         self.current_turn = player_x  # X always goes first
         self.turn_timeout = turn_timeout
         self.turn_start = time.time()
+        self.bounty_msg = ""
         self.board = [[" " for _ in range(3)] for _ in range(3)]
         self.game_over = False
         self.message: Optional[discord.Message] = None
@@ -108,7 +110,8 @@ class TicTacToeView(View):
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     return f"🏆 **{self.player_x.mention} (X) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (`{burned:,}` {TAD_EMOJI} tax)!"
                 elif self.is_bot_game:
-                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **5,000** {TAD_EMOJI} TAD!"
+                    b_str = f"\n{self.bounty_msg}" if self.bounty_msg else ""
+                    return f"🏆 **{self.player_x.mention} (X) rbe7!**\n🤖 Ghelbti Tic-Tac-Toe AI!{b_str}"
                 return f"🏆 **{self.player_x.mention} (X) rbe7!**"
             elif winner == "O":
                 if self.is_bot_game:
@@ -186,7 +189,7 @@ class TicTacToeView(View):
             if self.cog and self.message and self.message.guild:
                 await self.cog.record_minigame_loss(self.message.guild.id, user.id, "tictactoe", loss_amount=0)
         else:
-            content = f"🚪 **{user.mention} kherj mn lmatch o t-3tbat forfeit!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
+            content = f"🚪 **{user.mention} kherj mn lmatch o t7esbat forfeit!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
             if self.bet > 0 and self.cog:
                 w_payout, burned, _ = calculate_pvp_payout(self.bet)
                 economy_cog = self.cog.bot.get_cog("Economy")
@@ -208,7 +211,7 @@ class TicTacToeView(View):
             except Exception:
                 pass
         self.stop()
-        return f"🚪 Kherjti mn match dial **Tic-Tac-Toe** o t-3tbat forfeit!"
+        return f"🚪 Kherjti mn match dial **Tic-Tac-Toe** o t7esbat forfeit!"
 
     def make_bot_move(self):
         best_score = -float('inf')
@@ -314,9 +317,12 @@ class TicTacToeView(View):
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "tictactoe", earnings=w_payout - self.bet)
                         await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "tictactoe", loss_amount=self.bet)
                 elif self.is_bot_game and winner == "X" and economy_cog:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_x.id, 5000, context="TTT Bot Win")
+                    claimed, net, tax, msg = await economy_cog.claim_daily_bot_bounty(
+                        self.player_x.id, 50000, context="TTT Bot Win Bounty"
+                    )
+                    self.bounty_msg = msg
                     if self.cog and interaction.guild:
-                        await self.cog.record_minigame_win(interaction.guild.id, self.player_x.id, "tictactoe", earnings=net)
+                        await self.cog.record_minigame_win(interaction.guild.id, self.player_x.id, "tictactoe", earnings=net if claimed else 0)
                 elif self.is_bot_game and winner == "O" and self.cog and interaction.guild:
                     await self.cog.record_minigame_loss(interaction.guild.id, self.player_x.id, "tictactoe", loss_amount=0)
                 elif not self.is_bot_game and self.cog and interaction.guild:
@@ -354,7 +360,7 @@ class TicTacToeView(View):
 
 class ChallengeView(View):
     """View for the challenge acceptance phase."""
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: Any, bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import discord
 from discord.ui import Button, View
@@ -14,7 +14,7 @@ from cogs.games.helpers import (
 # ============ ROCK PAPER SCISSORS UI CLASSES (Module Level) ============
 
 class RPSBotView(View):
-    def __init__(self, player: discord.Member, cog: Optional["Minigames"] = None, bet: int = 0):
+    def __init__(self, player: discord.Member, cog: Optional[Any] = None, bet: int = 0):
         super().__init__(timeout=60)
         self.player = player
         self.cog = cog
@@ -146,7 +146,7 @@ class RPSBotView(View):
 
 
 class RPSMultiplayerView(View):
-    def __init__(self, player1: discord.Member, player2: discord.Member, cog: Optional["Minigames"] = None, bet: int = 0):
+    def __init__(self, player1: discord.Member, player2: discord.Member, cog: Optional[Any] = None, bet: int = 0):
         super().__init__(timeout=60)
         self.player1 = player1
         self.player2 = player2
@@ -168,7 +168,7 @@ class RPSMultiplayerView(View):
             return ""
         winner = self.player2 if user.id == self.player1.id else self.player1
         loser = user
-        outcome = f"🚪 **{loser.mention} kherj mn lgame o t-3tbat forfeit!** 🏆 **{winner.mention}** rbe7!"
+        outcome = f"🚪 **{loser.mention} kherj mn lgame o t7esbat forfeit!** 🏆 **{winner.mention}** rbe7!"
         if self.bet > 0 and self.cog:
             w_payout, burned, _ = calculate_pvp_payout(self.bet)
             economy_cog = self.cog.bot.get_cog("Economy")
@@ -189,7 +189,7 @@ class RPSMultiplayerView(View):
             except Exception:
                 pass
         self.stop()
-        return f"🚪 Kherjti mn match dial **Rock Paper Scissors** o t-3tbat forfeit!"
+        return f"🚪 Kherjti mn match dial **Rock Paper Scissors** o t7esbat forfeit!"
 
     @discord.ui.button(label="Rock", style=discord.ButtonStyle.secondary, emoji="🪨", custom_id="rps_m_rock")
     async def rock(self, interaction: discord.Interaction, button: Button):
@@ -310,7 +310,7 @@ class RPSMultiplayerView(View):
 
 
 class RPSChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: Any, bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged

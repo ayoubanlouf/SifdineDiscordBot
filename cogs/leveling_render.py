@@ -167,8 +167,6 @@ def _get_base_card() -> Image.Image:
     glass.close()
 
     _BASE_CARD_CACHE = card
-    import gc
-    gc.collect()
     return _BASE_CARD_CACHE.copy()
 
 
@@ -490,7 +488,7 @@ def render_level_card(
     # Downsample 2x to 1x via Lanczos
     final_card = card.resize((w_base, h_base), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
-    final_card.save(buf, format="PNG", optimize=False)
+    final_card.save(buf, format="PNG", optimize=False, compress_level=1)
     buf.seek(0)
 
     try:
@@ -503,8 +501,6 @@ def render_level_card(
             av_img.close()
         if "mask" in locals():
             mask.close()
-        import gc
-        gc.collect()
     except Exception:
         pass
 
@@ -746,7 +742,7 @@ def render_wallet_card(
 
     final_card = card.resize((w_base, h_base), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
-    final_card.save(buf, format="PNG", optimize=False)
+    final_card.save(buf, format="PNG", optimize=False, compress_level=1)
     buf.seek(0)
 
     try:
@@ -757,8 +753,6 @@ def render_wallet_card(
             av_img.close()
         if "mask" in locals():
             mask.close()
-        import gc
-        gc.collect()
     except Exception:
         pass
 

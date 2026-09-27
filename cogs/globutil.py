@@ -3139,7 +3139,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
 
                 status, article_html = await asyncio.to_thread(_fetch_wikihow_sync, article_url)
                 if status != 200 or not article_html:
-                    await ctx.send(f"❌ Ma9ditch n-charge l'article mn wikiHow: {article_url}")
+                    await ctx.send(f"❌ Ma9ditch njbed l article mn wikiHow: {article_url}")
                     return
 
                 h1_m = re.search(r'<h1[^>]*>(.*?)</h1>', article_html, re.DOTALL | re.I)
@@ -3285,7 +3285,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
 
         if not target_url:
             return await status_msg.edit(embed=discord.Embed(
-                description=f"❌ Mal9itch chi ri7a b smiyt `{query}` f Fragrantica. 7awel t-kteb smiya 9rib l'smiyt l'parfum wla l'brand.",
+                description=f"❌ Mal9itch chi ri7a b smiyt `{query}` f Fragrantica. 7awel tkteb smiya 9riba lsmiyt l parfum wla l brand.",
                 color=0x000000
             ))
 

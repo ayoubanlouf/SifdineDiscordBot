@@ -1311,6 +1311,57 @@ class Economy(commands.Cog, name="Economy"):
 
         return net_payout, tax
 
+    async def claim_daily_bot_bounty(
+        self,
+        user_id: int,
+        gross_payout: int,
+        context: str = "Bot Bounty",
+        vault: str = "bank"
+    ) -> Tuple[bool, int, int, str]:
+        """
+        Attempts to claim a high bot win/draw bounty. Capped at 1 claim per user per day.
+        Returns: (claimed: bool, net_payout: int, tax: int, message: str)
+        """
+        if gross_payout <= 0 or self.is_bot_user(user_id):
+            return False, 0, 0, ""
+
+        now = int(time.time())
+        now_casa = datetime.now(CASA_TZ)
+        today_date = now_casa.date()
+
+        # Ensure bot_bounty_cooldowns table exists
+        await self.bot.db.execute("""
+            CREATE TABLE IF NOT EXISTS bot_bounty_cooldowns (
+                user_id INTEGER PRIMARY KEY,
+                last_claimed INTEGER DEFAULT 0
+            )
+        """)
+
+        async with self.bot.db.execute(
+            "SELECT last_claimed FROM bot_bounty_cooldowns WHERE user_id = ?",
+            (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+
+        last_claimed = row[0] if row else 0
+        if last_claimed:
+            last_date = datetime.fromtimestamp(last_claimed, tz=CASA_TZ).date()
+            if last_date == today_date:
+                next_midnight = (now_casa + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                next_midnight_ts = int(next_midnight.timestamp())
+                return False, 0, 0, f"⏳ Daily Bot Bounty already claimed today! Resets <t:{next_midnight_ts}:R>."
+
+        # Mark claimed today
+        await self.bot.db.execute(
+            "INSERT INTO bot_bounty_cooldowns (user_id, last_claimed) VALUES (?, ?) "
+            "ON CONFLICT(user_id) DO UPDATE SET last_claimed = ?",
+            (user_id, now, now)
+        )
+        await self.bot.db.commit()
+
+        net, tax = await self.apply_tax_and_add_balance(user_id, gross_payout, context=context, vault=vault)
+        return True, net, tax, f"💰 Won **+{net:,}** {TAD_EMOJI} TAD! (`{tax:,}` TAD tax • Daily Bot Bounty 1/1)"
+
     async def deduct_balance(self, user_id: int, amount: int, context: str = "", force: bool = False) -> bool:
         if amount <= 0:
             return True
@@ -1488,7 +1539,7 @@ class Economy(commands.Cog, name="Economy"):
 
         if getattr(item, "consumable", True):
             await self.remove_inventory_item(user_id, clean_id, quantity=1)
-        return True, f"✨ Sta3melti **{item.emoji} {item.name}** b-naja7!"
+        return True, f"✨ Safi sta3melti **{item.emoji} {item.name}**!"
 
     async def get_user_cosmetics(self, user_id: int) -> dict:
         async with self.bot.db.execute(
@@ -1764,9 +1815,9 @@ class Economy(commands.Cog, name="Economy"):
                                 new_bg_url = content
                                 is_valid = True
                             except Exception:
-                                error_reason = "⚠️ Had link machi tsouira valid. 3tini direct link wla upload-iha."
+                                error_reason = "⚠️ Had link machi tsouira valid. 3tini direct link wla uploadiha."
                         else:
-                            error_reason = "⚠️ Ma9ditch ntelechargi had link d tsouira. 3tini direct link wla upload-iha."
+                            error_reason = "⚠️ Ma9ditch ntelechargi had link d tsouira. 3tini direct link wla uploadiha."
                     else:
                         error_reason = "⚠️ Sift tsouira (upload attachment) wla direct link, wla kteb `skip` / `reset`."
 

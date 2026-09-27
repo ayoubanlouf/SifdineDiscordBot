@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import discord
 from discord.ui import Button, View
@@ -26,7 +26,7 @@ class MinesweeperButton(Button):
 
 
 class MinesweeperSoloView(View):
-    def __init__(self, player: discord.Member, cog: Optional["Minigames"] = None):
+    def __init__(self, player: discord.Member, cog: Optional[Any] = None):
         super().__init__(timeout=180)
         self.player = player
         self.cog = cog
@@ -222,7 +222,7 @@ class MinesweeperSoloView(View):
 
 
 class MinesweeperMultiplayerView(View):
-    def __init__(self, p1: discord.Member, p2: discord.Member, cog: Optional["Minigames"] = None, bet: int = 0):
+    def __init__(self, p1: discord.Member, p2: discord.Member, cog: Optional[Any] = None, bet: int = 0):
         super().__init__(timeout=180)
         self.p1 = p1
         self.p2 = p2
@@ -432,14 +432,14 @@ class MinesweeperMultiplayerView(View):
         eco_msg = await self.handle_economy_payout(winner=winner, is_draw=False)
         for item in self.children:
             item.disabled = True
-        content = f"🚪 **{loser.mention} kherj mn lmatch o t-3tbat forfeit!** 🏆 **{winner.mention}** rbe7!{eco_msg}"
+        content = f"🚪 **{loser.mention} kherj mn lmatch o t7esbat forfeit!** 🏆 **{winner.mention}** rbe7!{eco_msg}"
         if self.message:
             try:
                 await self.message.edit(content=content, view=self)
             except Exception:
                 pass
         self.stop()
-        return "🚪 Kherjti mn match dial **Minesweeper** o t-3tbat forfeit!"
+        return "🚪 Kherjti mn match dial **Minesweeper** o t7esbat forfeit!"
 
     async def on_timeout(self):
         if not self.game_over:
@@ -456,7 +456,7 @@ class MinesweeperMultiplayerView(View):
 
 
 class MinesweeperChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: Any, bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged

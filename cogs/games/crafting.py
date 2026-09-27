@@ -24,7 +24,7 @@ from cogs.games.common import (
 
 # ============ MINECRAFT CRAFTING HELPERS ============
 
-_MC_BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "minecraft"))
+_MC_BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "minecraft"))
 _MC_TEXTURES_DIR = os.path.join(_MC_BASE_DIR, "textures")
 _MC_GUI_PATH = os.path.join(_MC_BASE_DIR, "crafting_table_gui.png")
 _MC_RECIPES_PATH = os.path.join(_MC_BASE_DIR, "recipes.json")

@@ -232,7 +232,7 @@ class BlackjackView(discord.ui.View):
             if self.message and self.message.guild:
                 await self.cog.record_minigame_loss(self.message.guild.id, self.author.id, "blackjack", loss_amount=self.bet)
 
-        embed = self.get_embed(dealer_reveal=True, outcome_text=f"🚪 **{user.mention}** kherjti mn lmatch! T-3tbat loss (-{format_tad(self.bet)}{tax_str}).")
+        embed = self.get_embed(dealer_reveal=True, outcome_text=f"🚪 **{user.mention}** kherjti mn lmatch! T7esbat loss (-{format_tad(self.bet)}{tax_str}).")
         file = self.get_render_file(dealer_reveal=True)
         if self.message:
             try:
@@ -277,7 +277,7 @@ class BlackjackView(discord.ui.View):
 
         # Double down is only legal on the initial 2-card hand!
         if len(self.player_hand) != 2:
-            await interaction.response.send_message("❌ Mat9dch t-double down mn be3d ma drti Hit!", ephemeral=True)
+            await interaction.response.send_message("❌ Mat9dch tdoubli down mn be3d ma drti Hit!", ephemeral=True)
             return
 
         if self._doubling:
@@ -291,13 +291,13 @@ class BlackjackView(discord.ui.View):
             if w["balance"] < self.bet:
                 self._doubling = False
                 button.disabled = False
-                await interaction.response.send_message(f"❌ Ma 3ndekch flous kafyin bach t-double bet! (Khassek {format_tad(self.bet)})", ephemeral=True)
+                await interaction.response.send_message(f"❌ Ma 3ndekch flous kafyin bach tdoubli lbet! (Khassek {format_tad(self.bet)})", ephemeral=True)
                 return
             success = await economy_cog.deduct_balance(self.author.id, self.bet, context="Blackjack Double Down Stake")
             if not success:
                 self._doubling = False
                 button.disabled = False
-                await interaction.response.send_message("❌ Flousk makafyinch bach t-double!", ephemeral=True)
+                await interaction.response.send_message("❌ Flousk makafyinch bach tdoubli!", ephemeral=True)
                 return
             self.bet *= 2
             if self.session_id and self.cog:

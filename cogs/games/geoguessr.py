@@ -6,6 +6,7 @@ import math
 import asyncio
 import time
 import random
+import difflib
 from typing import Optional
 
 import aiohttp
@@ -13,6 +14,7 @@ import discord
 from PIL import Image
 
 from cogs.economy import format_tad, TAD_EMOJI
+from cogs.games.flags import normalize_country_text
 from cogs.games.helpers import (
     is_user_in_game, set_user_in_game, clear_user_game,
     attach_game_session, MultiplayerGameSession, record_minigame_win
@@ -24,18 +26,19 @@ from cogs.games.common import (
 
 # ============ GEOGUESSR & GUESS THE RANK HELPERS ============
 
+_ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets"))
 GEOGUESSR_LOCATIONS = []
 COUNTRY_CENTROIDS = {}
 
 def _load_geoguessr_assets():
     global GEOGUESSR_LOCATIONS, COUNTRY_CENTROIDS
     if not GEOGUESSR_LOCATIONS:
-        loc_path = os.path.join("assets", "geoguessr_locations.json")
+        loc_path = os.path.join(_ASSETS_DIR, "geoguessr_locations.json")
         if os.path.exists(loc_path):
             with open(loc_path, "r", encoding="utf-8") as f:
                 GEOGUESSR_LOCATIONS = json.load(f)
     if not COUNTRY_CENTROIDS:
-        cent_path = os.path.join("assets", "country_centroids.json")
+        cent_path = os.path.join(_ASSETS_DIR, "country_centroids.json")
         if os.path.exists(cent_path):
             with open(cent_path, "r", encoding="utf-8") as f:
                 COUNTRY_CENTROIDS = json.load(f)

@@ -147,7 +147,7 @@ class MaintenanceView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had l-control panel machi ta3k!", ephemeral=True)
+            await interaction.response.send_message("❌ Had l control panel machi ta3k!", ephemeral=True)
             return False
         return True
 
@@ -190,7 +190,7 @@ class MaintenanceDrainView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had l-control panel machi ta3k!", ephemeral=True)
+            await interaction.response.send_message("❌ Had l control panel machi ta3k!", ephemeral=True)
             return False
         return True
 
@@ -258,7 +258,7 @@ class MaintenanceActiveView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message("❌ Had l-control panel machi ta3k!", ephemeral=True)
+            await interaction.response.send_message("❌ Had l control panel machi ta3k!", ephemeral=True)
             return False
         return True
 
@@ -1754,17 +1754,85 @@ class Bot(commands.Cog, name="Bot"):
         except Exception as e:
             await wait_msg.edit(content=f"❌ Tra mochkil f backup: `{e}`")
 
-    @commands.command(name="disable", help="Desactivi command f had server.")
+def _find_matching_category(bot, name: str, is_owner: bool = False) -> Optional[Tuple[str, List[str]]]:
+    get_cats = getattr(bot, "get_bot_categories", None)
+    if not get_cats:
+        return None
+    cats = get_cats(bot, is_owner=is_owner)
+    clean = name.strip().lower()
+    if clean.startswith("category "):
+        clean = clean[len("category "):].strip()
+    clean_no_spaces = clean.replace(" ", "").replace("_", "").replace("-", "")
+
+    for cat_name, cmd_list in cats.items():
+        if clean == cat_name.lower() or clean_no_spaces == cat_name.lower().replace(" ", ""):
+            return cat_name, cmd_list
+    return None
+
+
+    @commands.command(name="disable", aliases=["disablecmd", "disablecategory"], help="Desactivi command wla category kamla f had server (e.g. sat disable minigames).")
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
-    async def disable_command(self, ctx: commands.Context, *, command_name: str):
-        clean_name = command_name.strip().lower()
+    async def disable_command(self, ctx: commands.Context, *, target: str):
+        clean_name = target.strip().lower()
         if clean_name.startswith(ctx.prefix.lower()):
             clean_name = clean_name[len(ctx.prefix):].strip()
 
+        is_owner = await self.bot.is_owner(ctx.author)
+        matched_cat = _find_matching_category(self.bot, clean_name, is_owner=is_owner)
         target_cmd = self.bot.get_command(clean_name)
+
+        # Category mode: if user explicitly said "category <name>", or if input matches a category and not a single command
+        if matched_cat and (clean_name.startswith("category ") or not target_cmd):
+            cat_name, cmd_names = matched_cat
+            protected = {"enable", "disable", "disabled", "globalenable", "globaldisable", "globaldisabled", "genable", "gdisable", "gdisabled", "help"}
+            valid_cmds = [c.lower() for c in cmd_names if c.lower() not in protected]
+
+            if not valid_cmds:
+                await ctx.send(f"❌ Category **{cat_name}** fiha ghir commands daroriyin li mat9edch tdisablihom.")
+                return
+
+            if hasattr(self.bot, "disabled_commands_cache"):
+                to_disable = [c for c in valid_cmds if (ctx.guild.id, c) not in self.bot.disabled_commands_cache]
+            else:
+                async with self.bot.db.execute(
+                    "SELECT command_name FROM disabled_commands WHERE guild_id = ?",
+                    (ctx.guild.id,)
+                ) as cursor:
+                    already = {row[0] for row in await cursor.fetchall()}
+                to_disable = [c for c in valid_cmds if c not in already]
+
+            if not to_disable:
+                await ctx.send(f"⚠️ Ga3 commands dial category **{cat_name}** deja mdisablin f had server.")
+                return
+
+            await self.bot.db.executemany(
+                "INSERT OR IGNORE INTO disabled_commands (guild_id, command_name) VALUES (?, ?)",
+                [(ctx.guild.id, c) for c in to_disable]
+            )
+            await self.bot.db.commit()
+
+            if hasattr(self.bot, "disabled_commands_cache"):
+                for c in to_disable:
+                    self.bot.disabled_commands_cache.add((ctx.guild.id, c))
+
+            embed = discord.Embed(
+                title=f"🚫 Category Disabled: {cat_name}",
+                description=(
+                    f"Disablit category **{cat_name}** f had server!\n"
+                    f"📊 **{len(to_disable)} commands** tdesactivaw:\n"
+                    + " • ".join(f"`{c}`" for c in to_disable[:20])
+                    + (f" w `{len(to_disable) - 20}` khorin..." if len(to_disable) > 20 else "")
+                ),
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
         if not target_cmd:
-            await ctx.send(f"❌ Mal9itch chi command smitha `{command_name}`.")
+            cat_keys = getattr(self.bot, "get_bot_categories", lambda b, **kw: {})(self.bot, is_owner=is_owner).keys()
+            cat_hint = "\n💡 Categories li kaynin: " + ", ".join(f"`{c}`" for c in cat_keys) if cat_keys else ""
+            await ctx.send(f"❌ Mal9itch chi command wla category smitha `{target}`.{cat_hint}")
             return
 
         canonical_name = target_cmd.qualified_name.lower()
@@ -1796,15 +1864,60 @@ class Bot(commands.Cog, name="Bot"):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="enable", help="Activi chy command mdesactivia f had server.")
+    @commands.command(name="enable", aliases=["enablecmd", "enablecategory"], help="Activi chy command wla category mdesactivia f had server.")
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
-    async def enable_command(self, ctx: commands.Context, *, command_name: str):
-        clean_name = command_name.strip().lower()
+    async def enable_command(self, ctx: commands.Context, *, target: str):
+        clean_name = target.strip().lower()
         if clean_name.startswith(ctx.prefix.lower()):
             clean_name = clean_name[len(ctx.prefix):].strip()
 
+        is_owner = await self.bot.is_owner(ctx.author)
+        matched_cat = _find_matching_category(self.bot, clean_name, is_owner=is_owner)
         target_cmd = self.bot.get_command(clean_name)
+
+        if matched_cat and (clean_name.startswith("category ") or not target_cmd):
+            cat_name, cmd_names = matched_cat
+            all_cmds = [c.lower() for c in cmd_names]
+
+            if hasattr(self.bot, "disabled_commands_cache"):
+                to_enable = [c for c in all_cmds if (ctx.guild.id, c) in self.bot.disabled_commands_cache]
+            else:
+                async with self.bot.db.execute(
+                    "SELECT command_name FROM disabled_commands WHERE guild_id = ?",
+                    (ctx.guild.id,)
+                ) as cursor:
+                    disabled_in_guild = {row[0] for row in await cursor.fetchall()}
+                to_enable = [c for c in all_cmds if c in disabled_in_guild]
+
+            if not to_enable:
+                await ctx.send(f"⚠️ 7ta command mn category **{cat_name}** mamdisabliach f had server.")
+                return
+
+            placeholders = ",".join(["?"] * len(to_enable))
+            await self.bot.db.execute(
+                f"DELETE FROM disabled_commands WHERE guild_id = ? AND command_name IN ({placeholders})",
+                (ctx.guild.id, *to_enable)
+            )
+            await self.bot.db.commit()
+
+            if hasattr(self.bot, "disabled_commands_cache"):
+                for c in to_enable:
+                    self.bot.disabled_commands_cache.discard((ctx.guild.id, c))
+
+            embed = discord.Embed(
+                title=f"🟢 Category Enabled: {cat_name}",
+                description=(
+                    f"Enablit category **{cat_name}** f had server!\n"
+                    f"📊 **{len(to_enable)} commands** t activaw:\n"
+                    + " • ".join(f"`{c}`" for c in to_enable[:20])
+                    + (f" w `{len(to_enable) - 20}` khorin..." if len(to_enable) > 20 else "")
+                ),
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
         canonical_name = target_cmd.qualified_name.lower() if target_cmd else clean_name
 
         async with self.bot.db.execute(
@@ -1850,9 +1963,26 @@ class Bot(commands.Cog, name="Bot"):
             await ctx.send(embed=embed)
             return
 
+        # Check if entire categories are disabled for quick summaries
+        is_owner = await self.bot.is_owner(ctx.author)
+        categories = getattr(self.bot, "get_bot_categories", lambda b, **kw: {})(self.bot, is_owner=is_owner)
+        disabled_set = {r[0] for r in rows}
+        cat_highlights = []
+        for cat_name, cmd_names in categories.items():
+            cat_cmds_lower = [c.lower() for c in cmd_names]
+            disabled_count = sum(1 for c in cat_cmds_lower if c in disabled_set)
+            if disabled_count > 0:
+                if disabled_count == len(cat_cmds_lower):
+                    cat_highlights.append(f"📁 **{cat_name}**: Kamla mdisablia (`{disabled_count}` cmds)")
+                else:
+                    cat_highlights.append(f"📁 **{cat_name}**: `{disabled_count}/{len(cat_cmds_lower)}` cmds")
+
+        cat_header = ("\n".join(cat_highlights) + "\n\n") if cat_highlights else ""
+
         cmds_list = [f"• `{r[0]}`" for r in rows]
         paginator = self.bot.Paginator(ctx, cmds_list, per_page=15, title=f"🚫 Disabled Commands ({len(rows)})")
         embed = paginator.get_page()
+        embed.description = cat_header + (embed.description or "")
         if paginator.total_pages > 1:
             embed.set_footer(text=f"Page 1/{paginator.total_pages} • Server: {ctx.guild.name}")
             msg = await ctx.send(embed=embed, view=paginator)
@@ -1861,16 +1991,61 @@ class Bot(commands.Cog, name="Bot"):
             embed.set_footer(text=f"Server: {ctx.guild.name}")
             await ctx.send(embed=embed)
 
-    @commands.command(name="globaldisable", aliases=["gdisable"], help="Desactivi command globally f ga3 servers.")
+    @commands.command(name="globaldisable", aliases=["gdisable"], help="Desactivi command wla category globally f ga3 servers.")
     @commands.is_owner()
-    async def global_disable(self, ctx: commands.Context, *, command_name: str):
-        clean_name = command_name.strip().lower()
+    async def global_disable(self, ctx: commands.Context, *, target: str):
+        clean_name = target.strip().lower()
         if clean_name.startswith(ctx.prefix.lower()):
             clean_name = clean_name[len(ctx.prefix):].strip()
 
+        matched_cat = _find_matching_category(self.bot, clean_name, is_owner=True)
         target_cmd = self.bot.get_command(clean_name)
+
+        if matched_cat and (clean_name.startswith("category ") or not target_cmd):
+            cat_name, cmd_names = matched_cat
+            protected = {"enable", "disable", "disabled", "globalenable", "globaldisable", "globaldisabled", "genable", "gdisable", "gdisabled", "help"}
+            valid_cmds = [c.lower() for c in cmd_names if c.lower() not in protected]
+
+            if not valid_cmds:
+                await ctx.send(f"❌ Category **{cat_name}** fiha ghir commands daroriyin li mat9edch tdisablihom.")
+                return
+
+            if hasattr(self.bot, "global_disabled_commands_cache"):
+                to_disable = [c for c in valid_cmds if c not in self.bot.global_disabled_commands_cache]
+            else:
+                async with self.bot.db.execute("SELECT command_name FROM global_disabled_commands") as cursor:
+                    already = {row[0] for row in await cursor.fetchall()}
+                to_disable = [c for c in valid_cmds if c not in already]
+
+            if not to_disable:
+                await ctx.send(f"⚠️ Ga3 commands dial category **{cat_name}** deja mdisablin globally.")
+                return
+
+            await self.bot.db.executemany(
+                "INSERT OR IGNORE INTO global_disabled_commands (command_name) VALUES (?)",
+                [(c,) for c in to_disable]
+            )
+            await self.bot.db.commit()
+
+            if hasattr(self.bot, "global_disabled_commands_cache"):
+                for c in to_disable:
+                    self.bot.global_disabled_commands_cache.add(c)
+
+            embed = discord.Embed(
+                title=f"🌐 🚫 Globally Disabled Category: {cat_name}",
+                description=(
+                    f"Disablit category **{cat_name}** **globally** f ga3 servers!\n"
+                    f"📊 **{len(to_disable)} commands** tdesactivaw:\n"
+                    + " • ".join(f"`{c}`" for c in to_disable[:20])
+                    + (f" w `{len(to_disable) - 20}` khorin..." if len(to_disable) > 20 else "")
+                ),
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
         if not target_cmd:
-            await ctx.send(f"❌ Mal9itch chi command smitha `{command_name}`.")
+            await ctx.send(f"❌ Mal9itch chi command wla category smitha `{target}`.")
             return
 
         canonical_name = target_cmd.qualified_name.lower()
@@ -1902,14 +2077,55 @@ class Bot(commands.Cog, name="Bot"):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="globalenable", aliases=["genable"], help="Activi command li kant mdesactivia globally.")
+    @commands.command(name="globalenable", aliases=["genable"], help="Activi command wla category li kant mdesactivia globally.")
     @commands.is_owner()
-    async def global_enable(self, ctx: commands.Context, *, command_name: str):
-        clean_name = command_name.strip().lower()
+    async def global_enable(self, ctx: commands.Context, *, target: str):
+        clean_name = target.strip().lower()
         if clean_name.startswith(ctx.prefix.lower()):
             clean_name = clean_name[len(ctx.prefix):].strip()
 
+        matched_cat = _find_matching_category(self.bot, clean_name, is_owner=True)
         target_cmd = self.bot.get_command(clean_name)
+
+        if matched_cat and (clean_name.startswith("category ") or not target_cmd):
+            cat_name, cmd_names = matched_cat
+            all_cmds = [c.lower() for c in cmd_names]
+
+            if hasattr(self.bot, "global_disabled_commands_cache"):
+                to_enable = [c for c in all_cmds if c in self.bot.global_disabled_commands_cache]
+            else:
+                async with self.bot.db.execute("SELECT command_name FROM global_disabled_commands") as cursor:
+                    already = {row[0] for row in await cursor.fetchall()}
+                to_enable = [c for c in all_cmds if c in already]
+
+            if not to_enable:
+                await ctx.send(f"⚠️ 7ta command mn category **{cat_name}** mamdisabliach globally.")
+                return
+
+            placeholders = ",".join(["?"] * len(to_enable))
+            await self.bot.db.execute(
+                f"DELETE FROM global_disabled_commands WHERE command_name IN ({placeholders})",
+                tuple(to_enable)
+            )
+            await self.bot.db.commit()
+
+            if hasattr(self.bot, "global_disabled_commands_cache"):
+                for c in to_enable:
+                    self.bot.global_disabled_commands_cache.discard(c)
+
+            embed = discord.Embed(
+                title=f"🌐 🟢 Globally Enabled Category: {cat_name}",
+                description=(
+                    f"Enablit category **{cat_name}** **globally**!\n"
+                    f"📊 **{len(to_enable)} commands** t activaw:\n"
+                    + " • ".join(f"`{c}`" for c in to_enable[:20])
+                    + (f" w `{len(to_enable) - 20}` khorin..." if len(to_enable) > 20 else "")
+                ),
+                color=0x000000
+            )
+            await ctx.send(embed=embed)
+            return
+
         canonical_name = target_cmd.qualified_name.lower() if target_cmd else clean_name
 
         async with self.bot.db.execute(

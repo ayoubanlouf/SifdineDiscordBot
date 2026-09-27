@@ -669,7 +669,7 @@ class Minigames(commands.Cog, name="Minigames"):
         view.message = msg
 
 
-    @commands.command(name="buckshot", aliases=["bsr", "buckshotroulette", "shotgun"], help="Buckshot Roulette (sat buckshot [bet] wla sat buckshot @user [bet]).")
+    @commands.command(name="buckshot", aliases=["bsr", "buckshotroulette", "shotgun"], help="Buckshot Roulette (sat buckshot wla sat buckshot @user [bet]).")
     @not_fraud()
     async def buckshot_cmd(self, ctx: commands.Context, member: Optional[FuzzyMember] = None, *args):
         if not await self.ensure_user_free(ctx, member):
@@ -686,7 +686,7 @@ class Minigames(commands.Cog, name="Minigames"):
             first_val, _ = parse_bet_argument(cmd_words[0] if cmd_words else None, user_balance=w_author.get("balance", 0))
             if first_val is not None:
                 member = None
-                bet = first_val
+                bet = 0
             else:
                 bet = parsed_bet
         else:
@@ -694,36 +694,22 @@ class Minigames(commands.Cog, name="Minigames"):
 
         bet = bet or 0
 
-        # Solo against Dealer AI
+        # Solo against Dealer AI (Free to play, zero wager accepted)
         if member is None:
-            if bet > 0 and economy_cog:
-                if w_author["balance"] < bet:
-                    await ctx.send(f"❌ Flousk makafyinch! Balance: {format_tad(w_author['balance'])}.")
-                    return
-                await economy_cog.deduct_balance(ctx.author.id, bet, context="Buckshot Roulette Bet")
-
             game_view = BuckshotGameView(
                 player_1=ctx.author,
                 player_2=ctx.bot.user,
                 is_bot_game=True,
-                bet=bet,
+                bet=0,
                 cog=self
             )
             set_user_in_game(self.bot, ctx.author.id, "Buckshot Roulette", game_view)
-            game_view.refresh_components()
-            game_view.reset_turn_timer()
-
-            msg = await ctx.send(
-                content=game_view.get_turn_content(),
-                embed=game_view.build_embed(),
-                view=game_view
-            )
-            game_view.message = msg
+            await game_view.start(ctx)
             return
 
         # PvP Against another user
         if member.bot:
-            await ctx.send("❌ Mat9edch tchallengi bot (Ila bghiti tl3eb m3a l-Dealer, dir ghir `sat buckshot [bet]`).")
+            await ctx.send("❌ Mat9edch tchallengi bot (Ila bghiti tl3eb m3a Dealer, dir ghir `sat buckshot`).")
             return
 
         if member == ctx.author:
@@ -751,9 +737,9 @@ class Minigames(commands.Cog, name="Minigames"):
 
         content = (
             f"⚔️ **Buckshot Roulette Challenge!**\n"
-            f"**{ctx.author.display_name}** challenga {member.mention} l-duel d Buckshot Roulette!"
+            f"**{ctx.author.display_name}** challenga {member.mention} l duel t Buckshot Roulette!"
             f"{wager_str}\n\n"
-            f"{member.mention}, t-accepti?"
+            f"{member.mention}, t accepti?"
         )
         msg = await ctx.send(content=content, view=challenge_view)
         challenge_view.message = msg
@@ -769,7 +755,7 @@ class Minigames(commands.Cog, name="Minigames"):
     async def quit_game_cmd(self, ctx: commands.Context):
         busy = is_user_in_game(self.bot, ctx.author.id)
         if not busy:
-            await ctx.send("❌ Ma 3ndek 7ta chi game khddama daba bach t-quittiha.")
+            await ctx.send("❌ Ma 3ndek 7ta chi game khddama daba bach tquittiha.")
             return
 
         session = get_user_game_session(self.bot, ctx.author.id)
@@ -788,7 +774,7 @@ class Minigames(commands.Cog, name="Minigames"):
         if quit_msg:
             await ctx.send(quit_msg)
         else:
-            await ctx.send(f"🚪 **{ctx.author.mention}**, kherjti mn lgame dial **{busy}** o t-cleara l-session dialk!")
+            await ctx.send(f"🚪 **{ctx.author.mention}**, kherjti mn lgame dial **{busy}** o tclearat session dialk!")
 
 
 

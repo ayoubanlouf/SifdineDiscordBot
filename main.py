@@ -393,6 +393,7 @@ bot = commands.Bot(
     max_messages=15
 )
 bot.Paginator = Paginator
+bot.get_bot_categories = get_bot_categories
 bot.active_game_users = {}
 
 
@@ -550,6 +551,12 @@ async def setup_hook():
             last_daily INTEGER DEFAULT 0,
             daily_streak INTEGER DEFAULT 0,
             last_weekly INTEGER DEFAULT 0
+        )
+    """)
+    await bot.db.execute("""
+        CREATE TABLE IF NOT EXISTS bot_bounty_cooldowns (
+            user_id INTEGER PRIMARY KEY,
+            last_claimed INTEGER DEFAULT 0
         )
     """)
     await bot.db.execute("""

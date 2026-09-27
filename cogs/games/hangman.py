@@ -1,12 +1,13 @@
 from __future__ import annotations
 import random
 import asyncio
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import discord
 from discord.ui import Button, View, Modal, TextInput
 
 from cogs.economy import format_tad, TAD_EMOJI, calculate_pvp_payout
+from cogs.games.common import DIFFICULTY_STAKES
 from cogs.games.helpers import (
     get_hangman_secret,
     record_minigame_win, record_minigame_loss,
@@ -98,7 +99,7 @@ class HangmanSoloModal(Modal, title="Hangman — Guess"):
 
 
 class HangmanSoloView(View):
-    def __init__(self, player: discord.Member, secret: str, cog: "Minigames", difficulty: str = "easy"):
+    def __init__(self, player: discord.Member, secret: str, cog: Any, difficulty: str = "easy"):
         super().__init__(timeout=300)
         self.player = player
         self.secret = secret.lower()
@@ -299,7 +300,7 @@ class HangmanDMView(View):
 
 
 class HangmanMultiplayerMatch:
-    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: "Minigames", bet: int = 0):
+    def __init__(self, p1: discord.Member, p2: discord.Member, channel_msg: discord.Message, secret: str, cog: Any, bet: int = 0):
         self.p1 = p1
         self.p2 = p2
         self.channel_msg = channel_msg
@@ -622,11 +623,11 @@ class HangmanMultiplayerMatch:
         except Exception:
             pass
 
-        return f"🚪 Kherjti mn match dial **Hangman** o t-3tbat forfeit!"
+        return f"🚪 Kherjti mn match dial **Hangman** o t7esbat forfeit!"
 
 
 class HangmanChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0, difficulty: str = "easy"):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: Any, bet: int = 0, difficulty: str = "easy"):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged

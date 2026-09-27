@@ -3,7 +3,7 @@ import os
 import json
 import random
 import asyncio
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import chess
 import discord
@@ -15,7 +15,7 @@ from cogs.games.chess import render_chess_board
 
 # ============ CHESS PUZZLE (ONE-MOVE TACTICS) CLASSES ============
 
-_CHESS_PUZZLES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "chess_puzzles.json"))
+_CHESS_PUZZLES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "chess_puzzles.json"))
 _chess_puzzles_dataset = None
 
 def _load_chess_puzzles():
@@ -50,7 +50,7 @@ class ChessPuzzleModal(Modal, title="7ell Chess Puzzle"):
 
 
 class ChessPuzzleView(View):
-    def __init__(self, author: Union[discord.Member, discord.User], cog: "Minigames", puzzle: Optional[dict] = None):
+    def __init__(self, author: Union[discord.Member, discord.User], cog: Any, puzzle: Optional[dict] = None):
         super().__init__(timeout=120)
         self.author = author
         self.cog = cog

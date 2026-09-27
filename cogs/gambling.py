@@ -1,48 +1,31 @@
 import asyncio
 import random
-import io
 import os
-import aiohttp
 import time
-import json
-import math
 import uuid
-import urllib.parse
-from typing import Optional, Union
+from typing import Optional
 
 import discord
 from discord.ext import commands, tasks
-from discord.ui import Button, View
-from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
 from converters import FuzzyMember
 from cogs.economy import (
-    parse_bet_argument, format_tad, TAD_EMOJI, calculate_pvp_payout,
-    not_fraud, TAX_RATE, get_current_week_start_ts, get_next_week_start_ts
+    parse_bet_argument, format_tad, TAD_EMOJI,
+    not_fraud, get_current_week_start_ts, get_next_week_start_ts
 )
 from cogs.games.helpers import (
     record_minigame_win, record_minigame_loss,
     is_user_in_game, set_user_in_game, clear_user_game
 )
 
-
-from cogs.casino.blackjack import (
-    SUITS, RANKS, RANK_NAME_MAP, SUIT_NAME_MAP, RANK_VALUES,
-    create_bj_deck, calculate_bj_score, format_bj_card, render_bj_table,
-    BlackjackView
-)
-from cogs.casino.mines import MinesGambleButton, MinesGambleView
-from cogs.casino.tower import (
-    get_tower_door, render_tower_board, TowerDoorButton, TowerCashoutButton,
-    TowerGameView
-)
-from cogs.casino.higherlower import draw_hl_card, get_hl_card_file, HigherLowerView
+from cogs.casino.blackjack import calculate_bj_score, BlackjackView
+from cogs.casino.mines import MinesGambleView
+from cogs.casino.tower import render_tower_board, TowerGameView
+from cogs.casino.higherlower import get_hl_card_file, HigherLowerView
 from cogs.casino.coinflip import CoinflipView
-from cogs.casino.dice import render_dice_composite, DiceRollView
+from cogs.casino.dice import DiceRollView
 from cogs.casino.slots import spin_slots, build_slots_embed
-from cogs.casino.roulette import (
-    parse_roulette_choice, spin_roulette, ROULETTE_RED_NUMS, ROULETTE_BLACK_NUMS
-)
+from cogs.casino.roulette import parse_roulette_choice, spin_roulette
 
 
 
@@ -971,34 +954,6 @@ class Gambling(commands.Cog, name="Gambling"):
             )
             await ctx.send(embed=embed)
             return
-
-        def parse_roulette_choice(val: str) -> Optional[tuple[str, str, str]]:
-            """Returns (choice_type, choice_val, display_label) or None."""
-            if not val:
-                return None
-            s = str(val).strip().lower()
-            if s.isdigit():
-                num = int(s)
-                if 0 <= num <= 36:
-                    return ("number", str(num), f"Ra9m {num}")
-                return None
-            if s in ("zero",):
-                return ("number", "0", "Ra9m 0")
-            if s in ("red", "r", "7mer", "7mr"):
-                return ("red", "red", "Red 🔴")
-            if s in ("black", "b", "k7el", "k7l", "k7al"):
-                return ("black", "black", "Black ⚫")
-            if s in ("green", "g", "khder"):
-                return ("green", "green", "Green 🟢")
-            if s in ("even", "zawji"):
-                return ("even", "even", "Even (Zawji)")
-            if s in ("odd", "fardi"):
-                return ("odd", "odd", "Odd (Fardi)")
-            if s in ("1-18", "low", "fo9"):
-                return ("low", "1-18", "1-18 (Low)")
-            if s in ("19-36", "high", "ta7t", "t7t"):
-                return ("high", "19-36", "19-36 (High)")
-            return None
 
         economy_cog = self.bot.get_cog("Economy")
         w = await economy_cog.get_wallet(ctx.author.id) if economy_cog else {"balance": 0}

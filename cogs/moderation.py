@@ -222,7 +222,7 @@ class Moderation(commands.Cog, name="Moderation"):
             return False, "Mat9edch dir hadchi l rasek ._."
 
         if target.id == ctx.guild.owner_id:
-            return False, "Mat9edch t-moderi owner dial server ._."
+            return False, "Mat9edch tmoderati owner dial server ._."
 
         if ctx.author.id == ctx.guild.owner_id:
             return True, ""
@@ -241,7 +241,7 @@ class Moderation(commands.Cog, name="Moderation"):
 
         if target_mod_role:
             if not author_mod_role or target_mod_role.position >= author_mod_role.position:
-                return False, f"Mat9edch t-moderi {member.mention} 7it moderation role dialo (`{target_mod_role.name}`) fo9 mn dialk wla 9do."
+                return False, f"Mat9edch tmoderati {member.mention} 7it moderation role dialo (`{target_mod_role.name}`) fo9 mn dialk wla 9do."
 
         return True, ""
 
@@ -250,7 +250,7 @@ class Moderation(commands.Cog, name="Moderation"):
             return False, "Had lcommand khdama gher fservers."
 
         if role >= ctx.guild.me.top_role:
-            return False, f"Ma9derch n-modifi {role.mention} 7it fo9 mn role dial bot wla 9do."
+            return False, f"Ma9dertch nmodifyi {role.mention} 7it fo9 mn role dial bot wla 9do."
 
         if ctx.author.id == ctx.guild.owner_id:
             return True, ""
@@ -1121,7 +1121,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await ctx.guild.unban(banned_user)
             await ctx.send(f"✅ **{banned_user}** (ID: `{banned_user.id}`) t unbanna mn server.")
         except discord.NotFound:
-            await ctx.send(f"⚠️ **{banned_user}** aslan mam-banniych mn had server.")
+            await ctx.send(f"⚠️ **{banned_user}** aslan mambannich mn had server.")
         except Exception as e:
             await ctx.send(embed=discord.Embed(description=f"Ma9dertch n7yed lban: `{e}`", color=0x000000))
 

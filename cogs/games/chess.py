@@ -4,7 +4,7 @@ import os
 import time
 import random
 import asyncio
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import chess
 import discord
@@ -119,7 +119,7 @@ class MoveModal(Modal, title="La3eb Chess"):
         await self.game_view.process_move_input(interaction, self.move_input.value.strip())
 
 class ChessView(View):
-    def __init__(self, player_white: Union[discord.Member, discord.User], player_black: Union[discord.Member, discord.User], is_bot_game: bool = False, cog: Optional["Minigames"] = None, bet: int = 0):
+    def __init__(self, player_white: Union[discord.Member, discord.User], player_black: Union[discord.Member, discord.User], is_bot_game: bool = False, cog: Optional[Any] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_white = player_white
         self.player_black = player_black
@@ -149,13 +149,19 @@ class ChessView(View):
             return ""
 
         if self.is_bot_game and winner == self.player_white:
-            net, tax = await economy_cog.apply_tax_and_add_balance(self.player_white.id, 5000, context="Chess Bot Win")
+            claimed, net, tax, msg = await economy_cog.claim_daily_bot_bounty(
+                self.player_white.id, 50000, context="Chess Bot Checkmate Bounty"
+            )
             if self.cog and self.message and self.message.guild:
-                await self.cog.record_minigame_win(self.message.guild.id, self.player_white.id, "chess", earnings=net)
-            return f"\n\n💰 **{winner.mention}** rbe7 **+{net}** {TAD_EMOJI} TAD (`{tax}` TAD tax)!"
+                await self.cog.record_minigame_win(self.message.guild.id, self.player_white.id, "chess", earnings=net if claimed else 0)
+            if claimed:
+                return f"\n\n👑 **GRANDMASTER CHECKMATE!**\n{msg}"
+            return f"\n\n👑 **GRANDMASTER CHECKMATE!**\n🏆 **{winner.mention}** beat the Chess AI!\n{msg}"
         elif self.is_bot_game and is_draw:
-            net, tax = await economy_cog.apply_tax_and_add_balance(self.player_white.id, 2000, context="Chess Bot Draw")
-            return f"\n\n🤝 **Ta3adol m3a bot AI!**\n💰 Rbe7ti **+{net}** {TAD_EMOJI} TAD (Gross: 2,000 TAD • `{tax}` TAD tax)!"
+            claimed, net, tax, msg = await economy_cog.claim_daily_bot_bounty(
+                self.player_white.id, 10000, context="Chess Bot Draw Bounty"
+            )
+            return f"\n\n🤝 **Grandmaster Stalemate!**\n{msg}"
 
         if self.bet <= 0:
             return ""
@@ -243,7 +249,7 @@ class ChessView(View):
         elif self.is_bot_game and loser == self.player_white and self.cog and self.message and self.message.guild:
             await self.cog.record_minigame_loss(self.message.guild.id, loser.id, "chess", loss_amount=0)
         embed = self.build_embed()
-        embed.description = f"🚪 **{user.mention} kherj mn lmatch o t-3tbat forfeit!** 🏆 **{winner.mention}** rbe7!{eco_str}"
+        embed.description = f"🚪 **{user.mention} kherj mn lmatch o t7esbat forfeit!** 🏆 **{winner.mention}** rbe7!{eco_str}"
         if self.message:
             try:
                 await self.message.edit(embed=embed, view=None)
@@ -253,7 +259,7 @@ class ChessView(View):
             clear_user_game(self.cog.bot, self.player_white.id)
             if not self.is_bot_game and self.player_black:
                 clear_user_game(self.cog.bot, self.player_black.id)
-        return f"🚪 Kherjti mn match dial **Chess** o t-3tbat forfeit!"
+        return f"🚪 Kherjti mn match dial **Chess** o t7esbat forfeit!"
 
     # ---------- Strong Bot Engine (Minimax + Alpha-Beta + Evaluation) ----------
     def _evaluate_board(self, board: chess.Board) -> int:
@@ -638,7 +644,7 @@ class ChessView(View):
         super().stop()
 
 class ChessChallengeView(View):
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: Any, bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged

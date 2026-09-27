@@ -7,6 +7,7 @@ import difflib
 import asyncio
 import time
 import random
+import urllib.parse
 from typing import Optional
 
 import aiohttp
@@ -25,7 +26,7 @@ from cogs.games.common import (
 
 # ============ CAR MODEL GUESSING HELPERS ============
 
-_CARS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "cars.json"))
+_CARS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "cars.json"))
 _cars_dataset = None
 
 def _load_cars_dataset():

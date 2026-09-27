@@ -1,7 +1,8 @@
 from __future__ import annotations
 import time
 import random
-from typing import Optional, Union
+import asyncio
+from typing import Optional, Union, Any
 
 import discord
 from discord.ui import Button, View
@@ -28,7 +29,7 @@ class ConnectFourButton(Button):
 
 class ConnectFourView(View):
     """The main Connect Four game view."""
-    def __init__(self, player_red: Union[discord.Member, discord.User], player_yellow: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional["Minigames"] = None, bet: int = 0):
+    def __init__(self, player_red: Union[discord.Member, discord.User], player_yellow: Union[discord.Member, discord.User], is_bot_game: bool = False, turn_timeout: int = 60, cog: Optional[Any] = None, bet: int = 0):
         super().__init__(timeout=120)
         self.player_red = player_red
         self.player_yellow = player_yellow
@@ -38,6 +39,7 @@ class ConnectFourView(View):
         self.current_turn = player_red  # Red (🔴) goes first
         self.turn_timeout = turn_timeout
         self.turn_start = time.time()
+        self.bounty_msg = ""
         self.board = [["⚪" for _ in range(7)] for _ in range(6)]
         self.game_over = False
         self.message: Optional[discord.Message] = None
@@ -67,14 +69,16 @@ class ConnectFourView(View):
                     _, burned, d_split = calculate_pvp_payout(self.bet)
                     return f"{board_text}\n\n🤝 **Ta3adol!**\n💰 Kola wa7d rj3at lih {format_tad(d_split)} (`{burned:,}` {TAD_EMOJI} tax)."
                 elif self.is_bot_game:
-                    return f"{board_text}\n\n🤝 **Ta3adol!**\n🤖 Ta3adol m3a bot AI! Rbe7ti **1,000** {TAD_EMOJI} TAD!"
+                    b_str = f"\n{self.bounty_msg}" if self.bounty_msg else ""
+                    return f"{board_text}\n\n🤝 **Ta3adol!**\n🤖 Ta3adol m3a Connect 4 AI!{b_str}"
                 return f"{board_text}\n\n🤝 **Ta3adol!**"
             elif winner == "🔴":
                 if self.bet > 0:
                     w_payout, burned, _ = calculate_pvp_payout(self.bet)
                     return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n💰 Rbe7ti {format_tad(w_payout)} (`{burned:,}` {TAD_EMOJI} tax)!"
                 elif self.is_bot_game:
-                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n🤖 Ghelbti bot AI o rbe7ti **5,000** {TAD_EMOJI} TAD!"
+                    b_str = f"\n{self.bounty_msg}" if self.bounty_msg else ""
+                    return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**\n🤖 Ghelbti Connect 4 AI!{b_str}"
                 return f"{board_text}\n\n🏆 **{self.player_red.mention} (🔴) rbe7!**"
             elif winner == "🟡":
                 if self.is_bot_game:
@@ -318,7 +322,7 @@ class ConnectFourView(View):
             if self.cog and self.message and self.message.guild:
                 await self.cog.record_minigame_loss(self.message.guild.id, user.id, "connectfour", loss_amount=0)
         else:
-            content = f"{self.render_board()}\n\n🚪 **{user.mention} kherj mn lmatch o t-3tbat forfeit!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
+            content = f"{self.render_board()}\n\n🚪 **{user.mention} kherj mn lmatch o t7esbat forfeit!** 🏆 **{winner.mention} ({winner_symbol}) rbe7!**"
             if self.bet > 0 and self.cog:
                 w_payout, burned, _ = calculate_pvp_payout(self.bet)
                 economy_cog = self.cog.bot.get_cog("Economy")
@@ -340,7 +344,7 @@ class ConnectFourView(View):
             except Exception:
                 pass
         self.stop()
-        return f"🚪 Kherjti mn match dial **Connect 4** o t-3tbat forfeit!"
+        return f"🚪 Kherjti mn match dial **Connect 4** o t7esbat forfeit!"
 
     async def button_callback(self, interaction: discord.Interaction):
         custom_id = interaction.data.get("custom_id", "")
@@ -379,7 +383,10 @@ class ConnectFourView(View):
                 await economy_cog.add_balance(self.player_red.id, d_split, context="ConnectFour Draw Split")
                 await economy_cog.add_balance(self.player_yellow.id, d_split, context="ConnectFour Draw Split")
             elif winner == "draw" and self.is_bot_game and economy_cog:
-                await economy_cog.apply_tax_and_add_balance(self.player_red.id, 1000, context="ConnectFour Bot Draw")
+                claimed, net, tax, msg = await economy_cog.claim_daily_bot_bounty(
+                    self.player_red.id, 10000, context="ConnectFour Bot Draw"
+                )
+                self.bounty_msg = msg
             elif winner in ("🔴", "🟡"):
                 winning_user = self.player_red if winner == "🔴" else self.player_yellow
                 losing_user = self.player_yellow if winner == "🔴" else self.player_red
@@ -392,9 +399,12 @@ class ConnectFourView(View):
                         await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour", earnings=w_payout - self.bet)
                         await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "connectfour", loss_amount=self.bet)
                 elif self.is_bot_game and winner == "🔴" and economy_cog:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(self.player_red.id, 5000, context="ConnectFour Bot Win")
+                    claimed, net, tax, msg = await economy_cog.claim_daily_bot_bounty(
+                        self.player_red.id, 15000, context="ConnectFour Bot Win"
+                    )
+                    self.bounty_msg = msg
                     if self.cog and interaction.guild:
-                        await self.cog.record_minigame_win(interaction.guild.id, self.player_red.id, "connectfour", earnings=net)
+                        await self.cog.record_minigame_win(interaction.guild.id, self.player_red.id, "connectfour", earnings=net if claimed else 0)
                 elif not self.is_bot_game and self.cog and interaction.guild:
                     await self.cog.record_minigame_win(interaction.guild.id, winning_user.id, "connectfour")
                     await self.cog.record_minigame_loss(interaction.guild.id, losing_user.id, "connectfour", loss_amount=0)
@@ -416,7 +426,10 @@ class ConnectFourView(View):
                 if winner == "draw":
                     economy_cog = self.cog.bot.get_cog("Economy") if self.cog else None
                     if economy_cog:
-                        await economy_cog.apply_tax_and_add_balance(self.player_red.id, 1000, context="ConnectFour Bot Draw")
+                        claimed, net, tax, msg = await economy_cog.claim_daily_bot_bounty(
+                            self.player_red.id, 10000, context="ConnectFour Bot Draw"
+                        )
+                        self.bounty_msg = msg
                 elif winner == "🟡" and self.cog and interaction.guild:
                     await self.cog.record_minigame_loss(interaction.guild.id, self.player_red.id, "connectfour", loss_amount=0)
                 self.stop()
@@ -435,7 +448,7 @@ class ConnectFourView(View):
 
 class ConnectFourChallengeView(View):
     """View for the Connect Four multiplayer challenge acceptance phase."""
-    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: "Minigames", bet: int = 0):
+    def __init__(self, challenger: discord.Member, challenged: discord.Member, cog: Any, bet: int = 0):
         super().__init__(timeout=60)
         self.challenger = challenger
         self.challenged = challenged
