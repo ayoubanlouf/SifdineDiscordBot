@@ -10,10 +10,10 @@ import discord
 from discord.ui import View, Button, Select, Modal, TextInput
 from PIL import Image, ImageDraw, ImageFont
 
-from cogs.economy import format_tad, TAD_EMOJI, calculate_pvp_payout, parse_bet_argument
+from cogs.economy import format_tad, TAD_EMOJI
 from cogs.games.helpers import (
     is_user_in_game, set_user_in_game, clear_user_game,
-    attach_game_session, MultiplayerGameSession
+    attach_game_session
 )
 
 # ==============================================================================
@@ -394,13 +394,12 @@ class ImpostorClutchGuessView(View):
 # ==============================================================================
 class ImpostorGameSession:
     """Manages the full lifecycle of an active Impostor match."""
-    def __init__(self, host: discord.Member, players: List[discord.Member], channel: discord.TextChannel, cog, bet: int = 0):
+    def __init__(self, host: discord.Member, players: List[discord.Member], channel: discord.TextChannel, cog):
         self.host = host
         self.active_players = list(players)
         self.original_players = list(players)
         self.channel = channel
         self.cog = cog
-        self.bet = bet
         self.game_name = "Impostor"
 
         # Secret setup
@@ -427,15 +426,6 @@ class ImpostorGameSession:
         self.phase_timeout_task: Optional[asyncio.Task] = None
 
     async def start(self):
-        if self.bet > 0:
-            economy_cog = self.cog.bot.get_cog("Economy")
-            if economy_cog:
-                for p in self.active_players:
-                    try:
-                        await economy_cog.deduct_balance(p.id, self.bet, context=f"Impostor Wager Stake ({self.bet} TAD)")
-                    except Exception:
-                        pass
-
         for p in self.active_players:
             attach_game_session(self.cog.bot, p.id, self)
             try:
@@ -460,7 +450,7 @@ class ImpostorGameSession:
         start_embed = discord.Embed(
             title="🕵️ IMPOSTOR — GAME STARTED!",
             description=(
-                f"One player among you is the **Impostor** who has no clue what the word is!\n\n"
+                "One player among you is the **Impostor** who has no clue what the word is!\n\n"
                 f"🤫 Secret roles have been sent via **Private DMs** (or click the button below).\n\n"
                 f"Each player will submit **one clue sentence** on their turn.\n\n"
                 f"▶️ Starting now..."
@@ -935,46 +925,30 @@ class ImpostorGameSession:
         is_dev = os.getenv("ENVIRONMENT", "").lower() == "dev"
         eco_msg = ""
 
-        innocents = [p for p in self.active_players if p.id != self.impostor.id]
+        normal_players = [p for p in self.original_players if p.id != self.impostor.id]
+        num_normals = len(normal_players)
 
         if winner_side == "impostor":
             title = "🎭 THE IMPOSTOR WINS!"
-            winners = [self.impostor]
-            losers = innocents
-            if self.bet > 0 and economy_cog:
-                total_pot = self.bet * len(self.original_players)
-                w_payout, burned, _ = calculate_pvp_payout(self.bet * (len(self.original_players) // 2))
-                if not is_dev:
-                    if burned > 0:
-                        await economy_cog.deposit_vault("bank", burned, source="pvp_wager", context="Impostor Win Tax")
-                    await economy_cog.add_balance(self.impostor.id, total_pot - burned, context="Impostor Solo Win")
-                eco_msg = f"\n\n💰 {self.impostor.mention} won the pot: **+{format_tad(total_pot - burned)}**!"
-            elif economy_cog and not is_dev:
-                net, tax = await economy_cog.apply_tax_and_add_balance(self.impostor.id, 200, context="Impostor Win")
-                eco_msg = f"\n\n💰 {self.impostor.mention} won: **+{net}** {TAD_EMOJI} TAD!"
+            if economy_cog and not is_dev:
+                reward_amount = 100 * num_normals
+                net, tax = await economy_cog.apply_tax_and_add_balance(self.impostor.id, reward_amount, context="Impostor Win")
+                eco_msg = f"\n\n💰 {self.impostor.mention} won: **+{net}** {TAD_EMOJI} TAD! *(100 × {num_normals} normal players)*"
 
             if self.channel.guild:
                 await self.cog.record_minigame_win(self.channel.guild.id, self.impostor.id, "impostor")
-                for innocent in innocents:
+                for innocent in normal_players:
                     await self.cog.record_minigame_loss(self.channel.guild.id, innocent.id, "impostor")
 
         else:
             title = "🎉 THE INNOCENTS WIN!"
-            winners = innocents
-            losers = [self.impostor]
-            if self.bet > 0 and economy_cog:
-                share = int((self.bet * len(self.original_players)) / max(1, len(innocents)))
-                if not is_dev:
-                    for innocent in innocents:
-                        await economy_cog.add_balance(innocent.id, share, context="Impostor Innocents Win")
-                eco_msg = f"\n\n💰 Each innocent won: **+{format_tad(share)}**!"
-            elif economy_cog and not is_dev:
-                for innocent in innocents:
-                    net, tax = await economy_cog.apply_tax_and_add_balance(innocent.id, 150, context="Impostor Win")
-                eco_msg = f"\n\n💰 Each innocent won: **+150** {TAD_EMOJI} TAD!"
+            if economy_cog and not is_dev:
+                for innocent in normal_players:
+                    await economy_cog.apply_tax_and_add_balance(innocent.id, 100, context="Impostor Innocents Win")
+                eco_msg = f"\n\n💰 Each normal player won: **+100** {TAD_EMOJI} TAD!"
 
             if self.channel.guild:
-                for innocent in innocents:
+                for innocent in normal_players:
                     await self.cog.record_minigame_win(self.channel.guild.id, innocent.id, "impostor")
                 await self.cog.record_minigame_loss(self.channel.guild.id, self.impostor.id, "impostor")
 
@@ -998,7 +972,7 @@ class ImpostorGameSession:
             except Exception:
                 await self.channel.send(embed=final_embed)
 
-    async def handle_user_quit(self, user: discord.Member) -> str:
+    async def handle_user_quit(self, user: discord.Member, channel=None) -> str:
         if self.game_over:
             return ""
 
@@ -1010,14 +984,14 @@ class ImpostorGameSession:
                 winner_side="innocents",
                 reason=f"🚪 The Impostor ({user.mention}) left the match! Innocents win by forfeit."
             )
-            return "🚪 You left the **Impostor** match."
+            return f"🚪 **{user.mention}** left the **Impostor** match! Innocents win by forfeit."
 
         if len(self.active_players) < 2:
             await self.finish_game(
                 winner_side="impostor",
                 reason="🚪 Too many players left and the game could not continue! Game ended."
             )
-            return "🚪 You left the **Impostor** match and the match ended."
+            return f"🚪 **{user.mention}** left the **Impostor** match and the match ended."
 
         current_p = self.get_current_turn_player()
         if current_p and current_p.id == user.id:
@@ -1026,15 +1000,16 @@ class ImpostorGameSession:
             self.current_turn_idx += 1
             asyncio.create_task(self.prompt_next_clue_turn())
 
-        try:
-            await self.channel.send(
-                f"🚪 **{user.mention}** left the **Impostor** match! "
-                f"The game will continue with the remaining **{len(self.active_players)}** players."
-            )
-        except Exception:
-            pass
+        if self.channel and (channel is None or getattr(channel, "id", None) != self.channel.id):
+            try:
+                await self.channel.send(
+                    f"🚪 **{user.mention}** left the **Impostor** match! "
+                    f"The game will continue with the remaining **{len(self.active_players)}** players."
+                )
+            except Exception:
+                pass
 
-        return f"🚪 You left the **Impostor** match! **{len(self.active_players)}** players remaining."
+        return f"🚪 **{user.mention}** left the **Impostor** match! **{len(self.active_players)}** players remaining."
 
 
 # ==============================================================================
@@ -1044,20 +1019,9 @@ async def run_impostor_game(cog, ctx, *args):
     if not await cog.ensure_user_free(ctx):
         return
 
-    bet, _ = parse_bet_argument(*args)
-    bet = bet or 0
-
-    economy_cog = cog.bot.get_cog("Economy")
-    if bet > 0 and economy_cog:
-        w = await economy_cog.get_wallet(ctx.author.id)
-        if w["balance"] < bet:
-            await ctx.send(f"❌ Insufficient balance for this wager ({format_tad(w['balance'])} / {format_tad(bet)})!")
-            return
-
     set_user_in_game(cog.bot, ctx.author.id, "Impostor")
 
     join_emoji = "✅"
-    wager_str = f"\nBet: **{format_tad(bet)}**" if bet > 0 else ""
 
     signup_embed = discord.Embed(
         title="🕵️ Impostor!",
@@ -1066,7 +1030,6 @@ async def run_impostor_game(cog, ctx, *args):
             f"Starts: <t:{int(time.time() + 21)}:R>\n"
             f"Min Players: **3**\n"
             f"Max Players: **8**"
-            f"{wager_str}"
         ),
         color=0x000000
     )
@@ -1092,14 +1055,6 @@ async def run_impostor_game(cog, ctx, *args):
     if ctx.author not in players:
         players.insert(0, ctx.author)
 
-    if bet > 0 and economy_cog:
-        valid_players = []
-        for p in players:
-            w = await economy_cog.get_wallet(p.id)
-            if w["balance"] >= bet:
-                valid_players.append(p)
-        players = valid_players
-
     if len(players) > 8:
         players = players[:8]
 
@@ -1117,8 +1072,7 @@ async def run_impostor_game(cog, ctx, *args):
         host=ctx.author,
         players=players,
         channel=ctx.channel,
-        cog=cog,
-        bet=bet
+        cog=cog
     )
     for p in players:
         set_user_in_game(cog.bot, p.id, "Impostor", game_session)

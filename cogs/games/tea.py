@@ -63,7 +63,11 @@ async def run_blacktea_game(cog, ctx, *args):
                 return
 
             active_players = list(players)
-            session = MultiplayerGameSession("BlackTea", active_players, ctx.channel)
+            def _on_blacktea_quit(u):
+                if u.id in lives:
+                    lives[u.id] = 0
+
+            session = MultiplayerGameSession("BlackTea", active_players, ctx.channel, on_quit=_on_blacktea_quit)
             for p in players:
                 set_user_in_game(cog.bot, p.id, "BlackTea", session)
 
@@ -168,6 +172,8 @@ async def run_blacktea_game(cog, ctx, *args):
                         start_turn = time.time()
                         answered = False
                         while time.time() - start_turn < round_duration:
+                            if player not in active_players or session.stopped:
+                                break
                             rem = round_duration - (time.time() - start_turn)
                             if rem <= 0:
                                 break

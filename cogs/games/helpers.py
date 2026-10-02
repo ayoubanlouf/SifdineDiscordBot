@@ -43,7 +43,7 @@ class MultiplayerGameSession:
         self.on_quit = on_quit
         self.stopped = False
 
-    async def handle_user_quit(self, user) -> str:
+    async def handle_user_quit(self, user, channel=None) -> str:
         found = False
         for p in list(self.active_players):
             if getattr(p, "id", None) == user.id:
@@ -64,7 +64,7 @@ class MultiplayerGameSession:
 
         remaining_count = len(self.active_players)
         if remaining_count > 0:
-            if self.channel:
+            if self.channel and (channel is None or getattr(channel, "id", None) != self.channel.id):
                 try:
                     await self.channel.send(
                         f"🚪 **{user.mention}** kherj mn lgame dial **{self.game_name}**! "
@@ -72,15 +72,15 @@ class MultiplayerGameSession:
                     )
                 except Exception:
                     pass
-            return f"🚪 Kherjti mn lgame dial **{self.game_name}**! B9aw **{remaining_count}** la3bin."
+            return f"🚪 **{user.mention}** kherj mn lgame dial **{self.game_name}**! B9aw **{remaining_count}** la3bin."
         else:
             self.stopped = True
-            if self.channel:
+            if self.channel and (channel is None or getattr(channel, "id", None) != self.channel.id):
                 try:
                     await self.channel.send(f"🚪 **{user.mention}** kherj mn lgame. 7ta wa7d mab9a, game salat!")
                 except Exception:
                     pass
-            return f"🚪 Kherjti mn lgame dial **{self.game_name}** o salat lgame 7it mab9a 7ed."
+            return f"🚪 **{user.mention}** kherj mn lgame dial **{self.game_name}** o salat lgame 7it mab9a 7ed."
 
 
 def set_user_in_game(bot, user_id: int, game_name: str, session=None) -> None:

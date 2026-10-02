@@ -107,13 +107,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 _rl_session = None
 
-def _get_rl_session():
+def _get_rl_session(force_refresh: bool = False):
     global _rl_session
-    if _rl_session is None:
+    if _rl_session is None or force_refresh:
         from curl_cffi import requests
         _rl_session = requests.Session(impersonate="chrome")
         _rl_session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
             "Accept-Language": "en-US,en;q=0.9",
             "Referer": "https://rocketleague.tracker.network/",
@@ -132,13 +131,10 @@ def _fetch_rl_sync(platform: str, username: str):
     url = f"https://api.tracker.gg/api/v2/rocket-league/standard/profile/{platform}/{urllib.parse.quote(username)}"
     try:
         resp = session.get(url, timeout=15)
-        # If Cloudflare challenged or session expired, re-warm session and retry once
+        # If Cloudflare challenged or session expired, refresh session and retry once
         if resp.status_code == 403:
-            try:
-                session.get("https://rocketleague.tracker.network/", timeout=10)
-                resp = session.get(url, timeout=15)
-            except Exception:
-                pass
+            session = _get_rl_session(force_refresh=True)
+            resp = session.get(url, timeout=15)
 
         if resp.status_code == 404:
             return 404, None
@@ -148,6 +144,15 @@ def _fetch_rl_sync(platform: str, username: str):
     except Exception:
         return 500, None
 
+
+def _fetch_osu_sync(username: str):
+    from curl_cffi import requests
+    url = f"https://osu.ppy.sh/users/{urllib.parse.quote(username)}"
+    try:
+        resp = requests.get(url, impersonate="chrome", timeout=15)
+        return resp.status_code, resp.text
+    except Exception:
+        return 500, ""
 
 
 def _fetch_wikihow_sync(url: str):
@@ -879,7 +884,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
         url = f"http://api.urbandictionary.com/v0/define?term={search_query}"
 
         wait_embed = discord.Embed(
-            description=f"Sbr 3lia...",
+            description="Sbr 3lia...",
             color=0x000000
         )
         status_msg = await ctx.send(embed=wait_embed)
@@ -1304,32 +1309,6 @@ class GlobUtil(commands.Cog, name="Global Util"):
             quote_data = await resp.json()
         quote = quote_data["quote"]
         await ctx.send(f'"{quote}" -Kanye West')
-
-    @commands.command(help="N3tik informations 3la ay anime.")
-    async def anime(self, ctx, *, anime: str):
-        anime = anime.lower().replace(" ", "%20")
-        async with self.bot.session.get(f"https://kitsu.io/api/edge/anime?filter[text]={anime}") as resp:
-            anime_data = await resp.json()
-        r = anime_data['data'][0]
-        type = r['type']
-        description = r['attributes']['description']
-        titleen = r['attributes']['titles']['en']
-        titleja = r['attributes']['titles']['en_jp']
-        status = r['attributes']['status']
-        start = r['attributes']['startDate']
-        end = r['attributes']['endDate']
-        poster = r['attributes']['posterImage']['large']
-        episodes = r['attributes']['episodeCount']
-        e = discord.Embed(title=titleen, color=0x000000, timestamp=ctx.message.created_at)
-        e.add_field(name="Japanese Title", value=titleja)
-        e.add_field(name="Type", value=type)
-        e.add_field(name="Status", value=status)
-        e.add_field(name="Start Date", value=start)
-        e.add_field(name="End Date", value=end)
-        e.add_field(value=episodes, name="Episodes")
-        e.add_field(name="Description", value=description)
-        e.set_image(url=poster)
-        await ctx.send(embed=e)
 
     @commands.command(name="github", aliases=["gh"], help="Njbed lik details ta3 user f github.")
     async def github(self, ctx, username: str):
@@ -2620,19 +2599,13 @@ class GlobUtil(commands.Cog, name="Global Util"):
     async def osu(self, ctx, username: str):
         wait = await ctx.send(embed=discord.Embed(description="Sber 3lia...", color=0x000000))
         
-        url = f"https://osu.ppy.sh/users/{urllib.parse.quote(username)}"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-        }
         try:
-            async with ReusableSession(self.bot.session) as session:
-                async with session.get(url, headers=headers) as resp:
-                    if resp.status == 404:
-                        await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f osu!: `{username}`", color=0x000000))
-                        return
-                    if resp.status != 200:
-                        raise Exception(f"osu! website returned status {resp.status}")
-                    html_data = await resp.text()
+            status, html_data = await asyncio.to_thread(_fetch_osu_sync, username)
+            if status == 404:
+                await wait.edit(embed=discord.Embed(description=f"Mal9itch had l user f osu!: `{username}`", color=0x000000))
+                return
+            if status != 200 or not html_data:
+                raise Exception(f"osu! website returned status {status}")
 
             match = re.search(r'data-initial(?:-data|\s+data)=["\']([^"\']+)["\']', html_data)
             if not match:

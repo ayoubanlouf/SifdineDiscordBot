@@ -745,7 +745,7 @@ class Minigames(commands.Cog, name="Minigames"):
         challenge_view.message = msg
 
 
-    @commands.command(name="impostor", aliases=["imposter", "amongus"], help="Minigame dial l'Impostor (minimum 3 players) (sat impostor [bet:500]).")
+    @commands.command(name="impostor", aliases=["imposter", "amongus"], help="Minigame dial l'Impostor (minimum 3 players).")
     @not_fraud()
     async def impostor_cmd(self, ctx: commands.Context, *args):
         await run_impostor_game(self, ctx, *args)
@@ -763,7 +763,10 @@ class Minigames(commands.Cog, name="Minigames"):
 
         if session and hasattr(session, "handle_user_quit"):
             try:
-                quit_msg = await session.handle_user_quit(ctx.author)
+                try:
+                    quit_msg = await session.handle_user_quit(ctx.author, channel=ctx.channel)
+                except TypeError:
+                    quit_msg = await session.handle_user_quit(ctx.author)
             except Exception as e:
                 print(f"[quit_game_cmd error]: {e}")
 
