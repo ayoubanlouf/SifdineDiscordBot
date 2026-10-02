@@ -105,44 +105,28 @@ import gc
 from PIL import Image, ImageDraw, ImageFont
 
 
-_rl_session = None
-
-def _get_rl_session(force_refresh: bool = False):
-    global _rl_session
-    if _rl_session is None or force_refresh:
-        from curl_cffi import requests
-        _rl_session = requests.Session(impersonate="chrome")
-        _rl_session.headers.update({
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Referer": "https://rocketleague.tracker.network/",
-            "Origin": "https://rocketleague.tracker.network",
-        })
-        try:
-            _rl_session.get("https://rocketleague.tracker.network/", timeout=10)
-        except Exception:
-            pass
-    return _rl_session
-
-
 def _fetch_rl_sync(platform: str, username: str):
-    global _rl_session
-    session = _get_rl_session()
+    from curl_cffi import requests
     url = f"https://api.tracker.gg/api/v2/rocket-league/standard/profile/{platform}/{urllib.parse.quote(username)}"
-    try:
-        resp = session.get(url, timeout=15)
-        # If Cloudflare challenged or session expired, refresh session and retry once
-        if resp.status_code == 403:
-            session = _get_rl_session(force_refresh=True)
-            resp = session.get(url, timeout=15)
-
-        if resp.status_code == 404:
-            return 404, None
-        if resp.status_code != 200:
-            return resp.status_code, None
-        return 200, resp.json()
-    except Exception:
-        return 500, None
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://rocketleague.tracker.network",
+        "Referer": "https://rocketleague.tracker.network/",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+    }
+    for target in ("chrome", "chrome124", "safari17_0"):
+        try:
+            resp = requests.get(url, headers=headers, impersonate=target, timeout=12)
+            if resp.status_code == 404:
+                return 404, None
+            if resp.status_code == 200:
+                return 200, resp.json()
+        except Exception:
+            continue
+    return 403, None
 
 
 def _fetch_osu_sync(username: str):
