@@ -105,28 +105,52 @@ import gc
 from PIL import Image, ImageDraw, ImageFont
 
 
+_rl_session = None
+_rl_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+
+def _get_rl_session(reset: bool = False):
+    global _rl_session
+    if _rl_session is None or reset:
+        from curl_cffi import requests
+        _rl_session = requests.Session(impersonate="chrome")
+        _rl_session.headers.update({
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Origin": "https://rocketleague.tracker.network",
+            "Referer": "https://rocketleague.tracker.network/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "cross-site",
+        })
+    return _rl_session
+
+
 def _fetch_rl_sync(platform: str, username: str):
-    from curl_cffi import requests
+    cache_key = (platform.lower(), username.lower())
+    now = time.time()
+    if cache_key in _rl_cache:
+        cached_time, cached_data = _rl_cache[cache_key]
+        if now - cached_time < 60:
+            return 200, cached_data
+
+    session = _get_rl_session()
     url = f"https://api.tracker.gg/api/v2/rocket-league/standard/profile/{platform}/{urllib.parse.quote(username)}"
-    headers = {
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Origin": "https://rocketleague.tracker.network",
-        "Referer": "https://rocketleague.tracker.network/",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "cross-site",
-    }
-    for target in ("chrome", "chrome124", "safari17_0"):
-        try:
-            resp = requests.get(url, headers=headers, impersonate=target, timeout=12)
-            if resp.status_code == 404:
-                return 404, None
-            if resp.status_code == 200:
-                return 200, resp.json()
-        except Exception:
-            continue
-    return 403, None
+    try:
+        resp = session.get(url, timeout=12)
+        if resp.status_code == 403:
+            session = _get_rl_session(reset=True)
+            resp = session.get(url, timeout=12)
+
+        if resp.status_code == 404:
+            return 404, None
+        if resp.status_code != 200:
+            return resp.status_code, None
+
+        data = resp.json()
+        _rl_cache[cache_key] = (now, data)
+        return 200, data
+    except Exception:
+        return 500, None
 
 
 def _fetch_osu_sync(username: str):
@@ -2814,6 +2838,13 @@ class GlobUtil(commands.Cog, name="Global Util"):
             if status == 404:
                 await wait.edit(embed=discord.Embed(
                     description=f"Mal9itch had l user f Rocket League: `{username}` (Platform: `{platform}`)",
+                    color=0x000000
+                ))
+                return
+
+            if status == 429:
+                await wait.edit(embed=discord.Embed(
+                    description="⏳ Tracker Network rate-limited had l'IP (Error 429). Sber 1-2 d9aye9 w 3awed jarreb.",
                     color=0x000000
                 ))
                 return
