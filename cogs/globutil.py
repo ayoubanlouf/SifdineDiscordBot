@@ -105,28 +105,7 @@ import gc
 from PIL import Image, ImageDraw, ImageFont
 
 
-_rl_session = None
 _rl_cache: dict[tuple[str, str], tuple[float, dict]] = {}
-
-def _get_rl_session(reset: bool = False):
-    global _rl_session
-    if _rl_session is None or reset:
-        from curl_cffi import requests
-        _rl_session = requests.Session(impersonate="chrome")
-        _rl_session.headers.update({
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Origin": "https://rocketleague.tracker.network",
-            "Referer": "https://rocketleague.tracker.network/",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "cross-site",
-        })
-        try:
-            _rl_session.get("https://rocketleague.tracker.network/", timeout=10)
-        except Exception:
-            pass
-    return _rl_session
 
 
 def _fetch_rl_sync(platform: str, username: str):
@@ -137,24 +116,36 @@ def _fetch_rl_sync(platform: str, username: str):
         if now - cached_time < 60:
             return 200, cached_data
 
-    session = _get_rl_session()
+    from curl_cffi import requests
     url = f"https://api.tracker.gg/api/v2/rocket-league/standard/profile/{platform}/{urllib.parse.quote(username)}"
-    try:
-        resp = session.get(url, timeout=12)
-        if resp.status_code == 403:
-            session = _get_rl_session(reset=True)
-            resp = session.get(url, timeout=12)
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://rocketleague.tracker.network",
+        "Referer": "https://rocketleague.tracker.network/",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+    }
 
-        if resp.status_code == 404:
-            return 404, None
-        if resp.status_code != 200:
-            return resp.status_code, None
+    last_status = 403
+    for target in ("chrome", "chrome124", "safari17_0", "safari15_5"):
+        try:
+            resp = requests.get(url, headers=headers, impersonate=target, timeout=12)
+            last_status = resp.status_code
+            if resp.status_code == 404:
+                return 404, None
+            if resp.status_code == 429:
+                return 429, None
+            if resp.status_code == 200:
+                data = resp.json()
+                _rl_cache[cache_key] = (now, data)
+                return 200, data
+        except Exception as e:
+            print(f"[RL Tracker Fetch Error ({target})]: {e}", flush=True)
+            continue
 
-        data = resp.json()
-        _rl_cache[cache_key] = (now, data)
-        return 200, data
-    except Exception:
-        return 500, None
+    return last_status, None
 
 
 def _fetch_osu_sync(username: str):
