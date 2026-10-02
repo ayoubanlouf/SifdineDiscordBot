@@ -122,6 +122,10 @@ def _get_rl_session(reset: bool = False):
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "cross-site",
         })
+        try:
+            _rl_session.get("https://rocketleague.tracker.network/", timeout=10)
+        except Exception:
+            pass
     return _rl_session
 
 
@@ -175,6 +179,7 @@ class RocketLeagueView(discord.ui.View):
         self.author_id = author_id
         self.embed_p1 = embed_p1
         self.embed_p2 = embed_p2
+        self.message = None
 
         if profile_url:
             self.add_item(discord.ui.Button(label="TRN Profile", url=profile_url, style=discord.ButtonStyle.link))
@@ -184,6 +189,16 @@ class RocketLeagueView(discord.ui.View):
             await interaction.response.send_message("Had l buttons mashi dyalek!", ephemeral=True)
             return False
         return True
+
+    async def on_timeout(self):
+        for child in self.children:
+            if isinstance(child, discord.ui.Button) and child.style != discord.ButtonStyle.link:
+                child.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
 
     @discord.ui.button(label="Competitive & Stats", style=discord.ButtonStyle.primary, emoji="🏆", disabled=True)
     async def page_one(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2918,6 +2933,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
             embed_p1 = discord.Embed(
                 title=f"Rocket League Stats: {user_handle}",
                 url=profile_url,
+                description=f"Showing stats for **{user_handle}** on **{platform_display}**",
                 color=0x000000
             )
             if avatar_url:
@@ -2960,6 +2976,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
             embed_p2 = discord.Embed(
                 title=f"Rocket League Extra Modes: {user_handle}",
                 url=profile_url,
+                description=f"Showing extra modes stats for **{user_handle}** on **{platform_display}**",
                 color=0x000000
             )
             if avatar_url:
@@ -2977,9 +2994,12 @@ class GlobUtil(commands.Cog, name="Global Util"):
             embed_p2.set_footer(text="Page 2/2 • Use buttons below to switch views")
 
             view = RocketLeagueView(author_id=ctx.author.id, embed_p1=embed_p1, embed_p2=embed_p2, profile_url=profile_url)
+            view.message = wait
             await wait.edit(embed=embed_p1, view=view)
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             await wait.edit(embed=discord.Embed(description=f"Tra chy mochkil: `{e}`", color=0x000000))
         finally:
             import gc
