@@ -31,7 +31,7 @@ async def run_blacktea_game(cog, ctx, *args):
             join_emoji = "✅"
             signup_embed = discord.Embed(
                 title="☕ BlackTea",
-                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
+                description=f"Kteb kelma fiha lcombo kima hiya.\n\nClicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
                 color=0x000000
             )
             diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
@@ -93,6 +93,9 @@ async def run_blacktea_game(cog, ctx, *args):
                 player = active_players[0]
                 while lives[player.id] > 0 and not session.stopped:
                     combo = cog.get_combo(difficulty, exclude=used_combos)
+                    if not combo:
+                        await ctx.send("🎉 **Salaw ga3 lcombos f had difficulty!** Game over.")
+                        break
                     used_combos.add(combo)
 
                     round_msg = await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
@@ -144,6 +147,7 @@ async def run_blacktea_game(cog, ctx, *args):
                     color=0x000000
                 ))
             else:
+                pool_exhausted = False
                 while len(active_players) > 1 and not session.stopped:
                     for player in list(active_players):
                         if player not in active_players:
@@ -152,6 +156,10 @@ async def run_blacktea_game(cog, ctx, *args):
                             break
 
                         combo = cog.get_combo(difficulty, exclude=used_combos)
+                        if not combo:
+                            pool_exhausted = True
+                            await ctx.send("🎉 **Salaw ga3 lcombos f had difficulty!** Match ended.")
+                            break
                         used_combos.add(combo)
 
                         round_msg = await ctx.send(f"❓ {player.mention} kteb kelma fiha: **{combo.upper()}** (HP: **{lives[player.id]}**)")
@@ -222,7 +230,11 @@ async def run_blacktea_game(cog, ctx, *args):
                                 await ctx.send(f"💥 **{player.mention}** t elimina (**0 HP**)")
                                 active_players.remove(player)
 
+                    if pool_exhausted:
+                        break
+
                 if active_players:
+                    active_players.sort(key=lambda p: (lives.get(p.id, 0), player_correct_words.get(p.id, 0)), reverse=True)
                     winner = active_players[0]
                     economy_cog = cog.bot.get_cog("Economy")
                     player_earnings = {}
@@ -276,7 +288,7 @@ async def run_greentea_game(cog, ctx, *args):
             join_emoji = "✅"
             signup_embed = discord.Embed(
                 title="🍵 GreenTea",
-                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nMin Players: **2**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
+                description=f"Kteb kelma fiha lcombo bzerba.\n\nClicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nMin Players: **2**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
                 color=0x000000
             )
             diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
@@ -331,7 +343,8 @@ async def run_greentea_game(cog, ctx, *args):
 
                 combo = cog.get_combo(difficulty, exclude=used_combos)
                 if not combo:
-                    continue
+                    await ctx.send("🎉 **Salaw ga3 lcombos f had difficulty!** Match ended.")
+                    break
                 used_combos.add(combo)
 
                 round_msg = await ctx.send(embed=discord.Embed(
@@ -476,7 +489,7 @@ async def run_redtea_game(cog, ctx, *args):
             join_emoji = "✅"
             signup_embed = discord.Embed(
                 title="🔴 RedTea",
-                description=f"Clicki 3la {join_emoji} bach tdkhel lgame.\n\nAkbar kelma fiha lcombo katrbe7!\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nMin Players: **2**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
+                description=f"Kteb atwal kelma fiha lcombo.\n\nClicki 3la {join_emoji} bach tdkhel lgame.\n\nStarts: <t:{int(time.time() + 21)}:R>\nTime: **{time_display}**\nMin Players: **2**\nDifficulty: **{difficulty.upper()}** (Stake: **{mult}x**)",
                 color=0x000000
             )
             diff_view = MinigameDifficultyView(ctx.author.id, initial_difficulty=difficulty)
@@ -531,7 +544,8 @@ async def run_redtea_game(cog, ctx, *args):
 
                 combo = cog.get_combo(difficulty, exclude=used_combos)
                 if not combo:
-                    continue
+                    await ctx.send("🎉 **Salaw ga3 lcombos f had difficulty!** Match ended.")
+                    break
                 used_combos.add(combo)
 
                 longest_word = ""

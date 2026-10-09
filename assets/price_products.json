@@ -1,0 +1,183 @@
+{
+  "easy": [
+    {
+      "title": "PlayStation 5 Console (Slim)",
+      "category": "Gaming",
+      "price": 499.99,
+      "image_url": "https://m.media-amazon.com/images/I/51051FiD9UL._AC_SL1000_.jpg",
+      "description": "Sony PlayStation 5 Slim digital/disc gaming console with 1TB SSD and DualSense wireless controller."
+    },
+    {
+      "title": "Apple iPhone 15 (128GB)",
+      "category": "Smartphones",
+      "price": 799.0,
+      "image_url": "https://m.media-amazon.com/images/I/71d7rfSl0wL._AC_SL1500_.jpg",
+      "description": "Apple iPhone 15 with Dynamic Island, 48MP main camera, and USB-C connectivity."
+    },
+    {
+      "title": "Nike Air Force 1 '07",
+      "category": "Sneakers",
+      "price": 115.0,
+      "image_url": "https://static.nike.com/a/images/t_PDP_1280_v1/f_auto,b_rgb:f5f5f5/b7d464f4-05e8-422a-8831-63876c484536/air-force-1-07-mens-shoes-jBrhbr.png",
+      "description": "Classic all-white low-top leather basketball sneakers with stitched overlays and Nike Air cushioning."
+    },
+    {
+      "title": "Nintendo Switch OLED Model",
+      "category": "Gaming",
+      "price": 349.99,
+      "image_url": "https://m.media-amazon.com/images/I/61-PblYntsL._AC_SL1500_.jpg",
+      "description": "7-inch vibrant OLED screen, 64GB internal storage, enhanced audio, and wide adjustable stand."
+    },
+    {
+      "title": "Apple AirPods Pro (2nd Generation)",
+      "category": "Audio",
+      "price": 249.0,
+      "image_url": "https://m.media-amazon.com/images/I/61f1YfTkTDL._AC_SL1500_.jpg",
+      "description": "Active Noise Cancellation, Transparency mode, MagSafe Charging Case (USB-C), and H2 chip."
+    },
+    {
+      "title": "McDonald's Big Mac Meal (Medium)",
+      "category": "Fast Food",
+      "price": 9.29,
+      "image_url": "https://s7d1.scene7.com/is/image/mcdonalds/Header_BigMacComboMeal_832x472:1-3-product-tile-desktop?wid=765&hei=472&dpr=off",
+      "description": "Iconic double-decker beef burger with special sauce, medium french fries, and a fountain drink."
+    },
+    {
+      "title": "Sony WH-1000XM5 Wireless Headphones",
+      "category": "Audio",
+      "price": 399.99,
+      "image_url": "https://m.media-amazon.com/images/I/61+btxzpfDL._AC_SL1500_.jpg",
+      "description": "Industry-leading noise canceling headphones with Auto NC Optimizer, crystal clear hands-free calling, and 30hr battery."
+    },
+    {
+      "title": "Kindle Paperwhite (16GB)",
+      "category": "E-Readers",
+      "price": 149.99,
+      "image_url": "https://m.media-amazon.com/images/I/61Pe1g1tI2L._AC_SL1000_.jpg",
+      "description": "6.8-inch glare-free display, adjustable warm light, up to 10 weeks of battery life, and waterproof."
+    },
+    {
+      "title": "Logitech G502 HERO Gaming Mouse",
+      "category": "PC Accessories",
+      "price": 49.99,
+      "image_url": "https://m.media-amazon.com/images/I/61mpMH5TzkL._AC_SL1500_.jpg",
+      "description": "High performance 25K DPI sensor, 11 programmable buttons, adjustable weights, and RGB lighting."
+    },
+    {
+      "title": "Hydro Flask 32 oz Wide Mouth Bottle",
+      "category": "Lifestyle",
+      "price": 44.95,
+      "image_url": "https://m.media-amazon.com/images/I/61Nl5zZ2WUL._AC_SL1500_.jpg",
+      "description": "Vacuum-insulated stainless steel water bottle keeping drinks ice cold for 24 hours with Flex Cap."
+    }
+  ],
+  "medium": [
+    {
+      "title": "Dyson V15 Detect Cordless Vacuum",
+      "category": "Home Appliances",
+      "price": 749.99,
+      "image_url": "https://dyson-h.assetsadobe2.com/is/image/content/dam/dyson/images/products/primary/368340-01.png",
+      "description": "Intelligent cordless vacuum with laser illumination revealing microscopic dust and piezo sensor."
+    },
+    {
+      "title": "Herman Miller Aeron Ergonomic Office Chair",
+      "category": "Furniture",
+      "price": 1695.0,
+      "image_url": "https://images.hermanmiller.group/m/7a85be997fc2bc86/W-HM_2195_100073887_F.png",
+      "description": "Pellicle breathable suspension mesh, PostureFit SL adjustable spinal support, and fully adjustable tilt."
+    },
+    {
+      "title": "Breville Barista Touch Espresso Machine",
+      "category": "Kitchen",
+      "price": 999.95,
+      "image_url": "https://m.media-amazon.com/images/I/71Y0P6G63zL._AC_SL1500_.jpg",
+      "description": "Automated touchscreen espresso machine with built-in conical burr grinder and automatic microfoam milk texturing."
+    },
+    {
+      "title": "Samsung 65-Inch The Frame QLED 4K TV",
+      "category": "Television",
+      "price": 1997.99,
+      "image_url": "https://m.media-amazon.com/images/I/810lqN47g5L._AC_SL1500_.jpg",
+      "description": "Art Mode display with anti-reflection matte display, customizable bezel frame, and Quantum HDR."
+    },
+    {
+      "title": "MacBook Air 15-inch M3 (16GB RAM, 512GB SSD)",
+      "category": "Laptops",
+      "price": 1499.0,
+      "image_url": "https://m.media-amazon.com/images/I/712Xv7S3iUL._AC_SL1500_.jpg",
+      "description": "Apple Silicon M3 chip, Liquid Retina display, MagSafe charging, 18-hour battery, and fanless silent design."
+    },
+    {
+      "title": "Bose Smart Ultra Soundbar with Dolby Atmos",
+      "category": "Audio",
+      "price": 899.0,
+      "image_url": "https://m.media-amazon.com/images/I/51r2zW9kXSL._AC_SL1200_.jpg",
+      "description": "Spatial audio with 9 speakers including upward-firing transducers, AI Dialogue Mode, and voice control."
+    },
+    {
+      "title": "Segway Ninebot Max G2 Electric Scooter",
+      "category": "Transport",
+      "price": 899.99,
+      "image_url": "https://m.media-amazon.com/images/I/61I2oBf4z8L._AC_SL1500_.jpg",
+      "description": "43-mile range, 22 mph top speed, hydraulic front suspension, traction control, and Apple Find My support."
+    },
+    {
+      "title": "Garmin Fenix 7 Pro Sapphire Solar Watch",
+      "category": "Wearables",
+      "price": 799.99,
+      "image_url": "https://m.media-amazon.com/images/I/61k2p1Yy+QL._AC_SL1500_.jpg",
+      "description": "Rugged multisport GPS smartwatch with solar charging lens, built-in LED flashlight, and topo maps."
+    }
+  ],
+  "hard": [
+    {
+      "title": "Rolex Submariner Date (Ref. 126610LN)",
+      "category": "Luxury Watches",
+      "price": 10250.0,
+      "image_url": "https://images.rolex.com/catalogue/watches/m126610ln-0001.png",
+      "description": "Oystersteel 41mm dive watch with black Cerachrom ceramic bezel, black dial, and automatic Calibre 3235."
+    },
+    {
+      "title": "Herm\u00e8s Birkin 25 Togo Leather Bag",
+      "category": "Luxury Fashion",
+      "price": 28500.0,
+      "image_url": "https://m.media-amazon.com/images/I/51z+u11oJHL._AC_SL1000_.jpg",
+      "description": "Iconic handcrafted French luxury handbag in calf Togo leather with palladium-plated hardware."
+    },
+    {
+      "title": "Porsche 911 GT3 RS (Base MSRP)",
+      "category": "Supercars",
+      "price": 241300.0,
+      "image_url": "https://files.porsche.com/filestore/image/multimedia/none/992-gt3-rs-modelimage-sideshot/model/cfbb8ed3-1a15-11ed-80f5-005056bbdc38/porsche-model.png",
+      "description": "Track-focused naturally aspirated 4.0L flat-six engine with 518 hp, extreme active aerodynamics, and DRS."
+    },
+    {
+      "title": "Patek Philippe Nautilus 5711/1A-010 (Market Value)",
+      "category": "Luxury Watches",
+      "price": 98000.0,
+      "image_url": "https://m.media-amazon.com/images/I/61Wp3e8h3EL._AC_SL1000_.jpg",
+      "description": "Legendary G\u00e9rald Genta design in stainless steel with blue embossed horizontal dial and integrated bracelet."
+    },
+    {
+      "title": "Steinway & Sons Model D Concert Grand Piano",
+      "category": "Musical Instruments",
+      "price": 195000.0,
+      "image_url": "https://www.steinway.com/images/piano-models/model-d/model-d-ebony.png",
+      "description": "The pinnacle of concert grand pianos, measuring 8 ft 11 in (274 cm), handcrafted with solid spruce soundboard."
+    },
+    {
+      "title": "Hasselblad H6D-100c Medium Format Camera",
+      "category": "Photography",
+      "price": 32995.0,
+      "image_url": "https://cdn.hasselblad.com/f/30342/1000x1000/b16e87f610/h6d-100c-front.png",
+      "description": "100-megapixel CMOS medium format sensor capturing 15 stops of dynamic range and 4K RAW video."
+    },
+    {
+      "title": "Ducati Panigale V4 R Superbike",
+      "category": "Motorcycles",
+      "price": 44995.0,
+      "image_url": "https://images.ctfassets.net/x7j9qwvpvr5s/5aZ1k0x9kY4k4Z2mY4j4z/Ducati-Panigale-V4R-MY23-Model-Preview-1050x650.png",
+      "description": "Competition-derived 998cc Desmosedici Stradale R engine revving to 16,500 rpm producing 240.5 hp."
+    }
+  ]
+}

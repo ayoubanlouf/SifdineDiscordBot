@@ -504,6 +504,7 @@ async def setup_hook():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS global_disabled_commands (command_name TEXT PRIMARY KEY)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS afk (user_id INTEGER PRIMARY KEY, reason TEXT, timestamp INTEGER)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS minigame_leaderboard (guild_id INTEGER, user_id INTEGER, game TEXT, wins INTEGER DEFAULT 0, earnings INTEGER DEFAULT 0, losses INTEGER DEFAULT 0, loss_amount INTEGER DEFAULT 0, PRIMARY KEY (guild_id, user_id, game))")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS user_fragrantica (user_id INTEGER PRIMARY KEY, fragrantica_username TEXT)")
     try:
         await bot.db.execute("ALTER TABLE minigame_leaderboard ADD COLUMN earnings INTEGER DEFAULT 0")
     except Exception:

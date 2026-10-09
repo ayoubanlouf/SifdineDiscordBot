@@ -236,7 +236,7 @@ async def run_geoguessr_game(cog, ctx, *args):
 
         if not players:
             clear_user_game(cog.bot, ctx.author.id)
-            await ctx.send("❌ 7ed madkhel l GeoGuessr. Game t'annula.")
+            await ctx.send("❌ Ta7ed madkhel l GeoGuessr. Game t'annula.")
             return
 
         session = MultiplayerGameSession("GeoGuessr", players, ctx.channel)
@@ -518,7 +518,7 @@ async def run_geoguessr_game(cog, ctx, *args):
                     else:
                         res_embed = discord.Embed(
                             title=f"⏰ Round {r} Real Country: {target_flag} {target_country}",
-                            description=f"7ed majawb f had round!\n\n🗺️ **[Google Maps]({maps_link})**",
+                            description=f"Ta7ed majawb f had round!\n\n🗺️ **[Google Maps]({maps_link})**",
                             color=0x000000
                         )
                     reveal_buf = await _get_geoguessr_image(cog.bot.session, loc.get("image_url"))

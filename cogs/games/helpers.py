@@ -179,7 +179,7 @@ def _load_combos_cache() -> dict[str, list[str]]:
     _combos_cache = pools
     return _combos_cache
 
-def get_combo(difficulty: str = "medium", exclude: Optional[set] = None) -> str:
+def get_combo(difficulty: str = "medium", exclude: Optional[set] = None) -> Optional[str]:
     diff = normalize_difficulty(difficulty)
     cache = _load_combos_cache()
     pool = cache.get(diff) or cache.get("medium", [])
@@ -188,10 +188,11 @@ def get_combo(difficulty: str = "medium", exclude: Optional[set] = None) -> str:
         available = [c for c in pool if c not in exclude]
         if available:
             return random.choice(available)
+        return None
 
     if pool:
         return random.choice(pool)
-    return "ing"
+    return None
 
 _classified_words_cache = {}
 

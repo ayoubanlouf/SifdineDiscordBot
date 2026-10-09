@@ -45,6 +45,11 @@ from cogs.games.typeracer import run_typeracer_game
 from cogs.games.geoguessr import run_geoguessr_game
 from cogs.games.buckshot import BuckshotGameView, BuckshotChallengeView
 from cogs.games.impostor import run_impostor_game
+from cogs.games.krillion import run_krillion_game
+from cogs.games.fermi import run_fermi_game
+from cogs.games.contexto import run_contexto_game
+from cogs.games.redactle import run_redactle_game
+from cogs.games.guesstheprice import run_guesstheprice_game
 
 
 class Minigames(commands.Cog, name="Minigames"):
@@ -593,6 +598,26 @@ class Minigames(commands.Cog, name="Minigames"):
     @commands.command(name="geoguessr", aliases=["geo", "geoguesser", "geoguess"], help="Khssk t3rf dawla mn tswira.")
     async def geoguessr(self, ctx: commands.Context, *args):
         await run_geoguessr_game(self, ctx, *args)
+
+    @commands.command(name="krillion", aliases=["kril", "dive", "deepdive"], help="Goul jawabat nadirin bach tghre9 l ta7t o tjib max d points.")
+    async def krillion(self, ctx: commands.Context, *args):
+        await run_krillion_game(self, ctx, *args)
+
+    @commands.command(name="fermi", aliases=["estimation", "napkinmath"], help="9dder ar9am kbira b napkin math (orders of magnitude).")
+    async def fermi(self, ctx: commands.Context, *args):
+        await run_fermi_game(self, ctx, *args)
+
+    @commands.command(name="contexto", aliases=["semantic", "context"], help="9elleb 3la lkelma lmkhbya b semantic similarity.")
+    async def contexto(self, ctx: commands.Context, *args):
+        await run_contexto_game(self, ctx, *args)
+
+    @commands.command(name="redactle", aliases=["redact", "blackout"], help="Article ta3 Wikipedia mredacti, 9elleb 3la lkelmat.")
+    async def redactle(self, ctx: commands.Context, *args):
+        await run_redactle_game(self, ctx, *args)
+
+    @commands.command(name="guesstheprice", aliases=["price", "costco", "costcodle", "taman"], help="9dder taman d l'produit b d-dollar ($).")
+    async def guesstheprice(self, ctx: commands.Context, *args):
+        await run_guesstheprice_game(self, ctx, *args)
 
     @commands.command(name="guesstherank", aliases=["gtr", "guessrank"], help="9edder rank dial clip f games bhal Rocket League, Valorant, CS2, etc.")
     async def guesstherank(self, ctx: commands.Context, *, game: str = None):

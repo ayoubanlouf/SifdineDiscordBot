@@ -1,0 +1,7128 @@
+[
+  {
+    "id": "elements",
+    "title": "Elements on the Periodic Table",
+    "hint": "Any chemical element from Hydrogen to Oganesson",
+    "items": [
+      {
+        "name": "Hydrogen",
+        "aliases": [
+          "hydrogen"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Oxygen",
+        "aliases": [
+          "oxygen"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Gold",
+        "aliases": [
+          "gold"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Silver",
+        "aliases": [
+          "silver"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Carbon",
+        "aliases": [
+          "carbon"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Iron",
+        "aliases": [
+          "iron"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Copper",
+        "aliases": [
+          "copper"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Nitrogen",
+        "aliases": [
+          "nitrogen"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Helium",
+        "aliases": [
+          "helium"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Aluminum",
+        "aliases": [
+          "aluminum"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Aluminium",
+        "aliases": [
+          "aluminium"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Calcium",
+        "aliases": [
+          "calcium"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Sodium",
+        "aliases": [
+          "sodium"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Potassium",
+        "aliases": [
+          "potassium"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Chlorine",
+        "aliases": [
+          "chlorine"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Zinc",
+        "aliases": [
+          "zinc"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Lead",
+        "aliases": [
+          "lead"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Mercury",
+        "aliases": [
+          "mercury"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Neon",
+        "aliases": [
+          "neon"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Silicon",
+        "aliases": [
+          "silicon"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Sulfur",
+        "aliases": [
+          "sulfur"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Sulphur",
+        "aliases": [
+          "sulphur"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Uranium",
+        "aliases": [
+          "uranium"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Titanium",
+        "aliases": [
+          "titanium"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Platinum",
+        "aliases": [
+          "platinum"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Argon",
+        "aliases": [
+          "argon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Arsenic",
+        "aliases": [
+          "arsenic"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Barium",
+        "aliases": [
+          "barium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Beryllium",
+        "aliases": [
+          "beryllium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Boron",
+        "aliases": [
+          "boron"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Bromine",
+        "aliases": [
+          "bromine"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Cadmium",
+        "aliases": [
+          "cadmium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Cesium",
+        "aliases": [
+          "cesium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Caesium",
+        "aliases": [
+          "caesium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Cobalt",
+        "aliases": [
+          "cobalt"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Fluorine",
+        "aliases": [
+          "fluorine"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Gallium",
+        "aliases": [
+          "gallium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Germanium",
+        "aliases": [
+          "germanium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Iodine",
+        "aliases": [
+          "iodine"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Krypton",
+        "aliases": [
+          "krypton"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Lithium",
+        "aliases": [
+          "lithium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Magnesium",
+        "aliases": [
+          "magnesium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Manganese",
+        "aliases": [
+          "manganese"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Nickel",
+        "aliases": [
+          "nickel"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Phosphorus",
+        "aliases": [
+          "phosphorus"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Radium",
+        "aliases": [
+          "radium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Radon",
+        "aliases": [
+          "radon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Rubidium",
+        "aliases": [
+          "rubidium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Selenium",
+        "aliases": [
+          "selenium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Strontium",
+        "aliases": [
+          "strontium"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Tin",
+        "aliases": [
+          "tin"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Tungsten",
+        "aliases": [
+          "tungsten"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Xenon",
+        "aliases": [
+          "xenon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Actinium",
+        "aliases": [
+          "actinium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Antimony",
+        "aliases": [
+          "antimony"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Bismuth",
+        "aliases": [
+          "bismuth"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Cerium",
+        "aliases": [
+          "cerium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Chromium",
+        "aliases": [
+          "chromium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Europium",
+        "aliases": [
+          "europium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Gadolinium",
+        "aliases": [
+          "gadolinium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Hafnium",
+        "aliases": [
+          "hafnium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Indium",
+        "aliases": [
+          "indium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Iridium",
+        "aliases": [
+          "iridium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Lanthanum",
+        "aliases": [
+          "lanthanum"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Molybdenum",
+        "aliases": [
+          "molybdenum"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Neodymium",
+        "aliases": [
+          "neodymium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Niobium",
+        "aliases": [
+          "niobium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Osmium",
+        "aliases": [
+          "osmium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Palladium",
+        "aliases": [
+          "palladium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Polonium",
+        "aliases": [
+          "polonium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Praseodymium",
+        "aliases": [
+          "praseodymium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Promethium",
+        "aliases": [
+          "promethium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Rhenium",
+        "aliases": [
+          "rhenium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Rhodium",
+        "aliases": [
+          "rhodium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Ruthenium",
+        "aliases": [
+          "ruthenium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Samarium",
+        "aliases": [
+          "samarium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Scandium",
+        "aliases": [
+          "scandium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Tantalum",
+        "aliases": [
+          "tantalum"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Tellurium",
+        "aliases": [
+          "tellurium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Terbium",
+        "aliases": [
+          "terbium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Thallium",
+        "aliases": [
+          "thallium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Thorium",
+        "aliases": [
+          "thorium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Thulium",
+        "aliases": [
+          "thulium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Vanadium",
+        "aliases": [
+          "vanadium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Ytterbium",
+        "aliases": [
+          "ytterbium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Yttrium",
+        "aliases": [
+          "yttrium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Zirconium",
+        "aliases": [
+          "zirconium"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Americium",
+        "aliases": [
+          "americium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Berkelium",
+        "aliases": [
+          "berkelium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Californium",
+        "aliases": [
+          "californium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Curium",
+        "aliases": [
+          "curium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Darmstadtium",
+        "aliases": [
+          "darmstadtium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Dubnium",
+        "aliases": [
+          "dubnium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Einsteinium",
+        "aliases": [
+          "einsteinium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Fermium",
+        "aliases": [
+          "fermium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Flerovium",
+        "aliases": [
+          "flerovium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Francium",
+        "aliases": [
+          "francium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Hassium",
+        "aliases": [
+          "hassium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Holmium",
+        "aliases": [
+          "holmium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Lawrencium",
+        "aliases": [
+          "lawrencium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Livermorium",
+        "aliases": [
+          "livermorium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Lutetium",
+        "aliases": [
+          "lutetium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Meitnerium",
+        "aliases": [
+          "meitnerium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Mendelevium",
+        "aliases": [
+          "mendelevium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Moscovium",
+        "aliases": [
+          "moscovium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Neptunium",
+        "aliases": [
+          "neptunium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Nihonium",
+        "aliases": [
+          "nihonium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Nobelium",
+        "aliases": [
+          "nobelium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Oganesson",
+        "aliases": [
+          "oganesson"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Plutonium",
+        "aliases": [
+          "plutonium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Protactinium",
+        "aliases": [
+          "protactinium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Roentgenium",
+        "aliases": [
+          "roentgenium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Rutherfordium",
+        "aliases": [
+          "rutherfordium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Seaborgium",
+        "aliases": [
+          "seaborgium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Tennessine",
+        "aliases": [
+          "tennessine"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Technetium",
+        "aliases": [
+          "technetium"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "countries_africa",
+    "title": "Countries in Africa",
+    "hint": "Any recognized sovereign state in Africa",
+    "items": [
+      {
+        "name": "Morocco",
+        "aliases": [
+          "morocco"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Egypt",
+        "aliases": [
+          "egypt"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "South Africa",
+        "aliases": [
+          "south africa"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Nigeria",
+        "aliases": [
+          "nigeria"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Algeria",
+        "aliases": [
+          "algeria"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Tunisia",
+        "aliases": [
+          "tunisia"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Kenya",
+        "aliases": [
+          "kenya"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Senegal",
+        "aliases": [
+          "senegal"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Ghana",
+        "aliases": [
+          "ghana"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Cameroon",
+        "aliases": [
+          "cameroon"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ivory Coast",
+        "aliases": [
+          "ivory coast"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Cote D'Ivoire",
+        "aliases": [
+          "cote d'ivoire"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ethiopia",
+        "aliases": [
+          "ethiopia"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Madagascar",
+        "aliases": [
+          "madagascar"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Tanzania",
+        "aliases": [
+          "tanzania"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Uganda",
+        "aliases": [
+          "uganda"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Sudan",
+        "aliases": [
+          "sudan"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Mali",
+        "aliases": [
+          "mali"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Angola",
+        "aliases": [
+          "angola"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Dr Congo",
+        "aliases": [
+          "dr congo"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Congo",
+        "aliases": [
+          "congo"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Zimbabwe",
+        "aliases": [
+          "zimbabwe"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Zambia",
+        "aliases": [
+          "zambia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Rwanda",
+        "aliases": [
+          "rwanda"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Somalia",
+        "aliases": [
+          "somalia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Libya",
+        "aliases": [
+          "libya"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Mozambique",
+        "aliases": [
+          "mozambique"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Namibia",
+        "aliases": [
+          "namibia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Botswana",
+        "aliases": [
+          "botswana"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Gabon",
+        "aliases": [
+          "gabon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Guinea",
+        "aliases": [
+          "guinea"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Burkina Faso",
+        "aliases": [
+          "burkina faso"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Benin",
+        "aliases": [
+          "benin"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Togo",
+        "aliases": [
+          "togo"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Sierra Leone",
+        "aliases": [
+          "sierra leone"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Liberia",
+        "aliases": [
+          "liberia"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Mauritania",
+        "aliases": [
+          "mauritania"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Niger",
+        "aliases": [
+          "niger"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Chad",
+        "aliases": [
+          "chad"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Malawi",
+        "aliases": [
+          "malawi"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Lesotho",
+        "aliases": [
+          "lesotho"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Eswatini",
+        "aliases": [
+          "eswatini"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Swaziland",
+        "aliases": [
+          "swaziland"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Eritrea",
+        "aliases": [
+          "eritrea"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Gambia",
+        "aliases": [
+          "gambia"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Comoros",
+        "aliases": [
+          "comoros"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Djibouti",
+        "aliases": [
+          "djibouti"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Cape Verde",
+        "aliases": [
+          "cape verde"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Cabo Verde",
+        "aliases": [
+          "cabo verde"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Seychelles",
+        "aliases": [
+          "seychelles"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Sao Tome And Principe",
+        "aliases": [
+          "sao tome and principe"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Equatorial Guinea",
+        "aliases": [
+          "equatorial guinea"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Guinea-Bissau",
+        "aliases": [
+          "guinea-bissau"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Burundi",
+        "aliases": [
+          "burundi"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "South Sudan",
+        "aliases": [
+          "south sudan"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Central African Republic",
+        "aliases": [
+          "central african republic"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Mauritius",
+        "aliases": [
+          "mauritius"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "gen1_pokemon",
+    "title": "Original 151 Pokémon (Generation 1)",
+    "hint": "Any Pokémon with National Pokédex #001 to #151",
+    "items": [
+      {
+        "name": "Pikachu",
+        "aliases": [
+          "pikachu"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Charizard",
+        "aliases": [
+          "charizard"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Mewtwo",
+        "aliases": [
+          "mewtwo"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Bulbasaur",
+        "aliases": [
+          "bulbasaur"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Squirtle",
+        "aliases": [
+          "squirtle"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Eevee",
+        "aliases": [
+          "eevee"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Gengar",
+        "aliases": [
+          "gengar"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Snorlax",
+        "aliases": [
+          "snorlax"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Mew",
+        "aliases": [
+          "mew"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Charmander",
+        "aliases": [
+          "charmander"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Charmeleon",
+        "aliases": [
+          "charmeleon"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ivysaur",
+        "aliases": [
+          "ivysaur"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Venusaur",
+        "aliases": [
+          "venusaur"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Wartortle",
+        "aliases": [
+          "wartortle"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Blastoise",
+        "aliases": [
+          "blastoise"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Jigglypuff",
+        "aliases": [
+          "jigglypuff"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Meowth",
+        "aliases": [
+          "meowth"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Psyduck",
+        "aliases": [
+          "psyduck"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Gyarados",
+        "aliases": [
+          "gyarados"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Dragonite",
+        "aliases": [
+          "dragonite"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Lapras",
+        "aliases": [
+          "lapras"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Arcanine",
+        "aliases": [
+          "arcanine"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Vaporeon",
+        "aliases": [
+          "vaporeon"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Jolteon",
+        "aliases": [
+          "jolteon"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Flareon",
+        "aliases": [
+          "flareon"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Articuno",
+        "aliases": [
+          "articuno"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Zapdos",
+        "aliases": [
+          "zapdos"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Moltres",
+        "aliases": [
+          "moltres"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Alakazam",
+        "aliases": [
+          "alakazam"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Machamp",
+        "aliases": [
+          "machamp"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Golem",
+        "aliases": [
+          "golem"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Caterpie",
+        "aliases": [
+          "caterpie"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Butterfree",
+        "aliases": [
+          "butterfree"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Weedle",
+        "aliases": [
+          "weedle"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Beedrill",
+        "aliases": [
+          "beedrill"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Pidgey",
+        "aliases": [
+          "pidgey"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Pidgeotto",
+        "aliases": [
+          "pidgeotto"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Pidgeot",
+        "aliases": [
+          "pidgeot"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Rattata",
+        "aliases": [
+          "rattata"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Raticate",
+        "aliases": [
+          "raticate"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ekans",
+        "aliases": [
+          "ekans"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Arbok",
+        "aliases": [
+          "arbok"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Raichu",
+        "aliases": [
+          "raichu"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Sandshrew",
+        "aliases": [
+          "sandshrew"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Sandslash",
+        "aliases": [
+          "sandslash"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Nidoran",
+        "aliases": [
+          "nidoran"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Clefairy",
+        "aliases": [
+          "clefairy"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Vulpix",
+        "aliases": [
+          "vulpix"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ninetales",
+        "aliases": [
+          "ninetales"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Zubat",
+        "aliases": [
+          "zubat"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Golbat",
+        "aliases": [
+          "golbat"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Oddish",
+        "aliases": [
+          "oddish"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Gloom",
+        "aliases": [
+          "gloom"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Vileplume",
+        "aliases": [
+          "vileplume"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Paras",
+        "aliases": [
+          "paras"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Parasect",
+        "aliases": [
+          "parasect"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Venonat",
+        "aliases": [
+          "venonat"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Venomoth",
+        "aliases": [
+          "venomoth"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Diglett",
+        "aliases": [
+          "diglett"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Dugtrio",
+        "aliases": [
+          "dugtrio"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Mankey",
+        "aliases": [
+          "mankey"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Primeape",
+        "aliases": [
+          "primeape"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Growlithe",
+        "aliases": [
+          "growlithe"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Poliwag",
+        "aliases": [
+          "poliwag"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Poliwrath",
+        "aliases": [
+          "poliwrath"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Abra",
+        "aliases": [
+          "abra"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Kadabra",
+        "aliases": [
+          "kadabra"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Machop",
+        "aliases": [
+          "machop"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Machoke",
+        "aliases": [
+          "machoke"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Bellsprout",
+        "aliases": [
+          "bellsprout"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Weepinbell",
+        "aliases": [
+          "weepinbell"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Victreebel",
+        "aliases": [
+          "victreebel"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Tentacool",
+        "aliases": [
+          "tentacool"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Tentacruel",
+        "aliases": [
+          "tentacruel"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Geodude",
+        "aliases": [
+          "geodude"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Graveler",
+        "aliases": [
+          "graveler"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ponyta",
+        "aliases": [
+          "ponyta"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Rapidash",
+        "aliases": [
+          "rapidash"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Slowpoke",
+        "aliases": [
+          "slowpoke"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Slowbro",
+        "aliases": [
+          "slowbro"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Magnemite",
+        "aliases": [
+          "magnemite"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Magneton",
+        "aliases": [
+          "magneton"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Farfetch'D",
+        "aliases": [
+          "farfetch'd"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Doduo",
+        "aliases": [
+          "doduo"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Dodrio",
+        "aliases": [
+          "dodrio"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Seel",
+        "aliases": [
+          "seel"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Dewgong",
+        "aliases": [
+          "dewgong"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Grimer",
+        "aliases": [
+          "grimer"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Muk",
+        "aliases": [
+          "muk"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Shellder",
+        "aliases": [
+          "shellder"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Cloyster",
+        "aliases": [
+          "cloyster"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Gastly",
+        "aliases": [
+          "gastly"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Haunter",
+        "aliases": [
+          "haunter"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Onix",
+        "aliases": [
+          "onix"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Drowzee",
+        "aliases": [
+          "drowzee"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Hypno",
+        "aliases": [
+          "hypno"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Krabby",
+        "aliases": [
+          "krabby"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Kingler",
+        "aliases": [
+          "kingler"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Voltorb",
+        "aliases": [
+          "voltorb"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Electrode",
+        "aliases": [
+          "electrode"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Exeggcute",
+        "aliases": [
+          "exeggcute"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Exeggutor",
+        "aliases": [
+          "exeggutor"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Cubone",
+        "aliases": [
+          "cubone"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Marowak",
+        "aliases": [
+          "marowak"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Hitmonlee",
+        "aliases": [
+          "hitmonlee"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Hitmonchan",
+        "aliases": [
+          "hitmonchan"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Lickitung",
+        "aliases": [
+          "lickitung"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Koffing",
+        "aliases": [
+          "koffing"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Weezing",
+        "aliases": [
+          "weezing"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Rhyhorn",
+        "aliases": [
+          "rhyhorn"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Rhydon",
+        "aliases": [
+          "rhydon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Chansey",
+        "aliases": [
+          "chansey"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Tangela",
+        "aliases": [
+          "tangela"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Kangaskhan",
+        "aliases": [
+          "kangaskhan"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Horsea",
+        "aliases": [
+          "horsea"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Seadra",
+        "aliases": [
+          "seadra"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Goldeen",
+        "aliases": [
+          "goldeen"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Seaking",
+        "aliases": [
+          "seaking"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Staryu",
+        "aliases": [
+          "staryu"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Starmie",
+        "aliases": [
+          "starmie"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Mr. Mime",
+        "aliases": [
+          "mr. mime"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Scyther",
+        "aliases": [
+          "scyther"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Jynx",
+        "aliases": [
+          "jynx"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Electabuzz",
+        "aliases": [
+          "electabuzz"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Magmar",
+        "aliases": [
+          "magmar"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Pinsir",
+        "aliases": [
+          "pinsir"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Tauros",
+        "aliases": [
+          "tauros"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Magikarp",
+        "aliases": [
+          "magikarp"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ditto",
+        "aliases": [
+          "ditto"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Porygon",
+        "aliases": [
+          "porygon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Omanyte",
+        "aliases": [
+          "omanyte"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Omastar",
+        "aliases": [
+          "omastar"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Kabuto",
+        "aliases": [
+          "kabuto"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Kabutops",
+        "aliases": [
+          "kabutops"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Aerodactyl",
+        "aliases": [
+          "aerodactyl"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Dratini",
+        "aliases": [
+          "dratini"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Dragonair",
+        "aliases": [
+          "dragonair"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Metapod",
+        "aliases": [
+          "metapod"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Kakuna",
+        "aliases": [
+          "kakuna"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Spearow",
+        "aliases": [
+          "spearow"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Fearow",
+        "aliases": [
+          "fearow"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Nidorina",
+        "aliases": [
+          "nidorina"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Nidoqueen",
+        "aliases": [
+          "nidoqueen"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Nidorino",
+        "aliases": [
+          "nidorino"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Nidoking",
+        "aliases": [
+          "nidoking"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Clefable",
+        "aliases": [
+          "clefable"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Wigglytuff",
+        "aliases": [
+          "wigglytuff"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Golduck",
+        "aliases": [
+          "golduck"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Poliwhirl",
+        "aliases": [
+          "poliwhirl"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Slowbro",
+        "aliases": [
+          "slowbro"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Venonat",
+        "aliases": [
+          "venonat"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Parasect",
+        "aliases": [
+          "parasect"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Seel",
+        "aliases": [
+          "seel"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Doduo",
+        "aliases": [
+          "doduo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Tangela",
+        "aliases": [
+          "tangela"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Omanyte",
+        "aliases": [
+          "omanyte"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Kabuto",
+        "aliases": [
+          "kabuto"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Farfetchd",
+        "aliases": [
+          "farfetchd"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Lickitung",
+        "aliases": [
+          "lickitung"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Mr Mime",
+        "aliases": [
+          "mr mime"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Pinsir",
+        "aliases": [
+          "pinsir"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Exeggcute",
+        "aliases": [
+          "exeggcute"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Grimer",
+        "aliases": [
+          "grimer"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Weezing",
+        "aliases": [
+          "weezing"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Dewgong",
+        "aliases": [
+          "dewgong"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Shellder",
+        "aliases": [
+          "shellder"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Drowzee",
+        "aliases": [
+          "drowzee"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Hypno",
+        "aliases": [
+          "hypno"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "countries_europe",
+    "title": "Countries in Europe",
+    "hint": "Any recognized sovereign European nation",
+    "items": [
+      {
+        "name": "France",
+        "aliases": [
+          "france"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Germany",
+        "aliases": [
+          "germany"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "United Kingdom",
+        "aliases": [
+          "united kingdom"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Uk",
+        "aliases": [
+          "uk"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Spain",
+        "aliases": [
+          "spain"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Italy",
+        "aliases": [
+          "italy"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Russia",
+        "aliases": [
+          "russia"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Portugal",
+        "aliases": [
+          "portugal"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Netherlands",
+        "aliases": [
+          "netherlands"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Holland",
+        "aliases": [
+          "holland"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Belgium",
+        "aliases": [
+          "belgium"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Switzerland",
+        "aliases": [
+          "switzerland"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Sweden",
+        "aliases": [
+          "sweden"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Norway",
+        "aliases": [
+          "norway"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Poland",
+        "aliases": [
+          "poland"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Greece",
+        "aliases": [
+          "greece"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Turkey",
+        "aliases": [
+          "turkey"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ukraine",
+        "aliases": [
+          "ukraine"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Austria",
+        "aliases": [
+          "austria"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ireland",
+        "aliases": [
+          "ireland"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Denmark",
+        "aliases": [
+          "denmark"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Finland",
+        "aliases": [
+          "finland"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Czech Republic",
+        "aliases": [
+          "czech republic"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Czechia",
+        "aliases": [
+          "czechia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Romania",
+        "aliases": [
+          "romania"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Hungary",
+        "aliases": [
+          "hungary"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Croatia",
+        "aliases": [
+          "croatia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Serbia",
+        "aliases": [
+          "serbia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Bulgaria",
+        "aliases": [
+          "bulgaria"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Slovakia",
+        "aliases": [
+          "slovakia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Belarus",
+        "aliases": [
+          "belarus"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Iceland",
+        "aliases": [
+          "iceland"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Albania",
+        "aliases": [
+          "albania"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Slovenia",
+        "aliases": [
+          "slovenia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Estonia",
+        "aliases": [
+          "estonia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Latvia",
+        "aliases": [
+          "latvia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Lithuania",
+        "aliases": [
+          "lithuania"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Cyprus",
+        "aliases": [
+          "cyprus"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Malta",
+        "aliases": [
+          "malta"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Luxembourg",
+        "aliases": [
+          "luxembourg"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Bosnia And Herzegovina",
+        "aliases": [
+          "bosnia and herzegovina"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Bosnia",
+        "aliases": [
+          "bosnia"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "North Macedonia",
+        "aliases": [
+          "north macedonia"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Macedonia",
+        "aliases": [
+          "macedonia"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Montenegro",
+        "aliases": [
+          "montenegro"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Moldova",
+        "aliases": [
+          "moldova"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Georgia",
+        "aliases": [
+          "georgia"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Armenia",
+        "aliases": [
+          "armenia"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Azerbaijan",
+        "aliases": [
+          "azerbaijan"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Kosovo",
+        "aliases": [
+          "kosovo"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Monaco",
+        "aliases": [
+          "monaco"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Liechtenstein",
+        "aliases": [
+          "liechtenstein"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "San Marino",
+        "aliases": [
+          "san marino"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Andorra",
+        "aliases": [
+          "andorra"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Vatican City",
+        "aliases": [
+          "vatican city"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Vatican",
+        "aliases": [
+          "vatican"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "marvel_mcu_movies",
+    "title": "Marvel Cinematic Universe (MCU) Movies",
+    "hint": "Any official movie in the Marvel Cinematic Universe",
+    "items": [
+      {
+        "name": "Avengers Endgame",
+        "aliases": [
+          "avengers endgame"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Endgame",
+        "aliases": [
+          "endgame"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Avengers Infinity War",
+        "aliases": [
+          "avengers infinity war"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Infinity War",
+        "aliases": [
+          "infinity war"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Iron Man",
+        "aliases": [
+          "iron man"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "The Avengers",
+        "aliases": [
+          "the avengers"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Spider-Man No Way Home",
+        "aliases": [
+          "spider-man no way home"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "No Way Home",
+        "aliases": [
+          "no way home"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Black Panther",
+        "aliases": [
+          "black panther"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Guardians Of The Galaxy",
+        "aliases": [
+          "guardians of the galaxy"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Thor Ragnarok",
+        "aliases": [
+          "thor ragnarok"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ragnarok",
+        "aliases": [
+          "ragnarok"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Captain America Civil War",
+        "aliases": [
+          "captain america civil war"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Civil War",
+        "aliases": [
+          "civil war"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Iron Man 3",
+        "aliases": [
+          "iron man 3"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Spider-Man Homecoming",
+        "aliases": [
+          "spider-man homecoming"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Doctor Strange",
+        "aliases": [
+          "doctor strange"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Avengers Age Of Ultron",
+        "aliases": [
+          "avengers age of ultron"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Age Of Ultron",
+        "aliases": [
+          "age of ultron"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Deadpool & Wolverine",
+        "aliases": [
+          "deadpool & wolverine"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Captain America The Winter Soldier",
+        "aliases": [
+          "captain america the winter soldier"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "The Winter Soldier",
+        "aliases": [
+          "the winter soldier"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Iron Man 2",
+        "aliases": [
+          "iron man 2"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Captain America The First Avenger",
+        "aliases": [
+          "captain america the first avenger"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "The First Avenger",
+        "aliases": [
+          "the first avenger"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Thor",
+        "aliases": [
+          "thor"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ant-Man",
+        "aliases": [
+          "ant-man"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Spider-Man Far From Home",
+        "aliases": [
+          "spider-man far from home"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Far From Home",
+        "aliases": [
+          "far from home"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Guardians Of The Galaxy Vol 2",
+        "aliases": [
+          "guardians of the galaxy vol 2"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Guardians Of The Galaxy Vol 3",
+        "aliases": [
+          "guardians of the galaxy vol 3"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Doctor Strange In The Multiverse Of Madness",
+        "aliases": [
+          "doctor strange in the multiverse of madness"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Black Widow",
+        "aliases": [
+          "black widow"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Shang-Chi And The Legend Of The Ten Rings",
+        "aliases": [
+          "shang-chi and the legend of the ten rings"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Shang-Chi",
+        "aliases": [
+          "shang-chi"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Thor Love And Thunder",
+        "aliases": [
+          "thor love and thunder"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Black Panther Wakanda Forever",
+        "aliases": [
+          "black panther wakanda forever"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Ant-Man And The Wasp",
+        "aliases": [
+          "ant-man and the wasp"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Captain Marvel",
+        "aliases": [
+          "captain marvel"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The Marvels",
+        "aliases": [
+          "the marvels"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The Incredible Hulk",
+        "aliases": [
+          "the incredible hulk"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Thor The Dark World",
+        "aliases": [
+          "thor the dark world"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "The Dark World",
+        "aliases": [
+          "the dark world"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Eternals",
+        "aliases": [
+          "eternals"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Ant-Man And The Wasp Quantumania",
+        "aliases": [
+          "ant-man and the wasp quantumania"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Quantumania",
+        "aliases": [
+          "quantumania"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "solar_system_bodies",
+    "title": "Planets & Named Moons in the Solar System",
+    "hint": "Any planet, dwarf planet, or major moon in our Solar System",
+    "items": [
+      {
+        "name": "Earth",
+        "aliases": [
+          "earth"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Mars",
+        "aliases": [
+          "mars"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Jupiter",
+        "aliases": [
+          "jupiter"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Saturn",
+        "aliases": [
+          "saturn"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Moon",
+        "aliases": [
+          "moon"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Pluto",
+        "aliases": [
+          "pluto"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Venus",
+        "aliases": [
+          "venus"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Mercury",
+        "aliases": [
+          "mercury"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Neptune",
+        "aliases": [
+          "neptune"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Uranus",
+        "aliases": [
+          "uranus"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Titan",
+        "aliases": [
+          "titan"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Europa",
+        "aliases": [
+          "europa"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Io",
+        "aliases": [
+          "io"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ganymede",
+        "aliases": [
+          "ganymede"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Callisto",
+        "aliases": [
+          "callisto"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Enceladus",
+        "aliases": [
+          "enceladus"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Triton",
+        "aliases": [
+          "triton"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ceres",
+        "aliases": [
+          "ceres"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Charon",
+        "aliases": [
+          "charon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Phobos",
+        "aliases": [
+          "phobos"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Deimos",
+        "aliases": [
+          "deimos"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Mimas",
+        "aliases": [
+          "mimas"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Iapetus",
+        "aliases": [
+          "iapetus"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Titania",
+        "aliases": [
+          "titania"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Oberon",
+        "aliases": [
+          "oberon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Dione",
+        "aliases": [
+          "dione"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Rhea",
+        "aliases": [
+          "rhea"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Tethys",
+        "aliases": [
+          "tethys"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Miranda",
+        "aliases": [
+          "miranda"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Ariel",
+        "aliases": [
+          "ariel"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Umbriel",
+        "aliases": [
+          "umbriel"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Makemake",
+        "aliases": [
+          "makemake"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Haumea",
+        "aliases": [
+          "haumea"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Eris",
+        "aliases": [
+          "eris"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Sedna",
+        "aliases": [
+          "sedna"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Hyperion",
+        "aliases": [
+          "hyperion"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Phoebe",
+        "aliases": [
+          "phoebe"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Proteus",
+        "aliases": [
+          "proteus"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Nereid",
+        "aliases": [
+          "nereid"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Amalthea",
+        "aliases": [
+          "amalthea"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Himalia",
+        "aliases": [
+          "himalia"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Thebe",
+        "aliases": [
+          "thebe"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Elara",
+        "aliases": [
+          "elara"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Dysnomia",
+        "aliases": [
+          "dysnomia"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Chariklo",
+        "aliases": [
+          "chariklo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Quaoar",
+        "aliases": [
+          "quaoar"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Varuna",
+        "aliases": [
+          "varuna"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Orcus",
+        "aliases": [
+          "orcus"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Gonggong",
+        "aliases": [
+          "gonggong"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Namaka",
+        "aliases": [
+          "namaka"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Hi'Iaka",
+        "aliases": [
+          "hi'iaka"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "oscar_best_picture",
+    "title": "Academy Award (Oscar) Best Picture Winners",
+    "hint": "Any film that won the Academy Award for Best Picture",
+    "items": [
+      {
+        "name": "Titanic",
+        "aliases": [
+          "titanic"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Oppenheimer",
+        "aliases": [
+          "oppenheimer"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "The Godfather",
+        "aliases": [
+          "the godfather"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Parasite",
+        "aliases": [
+          "parasite"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Forrest Gump",
+        "aliases": [
+          "forrest gump"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Gladiator",
+        "aliases": [
+          "gladiator"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "The Lord Of The Rings The Return Of The King",
+        "aliases": [
+          "the lord of the rings the return of the king"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Return Of The King",
+        "aliases": [
+          "return of the king"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "The Silence Of The Lambs",
+        "aliases": [
+          "the silence of the lambs"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Schindler'S List",
+        "aliases": [
+          "schindler's list"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Braveheart",
+        "aliases": [
+          "braveheart"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "The Departed",
+        "aliases": [
+          "the departed"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Slumdog Millionaire",
+        "aliases": [
+          "slumdog millionaire"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "No Country For Old Men",
+        "aliases": [
+          "no country for old men"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "12 Years A Slave",
+        "aliases": [
+          "12 years a slave"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Everything Everywhere All At Once",
+        "aliases": [
+          "everything everywhere all at once"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Casablanca",
+        "aliases": [
+          "casablanca"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Rocky",
+        "aliases": [
+          "rocky"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "The Godfather Part Ii",
+        "aliases": [
+          "the godfather part ii"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Green Book",
+        "aliases": [
+          "green book"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "The Shape Of Water",
+        "aliases": [
+          "the shape of water"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Moonlight",
+        "aliases": [
+          "moonlight"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Spotlight",
+        "aliases": [
+          "spotlight"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Birdman",
+        "aliases": [
+          "birdman"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "The King'S Speech",
+        "aliases": [
+          "the king's speech"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "The Hurt Locker",
+        "aliases": [
+          "the hurt locker"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Chicago",
+        "aliases": [
+          "chicago"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "A Beautiful Mind",
+        "aliases": [
+          "a beautiful mind"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "American Beauty",
+        "aliases": [
+          "american beauty"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Shakespeare In Love",
+        "aliases": [
+          "shakespeare in love"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "The English Patient",
+        "aliases": [
+          "the english patient"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Unforgiven",
+        "aliases": [
+          "unforgiven"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Platoon",
+        "aliases": [
+          "platoon"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Amadeus",
+        "aliases": [
+          "amadeus"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Annie Hall",
+        "aliases": [
+          "annie hall"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Lawrence Of Arabia",
+        "aliases": [
+          "lawrence of arabia"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ben-Hur",
+        "aliases": [
+          "ben-hur"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Gone With The Wind",
+        "aliases": [
+          "gone with the wind"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Coda",
+        "aliases": [
+          "coda"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Nomadland",
+        "aliases": [
+          "nomadland"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The Artist",
+        "aliases": [
+          "the artist"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Crash",
+        "aliases": [
+          "crash"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Million Dollar Baby",
+        "aliases": [
+          "million dollar baby"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Dances With Wolves",
+        "aliases": [
+          "dances with wolves"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Driving Miss Daisy",
+        "aliases": [
+          "driving miss daisy"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Rain Man",
+        "aliases": [
+          "rain man"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The Last Emperor",
+        "aliases": [
+          "the last emperor"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Out Of Africa",
+        "aliases": [
+          "out of africa"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Terms Of Endearment",
+        "aliases": [
+          "terms of endearment"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Gandhi",
+        "aliases": [
+          "gandhi"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Chariots Of Fire",
+        "aliases": [
+          "chariots of fire"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Kramer Vs. Kramer",
+        "aliases": [
+          "kramer vs. kramer"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The Deer Hunter",
+        "aliases": [
+          "the deer hunter"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "One Flew Over The Cuckoo'S Nest",
+        "aliases": [
+          "one flew over the cuckoo's nest"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The Sting",
+        "aliases": [
+          "the sting"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The French Connection",
+        "aliases": [
+          "the french connection"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Patton",
+        "aliases": [
+          "patton"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Midnight Cowboy",
+        "aliases": [
+          "midnight cowboy"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Oliver!",
+        "aliases": [
+          "oliver!"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "In The Heat Of The Night",
+        "aliases": [
+          "in the heat of the night"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "A Man For All Seasons",
+        "aliases": [
+          "a man for all seasons"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The Sound Of Music",
+        "aliases": [
+          "the sound of music"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "My Fair Lady",
+        "aliases": [
+          "my fair lady"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Tom Jones",
+        "aliases": [
+          "tom jones"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "West Side Story",
+        "aliases": [
+          "west side story"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "The Apartment",
+        "aliases": [
+          "the apartment"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Gigi",
+        "aliases": [
+          "gigi"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "The Bridge On The River Kwai",
+        "aliases": [
+          "the bridge on the river kwai"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Around The World In 80 Days",
+        "aliases": [
+          "around the world in 80 days"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Marty",
+        "aliases": [
+          "marty"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "On The Waterfront",
+        "aliases": [
+          "on the waterfront"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "From Here To Eternity",
+        "aliases": [
+          "from here to eternity"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "The Greatest Show On Earth",
+        "aliases": [
+          "the greatest show on earth"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "An American In Paris",
+        "aliases": [
+          "an american in paris"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "All About Eve",
+        "aliases": [
+          "all about eve"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "All The King'S Men",
+        "aliases": [
+          "all the king's men"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Hamlet",
+        "aliases": [
+          "hamlet"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Gentleman'S Agreement",
+        "aliases": [
+          "gentleman's agreement"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "The Best Years Of Our Lives",
+        "aliases": [
+          "the best years of our lives"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "The Lost Weekend",
+        "aliases": [
+          "the lost weekend"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Going My Way",
+        "aliases": [
+          "going my way"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Mrs. Miniver",
+        "aliases": [
+          "mrs. miniver"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "How Green Was My Valley",
+        "aliases": [
+          "how green was my valley"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Rebecca",
+        "aliases": [
+          "rebecca"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "You Can'T Take It With You",
+        "aliases": [
+          "you can't take it with you"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "The Life Of Emile Zola",
+        "aliases": [
+          "the life of emile zola"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "The Great Ziegfeld",
+        "aliases": [
+          "the great ziegfeld"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Mutiny On The Bounty",
+        "aliases": [
+          "mutiny on the bounty"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "It Happened One Night",
+        "aliases": [
+          "it happened one night"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Cavalcade",
+        "aliases": [
+          "cavalcade"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Grand Hotel",
+        "aliases": [
+          "grand hotel"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Cimarron",
+        "aliases": [
+          "cimarron"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "All Quiet On The Western Front",
+        "aliases": [
+          "all quiet on the western front"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "The Broadway Melody",
+        "aliases": [
+          "the broadway melody"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Wings",
+        "aliases": [
+          "wings"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "premier_league_clubs",
+    "title": "Clubs That Have Played in the English Premier League",
+    "hint": "Any football club that has competed in the Premier League (1992-present)",
+    "items": [
+      {
+        "name": "Arsenal",
+        "aliases": [
+          "arsenal"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Chelsea",
+        "aliases": [
+          "chelsea"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Liverpool",
+        "aliases": [
+          "liverpool"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Manchester City",
+        "aliases": [
+          "manchester city"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Man City",
+        "aliases": [
+          "man city"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Manchester United",
+        "aliases": [
+          "manchester united"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Man Utd",
+        "aliases": [
+          "man utd"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Tottenham",
+        "aliases": [
+          "tottenham"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Spurs",
+        "aliases": [
+          "spurs"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Aston Villa",
+        "aliases": [
+          "aston villa"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Everton",
+        "aliases": [
+          "everton"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Newcastle",
+        "aliases": [
+          "newcastle"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Newcastle United",
+        "aliases": [
+          "newcastle united"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "West Ham",
+        "aliases": [
+          "west ham"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "West Ham United",
+        "aliases": [
+          "west ham united"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Leicester",
+        "aliases": [
+          "leicester"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Leicester City",
+        "aliases": [
+          "leicester city"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Brighton",
+        "aliases": [
+          "brighton"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Wolverhampton",
+        "aliases": [
+          "wolverhampton"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Wolves",
+        "aliases": [
+          "wolves"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Crystal Palace",
+        "aliases": [
+          "crystal palace"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Fulham",
+        "aliases": [
+          "fulham"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Brentford",
+        "aliases": [
+          "brentford"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Bournemouth",
+        "aliases": [
+          "bournemouth"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Nottingham Forest",
+        "aliases": [
+          "nottingham forest"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Southampton",
+        "aliases": [
+          "southampton"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Leeds United",
+        "aliases": [
+          "leeds united"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Leeds",
+        "aliases": [
+          "leeds"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Burnley",
+        "aliases": [
+          "burnley"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Sheffield United",
+        "aliases": [
+          "sheffield united"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Watford",
+        "aliases": [
+          "watford"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Norwich City",
+        "aliases": [
+          "norwich city"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Norwich",
+        "aliases": [
+          "norwich"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Sunderland",
+        "aliases": [
+          "sunderland"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Stoke City",
+        "aliases": [
+          "stoke city"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Stoke",
+        "aliases": [
+          "stoke"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "West Bromwich Albion",
+        "aliases": [
+          "west bromwich albion"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "West Brom",
+        "aliases": [
+          "west brom"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Blackburn Rovers",
+        "aliases": [
+          "blackburn rovers"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Blackburn",
+        "aliases": [
+          "blackburn"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ipswich Town",
+        "aliases": [
+          "ipswich town"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Luton Town",
+        "aliases": [
+          "luton town"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Middlesbrough",
+        "aliases": [
+          "middlesbrough"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Hull City",
+        "aliases": [
+          "hull city"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Swansea City",
+        "aliases": [
+          "swansea city"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Swansea",
+        "aliases": [
+          "swansea"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Cardiff City",
+        "aliases": [
+          "cardiff city"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Cardiff",
+        "aliases": [
+          "cardiff"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Qpr",
+        "aliases": [
+          "qpr"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Queens Park Rangers",
+        "aliases": [
+          "queens park rangers"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Reading",
+        "aliases": [
+          "reading"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Wigan Athletic",
+        "aliases": [
+          "wigan athletic"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Wigan",
+        "aliases": [
+          "wigan"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Portsmouth",
+        "aliases": [
+          "portsmouth"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Charlton Athletic",
+        "aliases": [
+          "charlton athletic"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Bolton Wanderers",
+        "aliases": [
+          "bolton wanderers"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Bolton",
+        "aliases": [
+          "bolton"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Derby County",
+        "aliases": [
+          "derby county"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Birmingham City",
+        "aliases": [
+          "birmingham city"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Coventry City",
+        "aliases": [
+          "coventry city"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Blackpool",
+        "aliases": [
+          "blackpool"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Barnsley",
+        "aliases": [
+          "barnsley"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Swindon Town",
+        "aliases": [
+          "swindon town"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Oldham Athletic",
+        "aliases": [
+          "oldham athletic"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Bradford City",
+        "aliases": [
+          "bradford city"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Huddersfield Town",
+        "aliases": [
+          "huddersfield town"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Brentford",
+        "aliases": [
+          "brentford"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Wimbledon Fc",
+        "aliases": [
+          "wimbledon fc"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "video_game_consoles",
+    "title": "Home & Handheld Video Game Consoles",
+    "hint": "Official gaming consoles released commercially",
+    "items": [
+      {
+        "name": "Playstation",
+        "aliases": [
+          "playstation"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Playstation 2",
+        "aliases": [
+          "playstation 2"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Playstation 3",
+        "aliases": [
+          "playstation 3"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Playstation 4",
+        "aliases": [
+          "playstation 4"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Playstation 5",
+        "aliases": [
+          "playstation 5"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Ps1",
+        "aliases": [
+          "ps1"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Ps2",
+        "aliases": [
+          "ps2"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Ps3",
+        "aliases": [
+          "ps3"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Ps4",
+        "aliases": [
+          "ps4"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Ps5",
+        "aliases": [
+          "ps5"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Nintendo Switch",
+        "aliases": [
+          "nintendo switch"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Xbox",
+        "aliases": [
+          "xbox"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Xbox 360",
+        "aliases": [
+          "xbox 360"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Xbox One",
+        "aliases": [
+          "xbox one"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Nintendo Wii",
+        "aliases": [
+          "nintendo wii"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Wii",
+        "aliases": [
+          "wii"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Nintendo Ds",
+        "aliases": [
+          "nintendo ds"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Game Boy",
+        "aliases": [
+          "game boy"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Game Boy Advance",
+        "aliases": [
+          "game boy advance"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Gamecube",
+        "aliases": [
+          "gamecube"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Nintendo 64",
+        "aliases": [
+          "nintendo 64"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "N64",
+        "aliases": [
+          "n64"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Snes",
+        "aliases": [
+          "snes"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Super Nintendo",
+        "aliases": [
+          "super nintendo"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Nes",
+        "aliases": [
+          "nes"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Playstation Portable",
+        "aliases": [
+          "playstation portable"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Psp",
+        "aliases": [
+          "psp"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Playstation Vita",
+        "aliases": [
+          "playstation vita"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ps Vita",
+        "aliases": [
+          "ps vita"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Nintendo 3Ds",
+        "aliases": [
+          "nintendo 3ds"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Sega Genesis",
+        "aliases": [
+          "sega genesis"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Mega Drive",
+        "aliases": [
+          "mega drive"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Sega Dreamcast",
+        "aliases": [
+          "sega dreamcast"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Xbox Series X",
+        "aliases": [
+          "xbox series x"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Wii U",
+        "aliases": [
+          "wii u"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Sega Saturn",
+        "aliases": [
+          "sega saturn"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Sega Game Gear",
+        "aliases": [
+          "sega game gear"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Game Boy Color",
+        "aliases": [
+          "game boy color"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Atari 2600",
+        "aliases": [
+          "atari 2600"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Sega Master System",
+        "aliases": [
+          "sega master system"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Turbografx-16",
+        "aliases": [
+          "turbografx-16"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Pc Engine",
+        "aliases": [
+          "pc engine"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Neo Geo",
+        "aliases": [
+          "neo geo"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Atari 7800",
+        "aliases": [
+          "atari 7800"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Intellivision",
+        "aliases": [
+          "intellivision"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Colecovision",
+        "aliases": [
+          "colecovision"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Commodore 64",
+        "aliases": [
+          "commodore 64"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Game & Watch",
+        "aliases": [
+          "game & watch"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Atari 5200",
+        "aliases": [
+          "atari 5200"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Atari Jaguar",
+        "aliases": [
+          "atari jaguar"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "3Do",
+        "aliases": [
+          "3do"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Virtual Boy",
+        "aliases": [
+          "virtual boy"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Sega Cd",
+        "aliases": [
+          "sega cd"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Sega 32X",
+        "aliases": [
+          "sega 32x"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Wonderswan",
+        "aliases": [
+          "wonderswan"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Neo Geo Pocket",
+        "aliases": [
+          "neo geo pocket"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Atari Lynx",
+        "aliases": [
+          "atari lynx"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Magnavox Odyssey",
+        "aliases": [
+          "magnavox odyssey"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Amiga Cd32",
+        "aliases": [
+          "amiga cd32"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Neo Geo Pocket Color",
+        "aliases": [
+          "neo geo pocket color"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Wonderswan Color",
+        "aliases": [
+          "wonderswan color"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Apple Pippin",
+        "aliases": [
+          "apple pippin"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Vectrex",
+        "aliases": [
+          "vectrex"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Fairchild Channel F",
+        "aliases": [
+          "fairchild channel f"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Bally Astrocade",
+        "aliases": [
+          "bally astrocade"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Casio Loopy",
+        "aliases": [
+          "casio loopy"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Fm Towns Marty",
+        "aliases": [
+          "fm towns marty"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Pc-Fx",
+        "aliases": [
+          "pc-fx"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Gizmondo",
+        "aliases": [
+          "gizmondo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "N-Gage",
+        "aliases": [
+          "n-gage"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Ouya",
+        "aliases": [
+          "ouya"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Playdate",
+        "aliases": [
+          "playdate"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Hyperkin",
+        "aliases": [
+          "hyperkin"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Turboduo",
+        "aliases": [
+          "turboduo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  },
+  {
+    "id": "capital_cities_world",
+    "title": "Capital Cities of the World",
+    "hint": "Any official national capital city",
+    "items": [
+      {
+        "name": "Paris",
+        "aliases": [
+          "paris"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "London",
+        "aliases": [
+          "london"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Washington",
+        "aliases": [
+          "washington"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Washington Dc",
+        "aliases": [
+          "washington dc"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Tokyo",
+        "aliases": [
+          "tokyo"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Madrid",
+        "aliases": [
+          "madrid"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Rome",
+        "aliases": [
+          "rome"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Rabat",
+        "aliases": [
+          "rabat"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Berlin",
+        "aliases": [
+          "berlin"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Beijing",
+        "aliases": [
+          "beijing"
+        ],
+        "tier": "plankton",
+        "pts": 10
+      },
+      {
+        "name": "Cairo",
+        "aliases": [
+          "cairo"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Moscow",
+        "aliases": [
+          "moscow"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Ottawa",
+        "aliases": [
+          "ottawa"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Canberra",
+        "aliases": [
+          "canberra"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Brasilia",
+        "aliases": [
+          "brasilia"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Buenos Aires",
+        "aliases": [
+          "buenos aires"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Amsterdam",
+        "aliases": [
+          "amsterdam"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Brussels",
+        "aliases": [
+          "brussels"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Vienna",
+        "aliases": [
+          "vienna"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Lisbon",
+        "aliases": [
+          "lisbon"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Athens",
+        "aliases": [
+          "athens"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Seoul",
+        "aliases": [
+          "seoul"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Bangkok",
+        "aliases": [
+          "bangkok"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "New Delhi",
+        "aliases": [
+          "new delhi"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Delhi",
+        "aliases": [
+          "delhi"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Riyadh",
+        "aliases": [
+          "riyadh"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Abu Dhabi",
+        "aliases": [
+          "abu dhabi"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Bern",
+        "aliases": [
+          "bern"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Stockholm",
+        "aliases": [
+          "stockholm"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Oslo",
+        "aliases": [
+          "oslo"
+        ],
+        "tier": "schooler",
+        "pts": 25
+      },
+      {
+        "name": "Warsaw",
+        "aliases": [
+          "warsaw"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Prague",
+        "aliases": [
+          "prague"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Budapest",
+        "aliases": [
+          "budapest"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Dublin",
+        "aliases": [
+          "dublin"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Copenhagen",
+        "aliases": [
+          "copenhagen"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Helsinki",
+        "aliases": [
+          "helsinki"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Ankara",
+        "aliases": [
+          "ankara"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Algiers",
+        "aliases": [
+          "algiers"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Tunis",
+        "aliases": [
+          "tunis"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Nairobi",
+        "aliases": [
+          "nairobi"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Jakarta",
+        "aliases": [
+          "jakarta"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Manila",
+        "aliases": [
+          "manila"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Kuala Lumpur",
+        "aliases": [
+          "kuala lumpur"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Hanoi",
+        "aliases": [
+          "hanoi"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Bogota",
+        "aliases": [
+          "bogota"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Santiago",
+        "aliases": [
+          "santiago"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Lima",
+        "aliases": [
+          "lima"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Mexico City",
+        "aliases": [
+          "mexico city"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Pretoria",
+        "aliases": [
+          "pretoria"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Kingston",
+        "aliases": [
+          "kingston"
+        ],
+        "tier": "rare",
+        "pts": 50
+      },
+      {
+        "name": "Bratislava",
+        "aliases": [
+          "bratislava"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Ljubljana",
+        "aliases": [
+          "ljubljana"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Zagreb",
+        "aliases": [
+          "zagreb"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Sarajevo",
+        "aliases": [
+          "sarajevo"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Belgrade",
+        "aliases": [
+          "belgrade"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Sofia",
+        "aliases": [
+          "sofia"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Bucharest",
+        "aliases": [
+          "bucharest"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Chisinau",
+        "aliases": [
+          "chisinau"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Kiev",
+        "aliases": [
+          "kiev"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Kyiv",
+        "aliases": [
+          "kyiv"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Minsk",
+        "aliases": [
+          "minsk"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Vilnius",
+        "aliases": [
+          "vilnius"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Riga",
+        "aliases": [
+          "riga"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Tallinn",
+        "aliases": [
+          "tallinn"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Reykjavik",
+        "aliases": [
+          "reykjavik"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Tbilisi",
+        "aliases": [
+          "tbilisi"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Yerevan",
+        "aliases": [
+          "yerevan"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Baku",
+        "aliases": [
+          "baku"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Doha",
+        "aliases": [
+          "doha"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Muscat",
+        "aliases": [
+          "muscat"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Kuwait City",
+        "aliases": [
+          "kuwait city"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Manama",
+        "aliases": [
+          "manama"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Amman",
+        "aliases": [
+          "amman"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Beirut",
+        "aliases": [
+          "beirut"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Baghdad",
+        "aliases": [
+          "baghdad"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Tehran",
+        "aliases": [
+          "tehran"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Islamabad",
+        "aliases": [
+          "islamabad"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Dhaka",
+        "aliases": [
+          "dhaka"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Kathmandu",
+        "aliases": [
+          "kathmandu"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Colombo",
+        "aliases": [
+          "colombo"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Ulaanbaatar",
+        "aliases": [
+          "ulaanbaatar"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Pyongyang",
+        "aliases": [
+          "pyongyang"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Astana",
+        "aliases": [
+          "astana"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Tashkent",
+        "aliases": [
+          "tashkent"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Ashgabat",
+        "aliases": [
+          "ashgabat"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Dushanbe",
+        "aliases": [
+          "dushanbe"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Bishkek",
+        "aliases": [
+          "bishkek"
+        ],
+        "tier": "deep_cut",
+        "pts": 75
+      },
+      {
+        "name": "Ouagadougou",
+        "aliases": [
+          "ouagadougou"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Antananarivo",
+        "aliases": [
+          "antananarivo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Luanda",
+        "aliases": [
+          "luanda"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Windhoek",
+        "aliases": [
+          "windhoek"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Gaborone",
+        "aliases": [
+          "gaborone"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Maputo",
+        "aliases": [
+          "maputo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Dodoma",
+        "aliases": [
+          "dodoma"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Kigali",
+        "aliases": [
+          "kigali"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Bujumbura",
+        "aliases": [
+          "bujumbura"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Gitega",
+        "aliases": [
+          "gitega"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Kinshasa",
+        "aliases": [
+          "kinshasa"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Brazzaville",
+        "aliases": [
+          "brazzaville"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Libreville",
+        "aliases": [
+          "libreville"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Yaounde",
+        "aliases": [
+          "yaounde"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Bangui",
+        "aliases": [
+          "bangui"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "N'Djamena",
+        "aliases": [
+          "n'djamena"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Niamey",
+        "aliases": [
+          "niamey"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Bamako",
+        "aliases": [
+          "bamako"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Nouakchott",
+        "aliases": [
+          "nouakchott"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Dakar",
+        "aliases": [
+          "dakar"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Banjul",
+        "aliases": [
+          "banjul"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Bissau",
+        "aliases": [
+          "bissau"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Conakry",
+        "aliases": [
+          "conakry"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Freetown",
+        "aliases": [
+          "freetown"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Monrovia",
+        "aliases": [
+          "monrovia"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Yamoussoukro",
+        "aliases": [
+          "yamoussoukro"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Accra",
+        "aliases": [
+          "accra"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Lome",
+        "aliases": [
+          "lome"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Cotonou",
+        "aliases": [
+          "cotonou"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Porto-Novo",
+        "aliases": [
+          "porto-novo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Abuja",
+        "aliases": [
+          "abuja"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Malabo",
+        "aliases": [
+          "malabo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Sao Tome",
+        "aliases": [
+          "sao tome"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Asmara",
+        "aliases": [
+          "asmara"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Djibouti",
+        "aliases": [
+          "djibouti"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Mogadishu",
+        "aliases": [
+          "mogadishu"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Moroni",
+        "aliases": [
+          "moroni"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Victoria",
+        "aliases": [
+          "victoria"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Port Louis",
+        "aliases": [
+          "port louis"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Adamstown",
+        "aliases": [
+          "adamstown"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Suva",
+        "aliases": [
+          "suva"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Apia",
+        "aliases": [
+          "apia"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Nuku'Alofa",
+        "aliases": [
+          "nuku'alofa"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Port Moresby",
+        "aliases": [
+          "port moresby"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Honiara",
+        "aliases": [
+          "honiara"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Port Vila",
+        "aliases": [
+          "port vila"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Tarawa",
+        "aliases": [
+          "tarawa"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Yaren",
+        "aliases": [
+          "yaren"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Majuro",
+        "aliases": [
+          "majuro"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Palikir",
+        "aliases": [
+          "palikir"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Funafuti",
+        "aliases": [
+          "funafuti"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Belmopan",
+        "aliases": [
+          "belmopan"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Tegucigalpa",
+        "aliases": [
+          "tegucigalpa"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "San Salvador",
+        "aliases": [
+          "san salvador"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Managua",
+        "aliases": [
+          "managua"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "San Jose",
+        "aliases": [
+          "san jose"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Panama City",
+        "aliases": [
+          "panama city"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Paramaribo",
+        "aliases": [
+          "paramaribo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Georgetown",
+        "aliases": [
+          "georgetown"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Cayenne",
+        "aliases": [
+          "cayenne"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Sucre",
+        "aliases": [
+          "sucre"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "La Paz",
+        "aliases": [
+          "la paz"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Asuncion",
+        "aliases": [
+          "asuncion"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      },
+      {
+        "name": "Montevideo",
+        "aliases": [
+          "montevideo"
+        ],
+        "tier": "krillion",
+        "pts": 100
+      }
+    ]
+  }
+]

@@ -8,6 +8,9 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 import difflib
+import time
+import random
+from typing import Optional, List, Dict, Union, Any
 
 _SAFE_OPERATORS = {
     ast.Add: operator.add,
@@ -730,6 +733,491 @@ class FragranticaToggleView(discord.ui.View):
         gc.collect()
 
 
+async def _fetch_fragrantica_wardrobe(username: str) -> dict:
+    """Fetches user wardrobe and shelves from Fragrantica."""
+    clean_username = username.strip()
+    if "fragrantica.com/@" in clean_username:
+        clean_username = clean_username.split("fragrantica.com/@")[1].split("#")[0].split("/")[0].split("?")[0]
+    elif clean_username.startswith("@"):
+        clean_username = clean_username[1:]
+    clean_username = clean_username.strip()
+
+    if not clean_username:
+        return {"error": "Smiyt l user machi s7i7a."}
+
+    profile_url = f"https://www.fragrantica.com/@{clean_username}"
+
+    def _sync_fetch():
+        session = _get_fragrantica_session()
+        try:
+            resp = session.get(profile_url, timeout=15)
+            if resp.status_code == 404:
+                return {"error": f"Mal9itch chi profile b smiyt `{clean_username}` f Fragrantica."}
+            if resp.status_code != 200:
+                resp = session.get(profile_url, timeout=15)
+                if resp.status_code != 200:
+                    return {"error": f"Fragrantica rejectat request (status {resp.status_code})."}
+            html = resp.text
+
+            user_id = None
+            display_name = clean_username
+            avatar_url = None
+            sig_perfume = None
+
+            m_punbb = re.search(r':punbbdata=([\'"])(.*?)\1', html)
+            if m_punbb:
+                try:
+                    data = json.loads(m_punbb.group(2))
+                    user_id = data.get("id")
+                    display_name = data.get("username", clean_username)
+                    avatar_url = data.get("avatars", {}).get("large")
+                    sig = data.get("profile", {}).get("parfem_sig")
+                    if sig and isinstance(sig, dict):
+                        sig_perfume = f"{sig.get('naslov', '')} by {sig.get('dizajner', '')}".strip()
+                except Exception:
+                    pass
+
+            if not user_id:
+                m_id = re.search(r'"id":\s*(\d+)', html)
+                if m_id:
+                    user_id = int(m_id.group(1))
+
+            if not user_id:
+                return {"error": f"Ma 9drtch njbed l ID dyal l'user `{clean_username}`."}
+
+            timestamp = int(time.time() * 1000)
+            ajax_url = f"https://www.fragrantica.com/ajax.php?user_shelves&{timestamp}"
+            headers = {
+                "content-type": "application/x-www-form-urlencoded",
+                "referer": profile_url,
+                "x-requested-with": "XMLHttpRequest"
+            }
+            post_data = {
+                "action": "user_shelves",
+                "user_id": str(user_id)
+            }
+            ajax_resp = session.post(ajax_url, data=post_data, headers=headers, timeout=15)
+            if ajax_resp.status_code != 200:
+                return {"error": f"Erreur f chargement dyal wardrobe (status {ajax_resp.status_code})."}
+
+            raw_payload = ajax_resp.json()
+            if isinstance(raw_payload, dict) and "ct" in raw_payload:
+                decrypted = _decrypt_fragrantica_payload(raw_payload)
+            else:
+                decrypted = raw_payload
+
+            if not isinstance(decrypted, list):
+                return {"error": "Ma 9drtch n-décripti wardrobe data."}
+
+            have_shelf = None
+            want_shelf = None
+            had_shelf = None
+            custom_shelves = []
+            test_shelf = None
+
+            for s in decrypted:
+                field = s.get("field")
+                val = str(s.get("value", "")).lower()
+                s_name = s.get("name", "")
+                s_type = s.get("type")
+
+                if (field == "relation" and val == "have") or s_name == "Perfumes I Have":
+                    have_shelf = s
+                elif (field == "relation" and val == "want") or s_name == "Perfumes I Want":
+                    want_shelf = s
+                elif (field == "relation" and val == "had") or s_name == "Perfumes I Had":
+                    had_shelf = s
+                elif field == "for_test" or s_name.lower() == "for test":
+                    test_shelf = s
+                elif s_type == "custom":
+                    custom_shelves.append(s)
+
+            return {
+                "username": display_name,
+                "clean_username": clean_username,
+                "user_id": user_id,
+                "avatar_url": avatar_url,
+                "signature": sig_perfume,
+                "shelves": {
+                    "have": have_shelf or {"name": "Perfumes I Have", "perfumes": []},
+                    "want": want_shelf or {"name": "Perfumes I Want", "perfumes": []},
+                    "had": had_shelf or {"name": "Perfumes I Had", "perfumes": []},
+                    "for_test": test_shelf,
+                    "custom": custom_shelves
+                }
+            }
+        except Exception as e:
+            return {"error": f"Tra mochkil f connexion m3a Fragrantica: {e}"}
+
+    return await asyncio.to_thread(_sync_fetch)
+
+
+async def render_visual_wardrobe(
+    perfumes: list,
+    shelf_title: str,
+    username: str,
+    total_count: int,
+    page_num: int = 1,
+    total_pages: int = 1,
+    session: aiohttp.ClientSession = None
+) -> io.BytesIO:
+    """Renders a stunning dark luxury shelf graphic showcasing perfume bottles."""
+    if not perfumes:
+        return None
+
+    async def _fetch_bottle_data(p_id):
+        try:
+            url = f"https://fimgs.net/mdimg/perfume/375x500.{p_id}.jpg"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            if session:
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=6)) as resp:
+                    if resp.status == 200:
+                        return await resp.read()
+            else:
+                async with aiohttp.ClientSession() as temp_sess:
+                    async with temp_sess.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=6)) as resp:
+                        if resp.status == 200:
+                            return await resp.read()
+        except Exception:
+            pass
+        return None
+
+    tasks = [_fetch_bottle_data(p.get("id")) for p in perfumes]
+    img_data_list = await asyncio.gather(*tasks)
+
+    def _render():
+        shelves_per_row = 8
+        bottle_w = 85
+        bottle_h = 130
+        row_height = 165
+        padding_x = 28
+        header_height = 70
+
+        total_on_page = len(perfumes)
+        rows_count = (total_on_page + shelves_per_row - 1) // shelves_per_row
+        if rows_count == 0:
+            rows_count = 1
+
+        width = padding_x * 2 + shelves_per_row * (bottle_w + 12) - 12
+        height = header_height + rows_count * row_height + 25
+
+        canvas = Image.new("RGBA", (width, height), (14, 14, 17, 255))
+        draw = ImageDraw.Draw(canvas)
+
+        try:
+            title_font = ImageFont.truetype("arialbd.ttf", 20)
+            badge_font = ImageFont.truetype("arialbd.ttf", 13)
+            sub_font = ImageFont.truetype("arial.ttf", 12)
+        except Exception:
+            title_font = ImageFont.load_default()
+            badge_font = ImageFont.load_default()
+            sub_font = ImageFont.load_default()
+
+        # Rounded container border
+        draw.rounded_rectangle([(4, 4), (width - 4, height - 4)], radius=12, outline=(34, 34, 42), width=1)
+
+        # Title & Badge
+        draw.text((padding_x, 18), shelf_title, fill=(245, 245, 250), font=title_font)
+        bbox = draw.textbbox((padding_x, 18), shelf_title, font=title_font)
+        title_right = bbox[2]
+
+        badge_text = str(total_count)
+        b_bbox = draw.textbbox((0, 0), badge_text, font=badge_font)
+        badge_w = (b_bbox[2] - b_bbox[0]) + 16
+        badge_h = 22
+        badge_x = title_right + 12
+        badge_y = 19
+        draw.rounded_rectangle([(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)], radius=10, fill=(35, 35, 44))
+        draw.text((badge_x + 8, badge_y + 3), badge_text, fill=(185, 185, 195), font=badge_font)
+
+        # Subtitle
+        sub_text = f"@{username} • Fragrantica Wardrobe"
+        if total_pages > 1:
+            sub_text += f" • Page {page_num}/{total_pages}"
+        draw.text((padding_x, 46), sub_text, fill=(125, 125, 138), font=sub_font)
+
+        # Draw shelves and bottles
+        for row_idx in range(rows_count):
+            shelf_y = header_height + (row_idx + 1) * row_height - 18
+
+            # Sleek shelf bar
+            draw.line([(padding_x - 10, shelf_y), (width - padding_x + 10, shelf_y)], fill=(55, 55, 65), width=2)
+            draw.line([(padding_x - 10, shelf_y + 2), (width - padding_x + 10, shelf_y + 2)], fill=(25, 25, 30), width=2)
+
+            row_items = img_data_list[row_idx * shelves_per_row : (row_idx + 1) * shelves_per_row]
+            for col_idx, b_data in enumerate(row_items):
+                if not b_data:
+                    continue
+                try:
+                    b_img = Image.open(io.BytesIO(b_data)).convert("RGBA")
+                    # Make white background transparent
+                    datas = b_img.getdata()
+                    new_data = []
+                    for item in datas:
+                        if item[0] >= 242 and item[1] >= 242 and item[2] >= 242:
+                            new_data.append((0, 0, 0, 0))
+                        else:
+                            new_data.append(item)
+                    b_img.putdata(new_data)
+
+                    b_img.thumbnail((bottle_w, bottle_h), Image.Resampling.LANCZOS)
+
+                    x = padding_x + col_idx * (bottle_w + 12) + (bottle_w - b_img.width) // 2
+                    y = shelf_y - b_img.height
+
+                    canvas.paste(b_img, (x, y), b_img)
+                except Exception:
+                    pass
+
+        buf = io.BytesIO()
+        canvas.save(buf, format="PNG")
+        buf.seek(0)
+        return buf
+
+    return await asyncio.to_thread(_render)
+
+
+class FragranticaWardrobeView(discord.ui.View):
+    def __init__(
+        self,
+        author_id: int,
+        username: str,
+        clean_username: str,
+        avatar_url: Optional[str],
+        signature: Optional[str],
+        available_shelves: dict,
+        session: aiohttp.ClientSession,
+        initial_shelf_key: str = "have"
+    ):
+        super().__init__(timeout=120)
+        self.author_id = author_id
+        self.username = username
+        self.clean_username = clean_username
+        self.avatar_url = avatar_url
+        self.signature = signature
+        self.available_shelves = available_shelves
+        self.session = session
+        self.current_shelf_key = initial_shelf_key if initial_shelf_key in available_shelves else (list(available_shelves.keys())[0] if available_shelves else "have")
+        self.view_mode = "shelf"  # "shelf" or "list"
+        self.page = 0
+        self.cached_shelf_images = {}
+        self.message = None
+
+        if len(self.available_shelves) > 1:
+            options = []
+            for k, shelf in self.available_shelves.items():
+                s_name = shelf.get("name", "Shelf")
+                p_count = len(shelf.get("perfumes", []))
+                emoji = "🧴" if k == "have" else ("💭" if k == "want" else ("📦" if k == "had" else "⭐"))
+                options.append(discord.SelectOption(
+                    label=s_name[:100],
+                    value=k,
+                    description=f"{p_count} perfumes",
+                    emoji=emoji,
+                    default=(k == self.current_shelf_key)
+                ))
+
+            select = discord.ui.Select(
+                placeholder="Khter Shelf mn l Wardrobe...",
+                options=options[:25],
+                row=0
+            )
+            select.callback = self.on_shelf_select
+            self.add_item(select)
+            self.shelf_select = select
+        else:
+            self.shelf_select = None
+
+        self._update_buttons()
+
+    def _get_current_shelf(self):
+        return self.available_shelves.get(self.current_shelf_key, {"name": "Perfumes I Have", "perfumes": []})
+
+    def _get_max_pages(self):
+        perfumes = self._get_current_shelf().get("perfumes", [])
+        page_size = 24 if self.view_mode == "shelf" else 10
+        return max(1, (len(perfumes) + page_size - 1) // page_size)
+
+    def _update_buttons(self):
+        max_pages = self._get_max_pages()
+        self.prev_btn.disabled = (self.page <= 0)
+        self.next_btn.disabled = (self.page >= max_pages - 1)
+        self.page_indicator_btn.label = f"{self.page + 1}/{max_pages}"
+
+        if self.view_mode == "shelf":
+            self.toggle_view_btn.label = "List View"
+            self.toggle_view_btn.emoji = "📋"
+        else:
+            self.toggle_view_btn.label = "Shelf View"
+            self.toggle_view_btn.emoji = "🖼️"
+
+        current_perfumes = self._get_current_shelf().get("perfumes", [])
+        self.pick_btn.disabled = (len(current_perfumes) == 0)
+
+        if self.shelf_select:
+            for opt in self.shelf_select.options:
+                opt.default = (opt.value == self.current_shelf_key)
+
+    async def build_embed_and_file(self):
+        shelf = self._get_current_shelf()
+        shelf_name = shelf.get("name", "Wardrobe")
+        perfumes = shelf.get("perfumes", [])
+        max_pages = self._get_max_pages()
+        self.page = min(self.page, max_pages - 1)
+
+        embed = discord.Embed(
+            title=f"🏺 {self.username}'s Wardrobe — {shelf_name}",
+            url=f"https://www.fragrantica.com/@{self.clean_username}#wardrobe",
+            color=0x000000
+        )
+        if self.avatar_url:
+            embed.set_thumbnail(url=self.avatar_url)
+
+        if self.signature:
+            embed.add_field(name="⭐ Signature", value=self.signature, inline=True)
+        embed.add_field(name="🧴 Fragrances", value=f"{len(perfumes)} perfumes", inline=True)
+
+        file = None
+        if self.view_mode == "shelf":
+            page_size = 24
+            start_idx = self.page * page_size
+            page_perfumes = perfumes[start_idx : start_idx + page_size]
+
+            cache_key = (self.current_shelf_key, self.page)
+            if cache_key in self.cached_shelf_images:
+                img_bytes = self.cached_shelf_images[cache_key]
+            else:
+                img_buf = await render_visual_wardrobe(
+                    page_perfumes,
+                    shelf_name,
+                    self.username,
+                    len(perfumes),
+                    page_num=self.page + 1,
+                    total_pages=max_pages,
+                    session=self.session
+                )
+                if img_buf:
+                    img_bytes = img_buf.getvalue()
+                    img_buf.close()
+                    self.cached_shelf_images[cache_key] = img_bytes
+                else:
+                    img_bytes = None
+
+            if img_bytes:
+                file = discord.File(io.BytesIO(img_bytes), filename="wardrobe.png")
+                embed.set_image(url="attachment://wardrobe.png")
+            elif not perfumes:
+                embed.description = "*(Had l shelf khawi - 0 perfumes)*"
+
+            embed.set_footer(text=f"Fragrantica Wardrobe • Page {self.page + 1}/{max_pages} • Shelf View")
+        else:
+            page_size = 10
+            start_idx = self.page * page_size
+            page_perfumes = perfumes[start_idx : start_idx + page_size]
+
+            if not page_perfumes:
+                embed.description = "*(Had l shelf khawi - 0 perfumes)*"
+            else:
+                lines = []
+                for idx, p in enumerate(page_perfumes, start=start_idx + 1):
+                    p_name = p.get('naslov', 'Perfume')
+                    brand = p.get('dizajner', '')
+                    p_url = f"https://www.fragrantica.com{p.get('url', '')}" if p.get('url') else ""
+                    year = f" ({p.get('godina')})" if p.get('godina') else ""
+                    if p_url:
+                        lines.append(f"**{idx}.** [{p_name}]({p_url})\n↳ *{brand}*{year}")
+                    else:
+                        lines.append(f"**{idx}.** {p_name}\n↳ *{brand}*{year}")
+                embed.description = "\n\n".join(lines)
+
+            embed.set_footer(text=f"Fragrantica Wardrobe • Page {self.page + 1}/{max_pages} • List View")
+
+        return embed, file
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("Had l button machy ta3k.", ephemeral=True)
+            return False
+        return True
+
+    async def on_shelf_select(self, interaction: discord.Interaction):
+        select = interaction.data.get("values", [None])[0]
+        if select and select in self.available_shelves:
+            self.current_shelf_key = select
+            self.page = 0
+            self._update_buttons()
+            embed, file = await self.build_embed_and_file()
+            files = [file] if file else []
+            await interaction.response.edit_message(embed=embed, attachments=files, view=self)
+
+    @discord.ui.button(emoji="◀️", style=discord.ButtonStyle.secondary, row=1)
+    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.page > 0:
+            self.page -= 1
+            self._update_buttons()
+            embed, file = await self.build_embed_and_file()
+            files = [file] if file else []
+            await interaction.response.edit_message(embed=embed, attachments=files, view=self)
+
+    @discord.ui.button(label="1/1", style=discord.ButtonStyle.secondary, disabled=True, row=1)
+    async def page_indicator_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pass
+
+    @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.secondary, row=1)
+    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.page < self._get_max_pages() - 1:
+            self.page += 1
+            self._update_buttons()
+            embed, file = await self.build_embed_and_file()
+            files = [file] if file else []
+            await interaction.response.edit_message(embed=embed, attachments=files, view=self)
+
+    @discord.ui.button(label="List View", emoji="📋", style=discord.ButtonStyle.primary, row=1)
+    async def toggle_view_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.view_mode = "list" if self.view_mode == "shelf" else "shelf"
+        self.page = 0
+        self._update_buttons()
+        embed, file = await self.build_embed_and_file()
+        files = [file] if file else []
+        await interaction.response.edit_message(embed=embed, attachments=files, view=self)
+
+    @discord.ui.button(label="Pick for Me", emoji="🎲", style=discord.ButtonStyle.success, row=1)
+    async def pick_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        perfumes = self._get_current_shelf().get("perfumes", [])
+        if not perfumes:
+            return await interaction.response.send_message("Had l shelf khawi, ma3ndich chno n3zel!", ephemeral=True)
+
+        chosen = random.choice(perfumes)
+        title = chosen.get("naslov", "Perfume")
+        brand = chosen.get("dizajner", "Unknown Brand")
+        p_url = f"https://www.fragrantica.com{chosen.get('url', '')}" if chosen.get('url') else ""
+        year = chosen.get("godina")
+        year_str = f" ({year})" if year else ""
+        bottle_img = f"https://fimgs.net/mdimg/perfume/375x500.{chosen.get('id')}.jpg"
+
+        pick_embed = discord.Embed(
+            title="🎲 Fragrantica Pick For You",
+            description=f"Lyouma ste3mel:\n### 🧴 [{title}]({p_url})\n🏢 **{brand}**{year_str}",
+            color=0x000000
+        )
+        pick_embed.set_thumbnail(url=bottle_img)
+        shelf_name = self._get_current_shelf().get("name", "Wardrobe")
+        pick_embed.set_footer(text=f"Picked from {shelf_name} • @{self.username}")
+        await interaction.response.send_message(embed=pick_embed)
+
+    async def on_timeout(self):
+        for child in self.children:
+            if isinstance(child, (discord.ui.Button, discord.ui.Select)):
+                child.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+        self.cached_shelf_images.clear()
+        gc.collect()
+
+
 class GlobUtil(commands.Cog, name="Global Util"):
     def __init__(self, bot):
         self.bot = bot
@@ -748,6 +1236,8 @@ class GlobUtil(commands.Cog, name="Global Util"):
         async with self.bot.db.execute("CREATE TABLE IF NOT EXISTS reminders (user_id INTEGER, channel_id INTEGER, reminder_text TEXT, end_time INTEGER)"):
             await self.bot.db.commit()
         async with self.bot.db.execute("CREATE INDEX IF NOT EXISTS idx_reminders_end_time ON reminders (end_time)"):
+            await self.bot.db.commit()
+        async with self.bot.db.execute("CREATE TABLE IF NOT EXISTS user_fragrantica (user_id INTEGER PRIMARY KEY, fragrantica_username TEXT)"):
             await self.bot.db.commit()
 
     @commands.command(name="makegif", aliases=["togif"], help="3tini video nreddo GIF.")
@@ -1837,18 +2327,7 @@ class GlobUtil(commands.Cog, name="Global Util"):
                     await wait.edit(content=f"🎬 **Twitter Video:**\n{fixupx_url}", embed=None)
                     return
 
-            # 3. Instagram Handler (Direct embed proxy -> zero RAM & Discord renders native player)
-            ig_match = re.search(r'instagram\.com/(?:p|reel|reels|tv)/([^/?#]+)', url, re.I)
-            if ig_match:
-                shortcode = ig_match.group(1)
-                # Discord embeds eeinstagram.com directly with native playable video
-                ez_url = f"https://eeinstagram.com/reel/{shortcode}/"
-                view = discord.ui.View()
-                view.add_item(discord.ui.Button(label="📸 Ouvrir f Instagram", url=url, style=discord.ButtonStyle.link))
-                await wait.edit(content=f"🎬 **Instagram Reel:**\n{ez_url}", embed=None, view=view)
-                return
-
-            # 4. YouTube Shorts & Generic Fallback (Controlled yt-dlp with low memory buffer)
+            # 3. YouTube Shorts, Instagram & Generic Fallback (Controlled yt-dlp with low memory buffer)
             import sys
             cmd = [
                 sys.executable, "-m", "yt_dlp",
@@ -1892,7 +2371,10 @@ class GlobUtil(commands.Cog, name="Global Util"):
             if downloaded_file and os.path.exists(downloaded_file):
                 file_size = os.path.getsize(downloaded_file)
                 if file_size <= 25 * 1024 * 1024:
-                    await ctx.send(file=discord.File(downloaded_file))
+                    view = discord.ui.View()
+                    btn_label = "📸 Ouvrir f Instagram" if "instagram.com" in url else "🔗 Source Link"
+                    view.add_item(discord.ui.Button(label=btn_label, url=url, style=discord.ButtonStyle.link))
+                    await ctx.send(file=discord.File(downloaded_file), view=view)
                     await wait.delete()
                 else:
                     await wait.edit(embed=discord.Embed(description="L'file kber mn 25MB. Man9edch nsifto f Discord.", color=0x000000))
@@ -3633,6 +4115,139 @@ class GlobUtil(commands.Cog, name="Global Util"):
 
         # Explicit RAM cleanup
         gc.collect()
+
+    @commands.group(name="wardrobe", invoke_without_command=True, aliases=["closet", "collection", "shelf", "shelves"], help="Chof l wardrobe dyal Fragrantica.")
+    async def wardrobe(self, ctx: commands.Context, *, target: str = None):
+        fragrantica_user = None
+
+        if target:
+            target_str = target.strip()
+            target_user_id = None
+            if ctx.message.mentions:
+                target_user_id = ctx.message.mentions[0].id
+            else:
+                m_digits = re.fullmatch(r'<@!?(\d+)>|(\d{17,20})', target_str)
+                if m_digits:
+                    target_user_id = int(m_digits.group(1) or m_digits.group(2))
+
+            if target_user_id:
+                async with self.bot.db.execute("SELECT fragrantica_username FROM user_fragrantica WHERE user_id = ?", (target_user_id,)) as cursor:
+                    row = await cursor.fetchone()
+                    if row and row[0]:
+                        fragrantica_user = row[0]
+                    else:
+                        return await ctx.send(embed=discord.Embed(
+                            description="❌ Had l user ma linkach l'account dyalo f Fragrantica.",
+                            color=0x000000
+                        ))
+            else:
+                fragrantica_user = target_str
+        else:
+            async with self.bot.db.execute("SELECT fragrantica_username FROM user_fragrantica WHERE user_id = ?", (ctx.author.id,)) as cursor:
+                row = await cursor.fetchone()
+                if row and row[0]:
+                    fragrantica_user = row[0]
+
+        if not fragrantica_user:
+            help_embed = discord.Embed(
+                title="🏺 Fragrantica Wardrobe",
+                description=(
+                    "Kteb l username dyalk f Fragrantica wla link:\n\n"
+                    "• `sat wardrobe <username>` (Example: `sat wardrobe activif`)\n"
+                    "• `sat wardrobe <link>` (Example: `sat wardrobe https://www.fragrantica.com/@activif#wardrobe`)\n\n"
+                    "💡 **Bghiti tlinki profile dyalk m3a Discord?**\n"
+                    "Kteb: `sat wardrobe link <username>`"
+                ),
+                color=0x000000
+            )
+            return await ctx.send(embed=help_embed)
+
+        status_msg = await ctx.send(embed=discord.Embed(description="Sber 3lia kanjib l wardrobe mn Fragrantica...", color=0x000000))
+
+        data = await _fetch_fragrantica_wardrobe(fragrantica_user)
+        if "error" in data:
+            return await status_msg.edit(embed=discord.Embed(description=f"❌ {data['error']}", color=0x000000))
+
+        shelves_data = data.get("shelves", {})
+        available_shelves = {}
+
+        have_shelf = shelves_data.get("have")
+        if have_shelf:
+            available_shelves["have"] = have_shelf
+
+        want_shelf = shelves_data.get("want")
+        if want_shelf and want_shelf.get("perfumes"):
+            available_shelves["want"] = want_shelf
+
+        had_shelf = shelves_data.get("had")
+        if had_shelf and had_shelf.get("perfumes"):
+            available_shelves["had"] = had_shelf
+
+        custom_shelves = shelves_data.get("custom", [])
+        for idx, cs in enumerate(custom_shelves):
+            if cs.get("perfumes"):
+                available_shelves[f"custom_{idx}"] = cs
+
+        if not available_shelves:
+            available_shelves["have"] = {"name": "Perfumes I Have", "perfumes": []}
+
+        view = FragranticaWardrobeView(
+            author_id=ctx.author.id,
+            username=data.get("username", fragrantica_user),
+            clean_username=data.get("clean_username", fragrantica_user),
+            avatar_url=data.get("avatar_url"),
+            signature=data.get("signature"),
+            available_shelves=available_shelves,
+            session=self.bot.session,
+            initial_shelf_key="have"
+        )
+
+        embed, file = await view.build_embed_and_file()
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+
+        sent_msg = await ctx.send(embed=embed, file=file if file else discord.utils.MISSING, view=view)
+        view.message = sent_msg
+        gc.collect()
+
+    @wardrobe.command(name="link", aliases=["set", "login"], help="Linki l account dyalk f Fragrantica.")
+    async def wardrobe_link(self, ctx: commands.Context, *, username: str = None):
+        if not username:
+            return await ctx.send(embed=discord.Embed(description="❌ Kteb smiyt l username: `sat wardrobe link <username>`", color=0x000000))
+
+        clean = username.strip()
+        if "fragrantica.com/@" in clean:
+            clean = clean.split("fragrantica.com/@")[1].split("#")[0].split("/")[0].split("?")[0]
+        elif clean.startswith("@"):
+            clean = clean[1:]
+        clean = clean.strip()
+
+        status_msg = await ctx.send(embed=discord.Embed(description=f"Kanchof wach l'account `{clean}` kayn f Fragrantica...", color=0x000000))
+        data = await _fetch_fragrantica_wardrobe(clean)
+        if "error" in data:
+            return await status_msg.edit(embed=discord.Embed(description=f"❌ {data['error']}", color=0x000000))
+
+        await self.bot.db.execute("INSERT OR REPLACE INTO user_fragrantica (user_id, fragrantica_username) VALUES (?, ?)", (ctx.author.id, clean))
+        if hasattr(self.bot.db, 'commit'):
+            await self.bot.db.commit()
+
+        success_embed = discord.Embed(
+            title="✅ Fragrantica Account Linked!",
+            description=f"Safi linkiti discord ta3k m3a **[{data['username']}](https://www.fragrantica.com/@{clean})**!\nDir `sat wardrobe` bach tchouf l collection ta3k.",
+            color=0x000000
+        )
+        if data.get("avatar_url"):
+            success_embed.set_thumbnail(url=data["avatar_url"])
+        await status_msg.edit(embed=success_embed)
+
+    @wardrobe.command(name="unlink", aliases=["clear", "remove", "logout"], help="Mse7 l link dyal Fragrantica.")
+    async def wardrobe_unlink(self, ctx: commands.Context):
+        await self.bot.db.execute("DELETE FROM user_fragrantica WHERE user_id = ?", (ctx.author.id,))
+        if hasattr(self.bot.db, 'commit'):
+            await self.bot.db.commit()
+        await ctx.send(embed=discord.Embed(description="✅ Safi ta compte Fragrantica mamlinki m3a discord ta3k db.", color=0x000000))
 
 
 async def setup(bot):

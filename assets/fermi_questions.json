@@ -1,0 +1,152 @@
+[
+  {
+    "question": "How many commercial airline flights take off worldwide every single day?",
+    "answer": 100000,
+    "unit": "flights",
+    "explanation": "Global aviation operates approximately 100,000 to 120,000 commercial passenger and cargo flights daily."
+  },
+  {
+    "question": "How many liters of water are in an official Olympic-size swimming pool?",
+    "answer": 2500000,
+    "unit": "liters",
+    "explanation": "An Olympic pool measures 50m \u00d7 25m \u00d7 2m = 2,500 cubic meters, which equals 2,500,000 liters."
+  },
+  {
+    "question": "How many heartbeats does an average human heart beat in a 75-year lifetime?",
+    "answer": 2800000000,
+    "unit": "beats",
+    "explanation": "At ~70 beats per minute: 70 \u00d7 60 \u00d7 24 \u00d7 365.25 \u00d7 75 \u2248 2.76 billion heartbeats."
+  },
+  {
+    "question": "How many kilometers of blood vessels are inside an adult human body?",
+    "answer": 100000,
+    "unit": "km",
+    "explanation": "Laid end-to-end, the network of arteries, veins, and capillaries extends roughly 100,000 km (over 2.5 times around Earth!)."
+  },
+  {
+    "question": "How many Google search queries are processed worldwide every second?",
+    "answer": 99000,
+    "unit": "searches/sec",
+    "explanation": "Google processes approximately 8.5 billion searches per day, which works out to ~99,000 searches per second."
+  },
+  {
+    "question": "How many slices of pizza are eaten in the United States every single day?",
+    "answer": 40000000,
+    "unit": "slices",
+    "explanation": "Americans consume about 3 billion pizzas per year, which equates to roughly 40 million slices eaten daily."
+  },
+  {
+    "question": "How many tennis balls can fit inside an empty standard American yellow school bus?",
+    "answer": 350000,
+    "unit": "tennis balls",
+    "explanation": "A school bus has ~35-40 cubic meters of usable interior volume; accounting for packing efficiency (~64%), around 350,000 balls fit."
+  },
+  {
+    "question": "How many hours of video are uploaded to YouTube every minute?",
+    "answer": 500,
+    "unit": "hours",
+    "explanation": "Creators upload over 500 hours of new video content to YouTube every 60 seconds (720,000 hours per day)."
+  },
+  {
+    "question": "How many standard LEGO bricks are produced globally each year?",
+    "answer": 36000000000,
+    "unit": "bricks",
+    "explanation": "The LEGO Group manufactures roughly 36 billion plastic elements annually (~1,140 bricks per second)."
+  },
+  {
+    "question": "How many red blood cells does a human body produce every second?",
+    "answer": 2500000,
+    "unit": "cells/sec",
+    "explanation": "Bone marrow produces approximately 2 million to 3 million new erythrocytes every second to replace aging cells."
+  },
+  {
+    "question": "How many kilometers is the distance from the Earth to the Moon?",
+    "answer": 384400,
+    "unit": "km",
+    "explanation": "The average orbital distance between the center of Earth and the Moon is 384,400 km."
+  },
+  {
+    "question": "How many blades of grass are on a standard FIFA regulation football pitch?",
+    "answer": 500000000,
+    "unit": "blades",
+    "explanation": "A pitch is ~7,140 m\u00b2; with about 70,000 blades of grass per square meter, that is roughly 500 million blades."
+  },
+  {
+    "question": "How many active satellites are currently orbiting the Earth?",
+    "answer": 10000,
+    "unit": "satellites",
+    "explanation": "Boosted by large constellations like Starlink, there are over 9,500 to 10,000 active operational satellites in orbit."
+  },
+  {
+    "question": "How many meters high is Mount Everest above sea level?",
+    "answer": 8849,
+    "unit": "meters",
+    "explanation": "The official agreed height of Mount Everest is 8,848.86 meters."
+  },
+  {
+    "question": "How many kilograms does an adult blue whale weigh on average?",
+    "answer": 140000,
+    "unit": "kg",
+    "explanation": "Adult blue whales typically weigh between 130,000 kg and 150,000 kg (up to 190,000 kg for the largest females)."
+  },
+  {
+    "question": "How many kilometers per hour is the speed of sound at sea level (20\u00b0C in air)?",
+    "answer": 1235,
+    "unit": "km/h",
+    "explanation": "The speed of sound in dry air at 20\u00b0C is ~343 m/s, which converts to 1,234.8 km/h."
+  },
+  {
+    "question": "How many neurons are estimated to be inside the human brain?",
+    "answer": 86000000000,
+    "unit": "neurons",
+    "explanation": "The adult human brain contains an estimated 86 billion neurons, plus a roughly equal number of non-neuronal glial cells."
+  },
+  {
+    "question": "How many hairs are on the average human head?",
+    "answer": 100000,
+    "unit": "hairs",
+    "explanation": "Most adults have between 90,000 and 120,000 hair follicles on their scalp."
+  },
+  {
+    "question": "How many seconds are in a 365-day calendar year?",
+    "answer": 31536000,
+    "unit": "seconds",
+    "explanation": "365 days \u00d7 24 hours \u00d7 60 minutes \u00d7 60 seconds = 31,536,000 seconds."
+  },
+  {
+    "question": "How many grains of sand are estimated to fill an average teaspoon?",
+    "answer": 25000,
+    "unit": "grains",
+    "explanation": "A standard 5 ml teaspoon packed with fine-to-medium sand holds approximately 25,000 individual grains."
+  },
+  {
+    "question": "How many letters are in the entire English language text of the Holy Bible (King James Version)?",
+    "answer": 3116480,
+    "unit": "characters",
+    "explanation": "The KJV contains 783,137 words and approximately 3.12 million total letters."
+  },
+  {
+    "question": "How many miles is the diameter of planet Earth at the equator?",
+    "answer": 7917,
+    "unit": "miles",
+    "explanation": "Earth's equatorial diameter is 12,742 kilometers, or approximately 7,917.5 miles."
+  },
+  {
+    "question": "How many people are born worldwide every single day on average?",
+    "answer": 385000,
+    "unit": "babies",
+    "explanation": "According to the UN, roughly 140 million births occur each year, averaging about 385,000 births per day."
+  },
+  {
+    "question": "How many words does an average human speak in an entire day?",
+    "answer": 16000,
+    "unit": "words",
+    "explanation": "Linguistic studies estimate that adults speak between 15,000 and 18,000 words per day on average."
+  },
+  {
+    "question": "How many steps does a person take in an average lifetime?",
+    "answer": 150000000,
+    "unit": "steps",
+    "explanation": "Walking an average of 5,000 to 6,000 steps daily over 75 years totals roughly 150 million to 160 million steps."
+  }
+]
