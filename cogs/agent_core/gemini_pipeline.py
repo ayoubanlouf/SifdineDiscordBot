@@ -113,26 +113,28 @@ async def run_agent_pipeline(
 
     # ==================== STAGE 1: PLANNER AGENT ====================
     if status_callback:
-        await status_callback(1, total_steps, "🧠 Planning architecture, mechanics & Moroccan Darija tone...")
+        await status_callback(1, total_steps, "🧠 Planning architecture according to prompt instructions...")
 
     planner_system = (
-        "You are the Lead Software Architect for 'Sifdine', a Moroccan Arabic (Darija) Discord bot built on discord.py 2.x.\n"
-        "Your task is to analyze the user request and generate a complete architectural specification in pure JSON format.\n"
-        "Guidelines:\n"
-        "- The command must be a standalone Cog.\n"
-        "- The user experience must be interactive (e.g. discord.ui.View with Buttons or Modals).\n"
-        "- Payouts must use 'TAD' currency through the bot's Economy cog if rewards apply.\n"
-        "- Responses, error messages, and win/loss notifications should be in Moroccan Darija (Arabizi/Latin script).\n"
-        "- All imports must strictly be safe Discord/Python utilities (no os, sys, subprocess, eval, exec, network scraping).\n"
+        "You are the Software Architect for 'Sifdine', a Discord bot built on discord.py 2.x.\n"
+        "Your task is to analyze the user request and generate an architectural specification in pure JSON.\n\n"
+        "CORE RULES:\n"
+        "1. STRICTLY follow the user's prompt. Do NOT add unnecessary buttons, games, or economy rewards unless the user explicitly requests them.\n"
+        "2. If the user asks for a simple response (e.g. reply with a message or text), keep the command simple and direct (no Views, no Modals, no buttons).\n"
+        "3. Only design interactive Views, Buttons, Modals, or minigame mechanics if the prompt specifies an interactive feature or game.\n"
+        "4. If economy rewards are requested, specify the TAD reward logic. If not requested, omit economy entirely.\n"
+        "5. The command must be a standalone Cog.\n"
+        "6. All Discord Embeds must strictly use black color: color=0x000000.\n"
+        "7. Response texts and messages should be in Moroccan Darija (Arabizi) unless the prompt specifies otherwise.\n\n"
         "Return ONLY a valid JSON object with keys:\n"
         "{\n"
         '  "command_name": "clean_lowercase_name",\n'
         '  "class_name": "PascalCaseCogName",\n'
         '  "description": "Short explanation",\n'
-        '  "mechanics": "Detailed game rules and progression",\n'
-        '  "ui_components": ["View with buttons", "Modal for text guess", etc],\n'
-        '  "economy_rewards": "TAD payout rules (e.g. 100 TAD for win, 20 TAD participation)",\n'
-        '  "darija_tone": "Examples of Darija phrases for start, guess, win, lose"\n'
+        '  "mechanics": "Summary of what the command does",\n'
+        '  "ui_components": "None (or list of Views/Buttons if requested)",\n'
+        '  "economy_rewards": "None (or TAD rules if requested)",\n'
+        '  "response_style": "Simple message reply / Embed / Interactive View"\n'
         "}"
     )
 
@@ -141,7 +143,6 @@ async def run_agent_pipeline(
     try:
         plan = json.loads(cleaned_plan)
     except Exception:
-        # Fallback parsing in case model adds prose around json
         json_match = re.search(r"\{[\s\S]*\}", cleaned_plan)
         if json_match:
             plan = json.loads(json_match.group(0))
@@ -157,25 +158,20 @@ async def run_agent_pipeline(
 
     coder_system = (
         "You are an expert Discord Bot Engineer writing code for 'Sifdine' (discord.py 2.x).\n"
-        "Write a complete, standalone, production-ready Python Cog module based on the architectural plan.\n"
-        "MANDATORY REQUIREMENTS:\n"
-        "1. Start with imports. ONLY use safe modules:\n"
-        "   import random, asyncio, discord\n"
-        "   from discord.ext import commands\n"
-        "   from discord.ui import View, Button, Modal, TextInput\n"
-        "   from typing import Optional, List\n"
-        "   (Optionally: cogs.economy for TAD_EMOJI, or cogs.games.helpers for game helpers)\n"
-        "2. Implement interactive games using discord.ui.View and/or discord.ui.Modal.\n"
-        "3. In Views, implement 'async def interaction_check(self, interaction: discord.Interaction) -> bool:' to ensure only the original command invoker can click buttons.\n"
-        "4. In View 'on_timeout', disable all buttons or edit the message so interactions don't dangle.\n"
-        "5. For economy payouts, hook dynamically into the Economy cog:\n"
-        "   economy_cog = self.bot.get_cog('Economy')\n"
-        "   if economy_cog:\n"
-        "       net, tax = await economy_cog.apply_tax_and_add_balance(user.id, gross_amount, context='...')\n"
-        "6. In the Cog class, define the command with @commands.command(name='...').\n"
-        "7. Include 'async def setup(bot): await bot.add_cog(...)'.\n"
-        "8. Use Moroccan Darija for user-facing texts (win, lose, attempts, errors).\n"
-        "9. NEVER import or use os, sys, subprocess, eval, exec, compile, open, socket, requests, urllib, or aiohttp.\n"
+        "Write a complete, standalone, production-ready Python Cog module strictly following the user's instructions and the plan.\n\n"
+        "GLOBAL BOT STANDARDS:\n"
+        "1. STRICT ADHERENCE: Only build what was requested. If a simple reply was asked, write a simple command (e.g. await ctx.send(...)). Do NOT add extra buttons, games, or unsolicited economy payouts.\n"
+        "2. EMBED COLORS: All Discord Embeds MUST strictly use color=0x000000 (black).\n"
+        "3. COG STRUCTURE: Must define a Cog class inheriting commands.Cog, with @commands.command(...) and 'async def setup(bot): await bot.add_cog(...)'.\n"
+        "4. SAFE IMPORTS ONLY: import discord, random, asyncio, etc. from discord.ext import commands. (Optionally discord.ui if interactive UI is requested).\n"
+        "5. CYBERSECURITY: NEVER import or use os, sys, subprocess, eval, exec, compile, open, socket, requests, urllib, or aiohttp.\n"
+        "6. INTERACTIVE COMPONENTS (Only when requested):\n"
+        "   - If using discord.ui.View, implement 'async def interaction_check' to ensure only the command author can interact.\n"
+        "   - Implement 'on_timeout' to disable components gracefully.\n"
+        "7. ECONOMY (Only when requested):\n"
+        "   - Hook dynamically: economy = self.bot.get_cog('Economy')\n"
+        "   - if economy: await economy.apply_tax_and_add_balance(user.id, amount, context='...')\n"
+        "8. LANGUAGE: Use Moroccan Darija (Arabizi) for bot dialogue/flavor unless the prompt requests otherwise.\n\n"
         "Return ONLY Python code enclosed in ```python ... ```."
     )
 

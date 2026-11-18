@@ -56,11 +56,10 @@ class AgentCog(commands.Cog, name="Agent"):
             return
 
         status_embed = discord.Embed(
-            title="🤖 Autonomous Command Pipeline",
+            title="🤖 Sifdine Agent",
             description="⚙️ Initializing multi-agent pipeline...",
             color=0x000000
         )
-        status_embed.set_footer(text="Sifdine Agentic Pipeline • Owner Authorized")
         status_msg = await ctx.send(embed=status_embed)
 
         async def update_status(step: int, total: int, text: str):
