@@ -492,6 +492,16 @@ async def load_extensions():
             except Exception as e:
                 print(f"Error loading cogs.{filename[:-3]}: {e}")
 
+    # Load agent-generated cogs if directory exists
+    agent_gen_dir = "./cogs/agent_generated"
+    if os.path.exists(agent_gen_dir):
+        for filename in os.listdir(agent_gen_dir):
+            if filename.endswith(".py") and not filename.startswith("__"):
+                try:
+                    await bot.load_extension(f"cogs.agent_generated.{filename[:-3]}")
+                except Exception as e:
+                    print(f"Error loading cogs.agent_generated.{filename[:-3]}: {e}")
+
 
 async def setup_hook():
     bot.session = aiohttp.ClientSession()
